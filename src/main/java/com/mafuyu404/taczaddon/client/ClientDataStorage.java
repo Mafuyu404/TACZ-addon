@@ -22,10 +22,15 @@ public class ClientDataStorage {
     }
 
     public static void setBackpack(String contentsUuid, ArrayList<ItemStack> backpack) {
-        backpack.forEach(itemStack -> {
+        for (int i = 0; i < backpack.size(); i++) {
+            ItemStack itemStack = backpack.get(i);
             CompoundTag nbt = itemStack.getOrCreateTag();
-            nbt.putString("backpackId", contentsUuid);
-        });
+            nbt.putString("BPindex", contentsUuid + "=>" + i);
+            itemStack.setTag(nbt);
+//            System.out.print("\n");
+//            System.out.print(itemStack.serializeNBT().toString());
+//            System.out.print("\n");
+        }
         backpacks.put(contentsUuid, backpack);
     }
     public static ArrayList<ItemStack> getBackpack(String contentsUuid) {

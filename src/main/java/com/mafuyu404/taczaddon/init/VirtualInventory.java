@@ -17,8 +17,6 @@ import java.util.Objects;
 
 public class VirtualInventory extends Inventory {
     public int playerInventorySize;
-    public HashMap<String, Integer> backpackIndex = new HashMap<>();
-    public HashMap<String, Integer> backpackSize = new HashMap<>();
     public VirtualInventory(int size, Player player) {
         super(Objects.requireNonNull(player));
         ((InventoryAccessor) this).setItems(NonNullList.withSize(size, ItemStack.EMPTY));
