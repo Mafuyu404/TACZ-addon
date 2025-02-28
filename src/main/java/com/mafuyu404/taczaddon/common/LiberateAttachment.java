@@ -33,7 +33,8 @@ public class LiberateAttachment {
             }
             return virtualInventory;
         }
-        else return AttachmentFromBackpack.useVirtualInventory(inventory);
+        else return inventory;
+//        else return AttachmentFromBackpack.useVirtualInventory(inventory);
     }
     public static void onRuleChange(MinecraftServer server, GameRules.BooleanValue value) {
         server.getPlayerList().getPlayers().forEach(player -> {

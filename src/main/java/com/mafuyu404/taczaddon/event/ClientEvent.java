@@ -2,8 +2,11 @@ package com.mafuyu404.taczaddon.event;
 
 import com.mafuyu404.taczaddon.TACZaddon;
 import com.mafuyu404.taczaddon.common.AttachmentFromBackpack;
+import com.tacz.guns.api.client.gameplay.IClientPlayerGunOperator;
+import com.tacz.guns.api.item.IAttachment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.language.I18n;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
@@ -22,8 +25,11 @@ public class ClientEvent {
     @SubscribeEvent
     public static void onClientChat(ClientChatEvent event) {
         if (event.getMessage().equals("t")) {
-            ArrayList<ItemStack> items = AttachmentFromBackpack.readAllBackpack(Minecraft.getInstance().player);
+//            ArrayList<ItemStack> items = AttachmentFromBackpack.readAllBackpack(Minecraft.getInstance().player);
             System.out.print("\n\n\n\n\n\n\n\neeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\n\n\n\n\n\n\n\n\n\n");
+            IAttachment iAttachment = IAttachment.getIAttachmentOrNull(Minecraft.getInstance().player.getMainHandItem());
+            ResourceLocation attachmentId = iAttachment.getAttachmentId(Minecraft.getInstance().player.getMainHandItem());
+            System.out.print(attachmentId.toString());
 //            backpacks.forEach((s, itemStacks) -> System.out.print(itemStacks.toString()));
         }
     }

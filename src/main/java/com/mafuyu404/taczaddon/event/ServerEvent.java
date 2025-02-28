@@ -25,10 +25,10 @@ public class ServerEvent {
     }
     @SubscribeEvent
     public static void onVirtualInventorySetItem(VirtualInventoryChangeEvent.SetItemEvent event) {
-        AttachmentFromBackpack.onAttachmentChange(event);
+//        AttachmentFromBackpack.onAttachmentChange(event);
     }
     @SubscribeEvent
     public static void onVirtualInventoryAdd(VirtualInventoryChangeEvent.AddEvent event) {
-        AttachmentFromBackpack.onAttachmentUnload(event);
+//        AttachmentFromBackpack.onAttachmentUnload(event);
     }
 }
