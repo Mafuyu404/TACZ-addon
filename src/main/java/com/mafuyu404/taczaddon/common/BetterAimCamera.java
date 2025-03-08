@@ -1,6 +1,7 @@
 package com.mafuyu404.taczaddon.common;
 
 import com.mafuyu404.taczaddon.compat.ShoulderSurfingCompat;
+import com.mafuyu404.taczaddon.init.Config;
 import com.tacz.guns.api.client.gameplay.IClientPlayerGunOperator;
 import com.tacz.guns.api.item.IGun;
 import com.tacz.guns.config.client.KeyConfig;
@@ -8,6 +9,8 @@ import net.minecraft.client.CameraType;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.InputEvent;
 import org.lwjgl.glfw.GLFW;
 
@@ -18,8 +21,10 @@ import static com.tacz.guns.util.InputExtraCheck.isInGame;
 import static net.minecraft.client.CameraType.FIRST_PERSON;
 import static net.minecraft.client.CameraType.THIRD_PERSON_BACK;
 
+@OnlyIn(Dist.CLIENT)
 public class BetterAimCamera {
     public static void handle(InputEvent.MouseButton.Post event, KeyMapping AIM_KEY) {
+        if (!Config.enableBetterAimCamera()) return;
         if (isInGame() && AIM_KEY.matchesMouse(event.getButton())) {
             LocalPlayer player = Minecraft.getInstance().player;
             if (player == null || player.isSpectator()) {

@@ -15,6 +15,7 @@ import java.util.Set;
 @Mod.EventBusSubscriber(modid = TACZaddon.MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class Config {
 
+    public static final ForgeConfigSpec.ConfigValue<Boolean> BETTER_AIM_CAMERA;
     public static final ForgeConfigSpec.ConfigValue<List<? extends String>> MELEE_WEAPON_LIST;
     private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
     public static final ForgeConfigSpec SPEC;
@@ -26,9 +27,14 @@ public class Config {
         MELEE_WEAPON_LIST = BUILDER
                 .comment("列表里的枪械会作为近战武器使用，开火将被替换为近战攻击。你可以按F3+H打开高级提示框，查看物品的GunId标签，就像示例的那样。")
                 .defineList("MeleeWeaponList",
-                        List.of("tacz:type_82", "tacz:type_83"), // 默认值
+                        List.of("tacz:type_82", "tacz:type_83"),
                         entry -> entry instanceof String
                 );
+        BUILDER.pop();
+        BUILDER.push("Camera Setting");
+        BETTER_AIM_CAMERA = BUILDER
+                .comment("开启后，如果正处于非第一人称视角，使用枪械瞄准将自动切换为第一人称，取消瞄准后切换为原视角。")
+                .define("enableBetterAimCamera", true);
         BUILDER.pop();
         SPEC = BUILDER.build();
     }
@@ -60,5 +66,8 @@ public class Config {
     // 检查当前物品是否在黑名单中
     public static boolean isItemInBlacklist(ItemStack itemStack) {
         return ITEM_BLACKLIST.contains(itemStack.getTag().getString("GunId"));
+    }
+    public static boolean enableBetterAimCamera() {
+        return BETTER_AIM_CAMERA.get();
     }
 }

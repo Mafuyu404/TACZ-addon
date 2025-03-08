@@ -31,7 +31,7 @@ FORMAT.setTimeZone(TimeZone.getTimeZone("UTC"))
 
 apply plugin: 'org.spongepowered.mixin'
 
-version = mod_version + "-" + FORMAT.format(new Date())
+version = mapping_version + "-" + mod_version + "-" + FORMAT.format(new Date())
 group = mod_group_id
 
 base {
@@ -121,14 +121,14 @@ dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
-
     implementation fg.deobf("curse.maven:timeless-and-classics-zero-1028108:6069384")
+//    implementation fg.deobf("curse.maven:timeless-and-classics-zero-1028108:5722050")
 
     implementation fg.deobf("curse.maven:shoulder-surfing-reloaded-243190:5455954")
 
-    implementation fg.deobf("curse.maven:sophisticated-core-618298:6190554")
+//    implementation fg.deobf("curse.maven:sophisticated-core-618298:6190554")
 
-    implementation fg.deobf("curse.maven:sophisticated-backpacks-422301:6178588")
+//    implementation fg.deobf("curse.maven:sophisticated-backpacks-422301:6178588")
 
 }
 

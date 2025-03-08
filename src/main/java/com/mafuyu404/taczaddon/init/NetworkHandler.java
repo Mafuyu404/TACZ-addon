@@ -23,13 +23,13 @@ public class NetworkHandler {
         int packetId = 0;
         CHANNEL.registerMessage(packetId++, PrimitivePacket.class, PrimitivePacket::encode, PrimitivePacket::decode, PrimitivePacket::handle);
         CHANNEL.registerMessage(packetId++, BackpackItemsPacket.class, BackpackItemsPacket::encode, BackpackItemsPacket::decode, BackpackItemsPacket::handle);
-        CHANNEL.registerMessage(
-                packetId++,
-                CommonMessagePacket.class,
-                CommonMessagePacket::encode,
-                CommonMessagePacket::new,
-                CommonMessagePacket::handle
-        );
+//        CHANNEL.registerMessage(
+//                packetId++,
+//                CommonMessagePacket.class,
+//                CommonMessagePacket::encode,
+//                CommonMessagePacket::new,
+//                CommonMessagePacket::handle
+//        );
     }
 
     // 发送数据包到客户端
