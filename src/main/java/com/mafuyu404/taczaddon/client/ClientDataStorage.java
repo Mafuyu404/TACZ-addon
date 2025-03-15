@@ -18,7 +18,7 @@ public class ClientDataStorage {
 //        MinecraftForge.EVENT_BUS.post(event);
     }
     public static Object get(String key) {
-        return storage.getOrDefault(key, false);
+        return storage.getOrDefault(key, null);
     }
 
     public static void setBackpack(String contentsUuid, ArrayList<ItemStack> backpack) {

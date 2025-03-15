@@ -6,7 +6,9 @@
   "refmap": "taczaddon.refmap.json",
   "mixins": [
     "ClientMessageUnloadAttachmentMixin",
+    "GunReloadCooldownMixin",
     "InventoryAccessor",
+    "LocalPlayerReloadMixin",
     "LocalPlayerShootMixin"
   ],
   "client": [

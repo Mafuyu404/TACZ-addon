@@ -16,6 +16,8 @@ import java.util.Set;
 public class Config {
 
     public static final ForgeConfigSpec.ConfigValue<Boolean> BETTER_AIM_CAMERA;
+    public static final ForgeConfigSpec.ConfigValue<Boolean> BETTER_GUNSMITHTABLE;
+    public static final ForgeConfigSpec.ConfigValue<Boolean> GUNSMITHTABLE_CRAFT_TOAST;
     public static final ForgeConfigSpec.ConfigValue<List<? extends String>> MELEE_WEAPON_LIST;
     private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
     public static final ForgeConfigSpec SPEC;
@@ -36,26 +38,31 @@ public class Config {
                 .comment("开启后，如果正处于非第一人称视角，使用枪械瞄准将自动切换为第一人称，取消瞄准后切换为原视角。")
                 .define("enableBetterAimCamera", true);
         BUILDER.pop();
+        BUILDER.push("GunSmithTable Setting");
+        BETTER_GUNSMITHTABLE = BUILDER
+                .comment("开启后，持枪与枪械工作台互动将只显示可用配件和弹药。")
+                .define("enableBetterGunSmithTable", true);
+        BUILDER.pop();
+        BUILDER.push("GunSmithTable Setting");
+        GUNSMITHTABLE_CRAFT_TOAST = BUILDER
+                .comment("开启后，在枪械工作台制造东西时会弹出相关物品提示。")
+                .define("enableBetterGunSmithTable", true);
+        BUILDER.pop();
         SPEC = BUILDER.build();
     }
 
-    // 初始化或重载配置时更新缓存
     private static void updateItemBlacklist() {
         ITEM_BLACKLIST.clear();
         for (String itemId : MELEE_WEAPON_LIST.get()) {
             ITEM_BLACKLIST.add(new ResourceLocation(itemId).toString());
         }
     }
-
-    // 监听配置加载事件
     @SubscribeEvent
     public static void onConfigLoad(ModConfigEvent.Loading event) {
         if (event.getConfig().getSpec() == SPEC) {
             updateItemBlacklist();
         }
     }
-
-    // 监听配置热重载事件
     @SubscribeEvent
     public static void onConfigReload(ModConfigEvent.Reloading event) {
         if (event.getConfig().getSpec() == SPEC) {
@@ -63,11 +70,16 @@ public class Config {
         }
     }
 
-    // 检查当前物品是否在黑名单中
     public static boolean isItemInBlacklist(ItemStack itemStack) {
         return ITEM_BLACKLIST.contains(itemStack.getTag().getString("GunId"));
     }
     public static boolean enableBetterAimCamera() {
         return BETTER_AIM_CAMERA.get();
+    }
+    public static boolean enableBetterGunSmithTable() {
+        return BETTER_GUNSMITHTABLE.get();
+    }
+    public static boolean enableGunSmithTableCraftToast() {
+        return GUNSMITHTABLE_CRAFT_TOAST.get();
     }
 }
