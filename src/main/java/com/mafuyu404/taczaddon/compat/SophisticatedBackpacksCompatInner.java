@@ -28,7 +28,7 @@ public class SophisticatedBackpacksCompatInner {
 //                        items.add(item);
 //                    }
 ////                    String contentsUuid = Arrays.toString(itemStack.getTag().getIntArray("contentsUuid"));
-////                    ArrayList<ItemStack> backpack = ClientDataStorage.getBackpack(contentsUuid);
+////                    ArrayList<ItemStack> backpack = DataStorage.getBackpack(contentsUuid);
 ////                    items.addAll(backpack);
 //                }
 //            }

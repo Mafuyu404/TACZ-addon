@@ -1,7 +1,6 @@
 package com.mafuyu404.taczaddon.network;
 
-import com.mafuyu404.taczaddon.client.ClientDataStorage;
-import net.minecraft.nbt.CompoundTag;
+import com.mafuyu404.taczaddon.init.DataStorage;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.network.NetworkEvent;
@@ -35,7 +34,7 @@ public class BackpackItemsPacket {
 
     public static void handle(BackpackItemsPacket msg, Supplier<NetworkEvent.Context> ctx) {
         ctx.get().enqueueWork(() -> {
-            ClientDataStorage.setBackpack(msg.contentsUuid, msg.backpack);
+            DataStorage.setBackpack(msg.contentsUuid, msg.backpack);
         });
         ctx.get().setPacketHandled(true);
     }

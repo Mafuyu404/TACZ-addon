@@ -1,9 +1,10 @@
 package com.mafuyu404.taczaddon.mixin;
 
-import com.mafuyu404.taczaddon.client.ClientDataStorage;
+import com.mafuyu404.taczaddon.init.DataStorage;
 import com.mafuyu404.taczaddon.common.BetterGunSmithTable;
 import com.mafuyu404.taczaddon.init.Config;
 import com.mafuyu404.taczaddon.init.ItemIconToast;
+import com.mafuyu404.taczaddon.init.VirtualInventory;
 import com.tacz.guns.api.item.IGun;
 import com.tacz.guns.client.gui.GunSmithTableScreen;
 import com.tacz.guns.crafting.GunSmithTableRecipe;
@@ -11,6 +12,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Final;
@@ -46,7 +48,6 @@ public abstract class GunSmithTableScreenMixin {
     @Shadow @Nullable protected abstract GunSmithTableRecipe getSelectedRecipe(ResourceLocation recipeId);
 
     @Shadow private int typePage;
-    private String storedType = "ammo";
 
     @ModifyVariable(method = "classifyRecipes", at = @At("STORE"), ordinal = 0)
     private ResourceLocation readId(ResourceLocation id) {
@@ -61,6 +62,7 @@ public abstract class GunSmithTableScreenMixin {
     @ModifyVariable(method = "addTypeButtons", at = @At("STORE"), ordinal = 1)
     private int filterType(int typeIndex) {
 //        return BetterGunSmithTable.filterType(typeIndex, this.recipeKeys, this.recipes);
+        if (!Config.enableBetterGunSmithTable()) return typeIndex;
         Player player = Minecraft.getInstance().player;
         ItemStack gunItem = player.getOffhandItem();
         if (IGun.getIGunOrNull(player.getMainHandItem()) != null) gunItem = player.getMainHandItem();
@@ -87,41 +89,53 @@ public abstract class GunSmithTableScreenMixin {
     }
 
     @Inject(method = "init", at = @At("HEAD"))
-    private void bbb(CallbackInfo ci) {
-        ClientDataStorage.set("BetterGunSmithTable.storedType", this.selectedType);
-        ClientDataStorage.set("BetterGunSmithTable.storedTypePage", this.typePage);
-        ClientDataStorage.set("BetterGunSmithTable.storedIndexPage", this.indexPage);
+    private void onScreenChanged(CallbackInfo ci) {
+        DataStorage.set("BetterGunSmithTable.storedType", this.selectedType);
+        DataStorage.set("BetterGunSmithTable.storedTypePage", this.typePage);
+        DataStorage.set("BetterGunSmithTable.storedIndexPage", this.indexPage);
+        DataStorage.set("BetterGunSmithTable.storedRecipe", this.selectedRecipe);
     }
 
     @Inject(method = "<init>", at = @At("RETURN"))
-    private void bbc(CallbackInfo ci) {
-        if (ClientDataStorage.get("BetterGunSmithTable.storedType") == null) ClientDataStorage.set("BetterGunSmithTable.storedType", "ammo");
-        if (ClientDataStorage.get("BetterGunSmithTable.storedTypePage") == null) ClientDataStorage.set("BetterGunSmithTable.storedTypePage", 0);
-        if (ClientDataStorage.get("BetterGunSmithTable.storedIndexPage") == null) ClientDataStorage.set("BetterGunSmithTable.storedIndexPage", 0);
-        final String[] storedType = {(String) ClientDataStorage.get("BetterGunSmithTable.storedType")};
-        int storedTypePage = (int) ClientDataStorage.get("BetterGunSmithTable.storedTypePage");
-        int storedIndexPage = (int) ClientDataStorage.get("BetterGunSmithTable.storedIndexPage");
-//        System.out.print("\n\n");
-//        System.out.print(storedIndexPage);
-//        System.out.print("\n\n");
-        if (this.recipes.get(storedType[0]).isEmpty()) {
-            this.recipes.forEach((s, resourceLocations) -> {
-                if (this.recipes.get(storedType[0]).isEmpty() && !resourceLocations.isEmpty()) {
-                    storedType[0] = s;
-                }
-            });
-        }
-        this.selectedType = storedType[0];
+    private void onScreenLoad(CallbackInfo ci) {
+        if (!Config.enableGunSmithTableMemory()) return;
+
+        if (DataStorage.get("BetterGunSmithTable.storedTypePage") == null) DataStorage.set("BetterGunSmithTable.storedTypePage", 0);
+        int storedTypePage = (int) DataStorage.get("BetterGunSmithTable.storedTypePage");
+
+        if (DataStorage.get("BetterGunSmithTable.storedType") == null) DataStorage.set("BetterGunSmithTable.storedType", "ammo");
+        final String[] storedType = {(String) DataStorage.get("BetterGunSmithTable.storedType")};
+
+        final int[] showTypeCount = {0};
+        this.recipes.forEach((type, recipes) -> {
+            if (!recipes.isEmpty()) {
+                showTypeCount[0]++;
+                if (this.recipes.get(storedType[0]).isEmpty()) storedType[0] = type;
+            }
+        });
         this.selectedRecipeList = this.recipes.get(storedType[0]);
+        if (showTypeCount[0] < 8)  storedTypePage = 0;
+
+        if (DataStorage.get("BetterGunSmithTable.storedIndexPage") == null) DataStorage.set("BetterGunSmithTable.storedIndexPage", 0);
+        int storedIndexPage = (int) DataStorage.get("BetterGunSmithTable.storedIndexPage");
+
+        if (this.selectedRecipeList.size() <= storedIndexPage * 6) storedIndexPage = 0;
+
+        if (DataStorage.get("BetterGunSmithTable.storedRecipe") == null) DataStorage.set("BetterGunSmithTable.storedRecipe", this.getSelectedRecipe(this.selectedRecipeList.get(0)));
+        GunSmithTableRecipe storedRecipe = (GunSmithTableRecipe) DataStorage.get("BetterGunSmithTable.storedRecipe");
+
+        if ((this.selectedRecipeList.indexOf(storedRecipe.getId()) >= (storedIndexPage + 1) * 6) || !this.selectedRecipeList.contains(storedRecipe.getId())) storedRecipe = this.getSelectedRecipe(this.selectedRecipeList.get(0));
+
+        this.selectedType = storedType[0];
         this.indexPage = storedIndexPage;
-        this.selectedRecipe = this.getSelectedRecipe(this.selectedRecipeList.isEmpty() ? null : this.selectedRecipeList.get(0));
+        this.selectedRecipe = storedRecipe;
         this.getPlayerIngredientCount(this.selectedRecipe);
         this.typePage = storedTypePage;
         this.init();
     }
 
     @Inject(method = "lambda$addCraftButton$3", at = @At(value = "INVOKE", target = "Lnet/minecraftforge/network/simple/SimpleChannel;sendToServer(Ljava/lang/Object;)V"))
-    private void iii(Button b, CallbackInfo ci) {
+    private void onCrafted(Button b, CallbackInfo ci) {
         if (Config.enableGunSmithTableCraftToast()) ItemIconToast.create(
                 "已制作",
                 this.selectedRecipe.getOutput().getHoverName().getString() + " x " + this.selectedRecipe.getOutput().getCount(),
@@ -129,9 +143,20 @@ public abstract class GunSmithTableScreenMixin {
     }
 
     @ModifyArg(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;drawString(Lnet/minecraft/client/gui/Font;Lnet/minecraft/network/chat/Component;IIIZ)I", ordinal = 0), index = 1)
-    private Component aaa(Component p_282131_) {
+    private Component renderPageInfo(Component p_282131_) {
         String type = Component.translatable(String.format("tacz.type.%s.name", this.selectedType)).getString();
         String title = String.format("%s (第%s页-共%s页)", type, this.indexPage + 1, (int) Math.ceil((double) this.selectedRecipeList.size() / 6));
         return Component.translatable(title);
+    }
+
+    @ModifyVariable(method = "getPlayerIngredientCount", at = @At("STORE"), ordinal = 0)
+    private Inventory uuu(Inventory inventory) {
+        ArrayList<ItemStack> items = (ArrayList<ItemStack>) DataStorage.get("BetterGunSmithTable.nearbyContainer");
+        VirtualInventory virtualInventory = new VirtualInventory(inventory.getContainerSize() + items.size(), inventory.player);
+        virtualInventory.extend();
+        for (int i = 0; i < items.size(); i++) {
+            virtualInventory.setItem(virtualInventory.playerInventorySize + i, items.get(i));
+        }
+        return virtualInventory;
     }
 }

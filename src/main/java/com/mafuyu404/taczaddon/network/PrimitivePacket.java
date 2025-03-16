@@ -1,10 +1,8 @@
 package com.mafuyu404.taczaddon.network;
 
 import com.google.gson.Gson;
-import com.mafuyu404.taczaddon.client.ClientDataStorage;
-import com.mafuyu404.taczaddon.init.SyncEvent;
+import com.mafuyu404.taczaddon.init.DataStorage;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.network.NetworkEvent;
 import java.util.function.Supplier;
 
@@ -37,7 +35,7 @@ public class PrimitivePacket {
     public static void handle(PrimitivePacket msg, Supplier<NetworkEvent.Context> ctx) {
         ctx.get().enqueueWork(() -> {
             Packet data = gson.fromJson(msg.packet, Packet.class);
-            ClientDataStorage.set(data.key, data.value);
+            DataStorage.set(data.key, data.value);
         });
         ctx.get().setPacketHandled(true);
     }

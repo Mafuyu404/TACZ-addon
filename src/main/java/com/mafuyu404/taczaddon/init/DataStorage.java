@@ -1,14 +1,12 @@
-package com.mafuyu404.taczaddon.client;
+package com.mafuyu404.taczaddon.init;
 
-import com.mafuyu404.taczaddon.init.SyncEvent;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.common.MinecraftForge;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 
-public class ClientDataStorage {
+public class DataStorage {
     private static final HashMap<Object, Object> storage = new HashMap<>();
     private static final HashMap<String, ArrayList<ItemStack>> backpacks = new HashMap<>();
 

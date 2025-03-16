@@ -2,7 +2,7 @@ package com.mafuyu404.taczaddon.common;
 
 import com.mafuyu404.taczaddon.init.RuleRegistry;
 import com.mafuyu404.taczaddon.init.VirtualInventory;
-import com.mafuyu404.taczaddon.client.ClientDataStorage;
+import com.mafuyu404.taczaddon.init.DataStorage;
 import com.mafuyu404.taczaddon.init.NetworkHandler;
 import com.mafuyu404.taczaddon.network.PrimitivePacket;
 import com.tacz.guns.api.item.attachment.AttachmentType;
@@ -13,7 +13,6 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameRules;
 import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.fml.loading.FMLEnvironment;
 
 import java.util.ArrayList;
 
@@ -37,7 +36,7 @@ public class LiberateAttachment {
     public static Inventory useVirtualInventory(Inventory inventory) {
 //        System.out.print("\n");
 //        System.out.print(FMLEnvironment.dist);
-        Object gamerule = ClientDataStorage.get("gamerule.liberateAttachment");
+        Object gamerule = DataStorage.get("gamerule.liberateAttachment");
         if ((boolean) gamerule) {
             ArrayList<ItemStack> AttachmentItems = getAttachmentItems();
             int size = AttachmentItems.size() + 9;

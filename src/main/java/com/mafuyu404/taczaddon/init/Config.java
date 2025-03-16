@@ -18,6 +18,7 @@ public class Config {
     public static final ForgeConfigSpec.ConfigValue<Boolean> BETTER_AIM_CAMERA;
     public static final ForgeConfigSpec.ConfigValue<Boolean> BETTER_GUNSMITHTABLE;
     public static final ForgeConfigSpec.ConfigValue<Boolean> GUNSMITHTABLE_CRAFT_TOAST;
+    public static final ForgeConfigSpec.ConfigValue<Boolean> GUNSMITHTABLE_MEMORY;
     public static final ForgeConfigSpec.ConfigValue<List<? extends String>> MELEE_WEAPON_LIST;
     private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
     public static final ForgeConfigSpec SPEC;
@@ -41,12 +42,13 @@ public class Config {
         BUILDER.push("GunSmithTable Setting");
         BETTER_GUNSMITHTABLE = BUILDER
                 .comment("开启后，持枪与枪械工作台互动将只显示可用配件和弹药。")
-                .define("enableBetterGunSmithTable", true);
-        BUILDER.pop();
-        BUILDER.push("GunSmithTable Setting");
+                .define("enableRecipeFilter", true);
         GUNSMITHTABLE_CRAFT_TOAST = BUILDER
                 .comment("开启后，在枪械工作台制造东西时会弹出相关物品提示。")
-                .define("enableBetterGunSmithTable", true);
+                .define("enableCraftToast", true);
+        GUNSMITHTABLE_MEMORY = BUILDER
+                .comment("开启后，打开枪械工作台时将会跳转到上次浏览的位置。")
+                .define("enableMemory", true);
         BUILDER.pop();
         SPEC = BUILDER.build();
     }
@@ -76,10 +78,11 @@ public class Config {
     public static boolean enableBetterAimCamera() {
         return BETTER_AIM_CAMERA.get();
     }
-    public static boolean enableBetterGunSmithTable() {
-        return BETTER_GUNSMITHTABLE.get();
-    }
+    public static boolean enableBetterGunSmithTable() { return BETTER_GUNSMITHTABLE.get(); }
     public static boolean enableGunSmithTableCraftToast() {
         return GUNSMITHTABLE_CRAFT_TOAST.get();
+    }
+    public static boolean enableGunSmithTableMemory() {
+        return GUNSMITHTABLE_MEMORY.get();
     }
 }

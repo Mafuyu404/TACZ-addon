@@ -16,7 +16,7 @@ public class AttachmentFromBackpack {
 //            ItemStack item = handler.getSlotStack(i);
 //            backpack.add(item);
 //        }
-//        ClientDataStorage.setBackpack(contentsUuid, backpack);
+//        DataStorage.setBackpack(contentsUuid, backpack);
 //    }
     // 玩家登录时将所有背包的内容储存到本地
     public static void syncBackpackWhenLogin(PlayerEvent.PlayerLoggedInEvent event) {
