@@ -1,8 +1,6 @@
 package com.mafuyu404.taczaddon.init;
 
-import com.mafuyu404.taczaddon.network.BackpackItemsPacket;
-import com.mafuyu404.taczaddon.network.CommonMessagePacket;
-import com.mafuyu404.taczaddon.network.PrimitivePacket;
+import com.mafuyu404.taczaddon.network.*;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkRegistry;
@@ -23,6 +21,8 @@ public class NetworkHandler {
         int packetId = 0;
         CHANNEL.registerMessage(packetId++, PrimitivePacket.class, PrimitivePacket::encode, PrimitivePacket::decode, PrimitivePacket::handle);
         CHANNEL.registerMessage(packetId++, BackpackItemsPacket.class, BackpackItemsPacket::encode, BackpackItemsPacket::decode, BackpackItemsPacket::handle);
+        CHANNEL.registerMessage(packetId++, ContainerReaderPacket.class, ContainerReaderPacket::encode, ContainerReaderPacket::decode, ContainerReaderPacket::handle);
+        CHANNEL.registerMessage(packetId++, ContainerPositionPacket.class, ContainerPositionPacket::encode, ContainerPositionPacket::decode, ContainerPositionPacket::handle);
 //        CHANNEL.registerMessage(
 //                packetId++,
 //                CommonMessagePacket.class,

@@ -17,7 +17,9 @@
     "AimKeyMixin",
     "ClientMessageRefitGunMixin",
     "GunRefitScreenMixin",
-    "GunSmithTableScreenMixin"
+    "GunSmithTableScreenMixin",
+    "InteractGunSmithTable",
+    "VirtualContanier"
   ],
   "server": []
 }

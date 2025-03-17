@@ -1,15 +1,15 @@
 package com.mafuyu404.taczaddon.mixin;
 
-import com.mafuyu404.taczaddon.init.DataStorage;
+import com.mafuyu404.taczaddon.init.*;
 import com.mafuyu404.taczaddon.common.BetterGunSmithTable;
-import com.mafuyu404.taczaddon.init.Config;
-import com.mafuyu404.taczaddon.init.ItemIconToast;
-import com.mafuyu404.taczaddon.init.VirtualInventory;
+import com.mafuyu404.taczaddon.network.ContainerPositionPacket;
 import com.tacz.guns.api.item.IGun;
 import com.tacz.guns.client.gui.GunSmithTableScreen;
 import com.tacz.guns.crafting.GunSmithTableRecipe;
+import it.unimi.dsi.fastutil.ints.Int2IntArrayMap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
@@ -18,6 +18,7 @@ import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
@@ -48,6 +49,9 @@ public abstract class GunSmithTableScreenMixin {
     @Shadow @Nullable protected abstract GunSmithTableRecipe getSelectedRecipe(ResourceLocation recipeId);
 
     @Shadow private int typePage;
+
+    @Shadow @Nullable private Int2IntArrayMap playerIngredientCount;
+    private boolean req = false;
 
     @ModifyVariable(method = "classifyRecipes", at = @At("STORE"), ordinal = 0)
     private ResourceLocation readId(ResourceLocation id) {
@@ -94,6 +98,12 @@ public abstract class GunSmithTableScreenMixin {
         DataStorage.set("BetterGunSmithTable.storedTypePage", this.typePage);
         DataStorage.set("BetterGunSmithTable.storedIndexPage", this.indexPage);
         DataStorage.set("BetterGunSmithTable.storedRecipe", this.selectedRecipe);
+        if (!req) {
+            BlockPos blockPos = (BlockPos) DataStorage.get("BetterGunSmithTable.interactBlockPos");
+            NetworkHandler.CHANNEL.sendToServer(new ContainerPositionPacket(blockPos));
+            req = true;
+        }
+        else req = false;
     }
 
     @Inject(method = "<init>", at = @At("RETURN"))
@@ -151,12 +161,20 @@ public abstract class GunSmithTableScreenMixin {
 
     @ModifyVariable(method = "getPlayerIngredientCount", at = @At("STORE"), ordinal = 0)
     private Inventory uuu(Inventory inventory) {
-        ArrayList<ItemStack> items = (ArrayList<ItemStack>) DataStorage.get("BetterGunSmithTable.nearbyContainer");
+        ArrayList<ItemStack> items = ((VirtualContainerLoader) this).tACZ_addon$getVirtualContanier();
         VirtualInventory virtualInventory = new VirtualInventory(inventory.getContainerSize() + items.size(), inventory.player);
         virtualInventory.extend();
+        System.out.print(((VirtualContainerLoader) this).tACZ_addon$getVirtualContanier());
         for (int i = 0; i < items.size(); i++) {
             virtualInventory.setItem(virtualInventory.playerInventorySize + i, items.get(i));
         }
         return virtualInventory;
+    }
+
+    @Inject(method = "lambda$addCraftButton$3", at = @At(value = "INVOKE", target = "Lnet/minecraftforge/network/simple/SimpleChannel;sendToServer(Ljava/lang/Object;)V"))
+    private void ooooo(Button b, CallbackInfo ci) {
+        System.out.print("\n");
+        System.out.print(playerIngredientCount);
+        System.out.print("\n");
     }
 }
