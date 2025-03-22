@@ -116,6 +116,23 @@ repositories {
             includeGroup "curse.maven"
         }
     }
+    maven {
+        // location of the maven that hosts JEI files since January 2023
+        // Patchouli
+        name = "Jared's maven"
+        url = "https://maven.blamejared.com/"
+        content {
+            includeGroup "mezz.jei"
+        }
+    }
+//    maven {
+//        // location of a maven mirror for JEI files, as a fallback
+//        name = "Mod Maven"
+//        url = "https://modmaven.k-4u.nl"
+//        content {
+//            includeGroup "mezz.jei"
+//        }
+//    }
 }
 
 dependencies {
@@ -124,13 +141,19 @@ dependencies {
 
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
     implementation fg.deobf("curse.maven:timeless-and-classics-zero-1028108:6069384")
-//    implementation fg.deobf("curse.maven:timeless-and-classics-zero-1028108:5722050")
 
     implementation fg.deobf("curse.maven:shoulder-surfing-reloaded-243190:5455954")
 
-//    implementation fg.deobf("curse.maven:sophisticated-core-618298:6190554")
+    implementation fg.deobf("curse.maven:sophisticated-core-618298:6190554")
+    implementation fg.deobf("curse.maven:sophisticated-backpacks-422301:6178588")
 
-//    implementation fg.deobf("curse.maven:sophisticated-backpacks-422301:6178588")
+    implementation fg.deobf("curse.maven:kubejs-238086:5853326")
+    implementation fg.deobf("curse.maven:rhino-416294:6186971")
+    implementation fg.deobf("curse.maven:architectury-api-419699:5137938")
+//    implementation fg.deobf("curse.maven:architectury-api-419699:5137938")
+
+    compileOnly fg.deobf("mezz.jei:jei-1.20.1-forge-api:15.20.0.104")
+    implementation fg.deobf("mezz.jei:jei-1.20.1-forge:15.20.0.104")
 
 }
 

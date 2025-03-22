@@ -2,14 +2,10 @@ package com.mafuyu404.taczaddon.network;
 
 import com.mafuyu404.taczaddon.init.ContainerMaster;
 import com.mafuyu404.taczaddon.init.NetworkHandler;
-import com.mafuyu404.taczaddon.init.VirtualContainerLoader;
-import com.tacz.guns.client.gui.GunSmithTableScreen;
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.AABB;
 import net.minecraftforge.network.NetworkEvent;
 
 import java.util.ArrayList;

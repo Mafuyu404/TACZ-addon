@@ -30,8 +30,4 @@ public class ServerEvent {
     public static void onVirtualInventoryAdd(VirtualInventoryChangeEvent.AddEvent event) {
 //        AttachmentFromBackpack.onAttachmentUnload(event);
     }
-    @SubscribeEvent
-    public static void onVirtualInventoryAdd(PlayerInteractEvent.RightClickBlock event) {
-        DataStorage.set("BetterGunSmithTable.interactBlockPos", event.getHitVec().getBlockPos());
-    }
 }

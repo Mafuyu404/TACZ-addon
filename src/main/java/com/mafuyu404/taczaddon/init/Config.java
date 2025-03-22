@@ -19,6 +19,8 @@ public class Config {
     public static final ForgeConfigSpec.ConfigValue<Boolean> BETTER_GUNSMITHTABLE;
     public static final ForgeConfigSpec.ConfigValue<Boolean> GUNSMITHTABLE_CRAFT_TOAST;
     public static final ForgeConfigSpec.ConfigValue<Boolean> GUNSMITHTABLE_MEMORY;
+    public static final ForgeConfigSpec.ConfigValue<Boolean> GUNSMITHTABLE_CONTAINER_READER;
+    public static final ForgeConfigSpec.ConfigValue<Integer> LESS_ALLOW_GUN;
     public static final ForgeConfigSpec.ConfigValue<List<? extends String>> MELEE_WEAPON_LIST;
     private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
     public static final ForgeConfigSpec SPEC;
@@ -49,6 +51,14 @@ public class Config {
         GUNSMITHTABLE_MEMORY = BUILDER
                 .comment("开启后，打开枪械工作台时将会跳转到上次浏览的位置。")
                 .define("enableMemory", true);
+        GUNSMITHTABLE_CONTAINER_READER = BUILDER
+                .comment("开启后，使用枪械工作台制作东西时将读取周边容器的物品。")
+                .define("enableContainerReader", true);
+        BUILDER.pop();
+        BUILDER.push("Attachment Setting");
+        LESS_ALLOW_GUN = BUILDER
+                .comment("在这里填入正整数，即对配件按shift时显示的适用枪械数量。")
+                .define("enableLessAllowGun", 16);
         BUILDER.pop();
         SPEC = BUILDER.build();
     }
@@ -85,4 +95,8 @@ public class Config {
     public static boolean enableGunSmithTableMemory() {
         return GUNSMITHTABLE_MEMORY.get();
     }
+    public static boolean enableGunSmithTableContainerReader() {
+        return GUNSMITHTABLE_CONTAINER_READER.get();
+    }
+    public static int getAllowGunAmount() { return LESS_ALLOW_GUN.get(); }
 }

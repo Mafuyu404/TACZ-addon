@@ -13,6 +13,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameRules;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.fml.loading.FMLEnvironment;
 
 import java.util.ArrayList;
 
@@ -34,30 +35,30 @@ public class LiberateAttachment {
         return items;
     }
     public static Inventory useVirtualInventory(Inventory inventory) {
-//        System.out.print("\n");
-//        System.out.print(FMLEnvironment.dist);
-        Object gamerule = DataStorage.get("gamerule.liberateAttachment");
-        if ((boolean) gamerule) {
-            ArrayList<ItemStack> AttachmentItems = getAttachmentItems();
-            int size = AttachmentItems.size() + 9;
-            VirtualInventory virtualInventory = new VirtualInventory(size, inventory.player);
-            for (int i = 0; i < size; i++) {
-                if (i < 9) virtualInventory.setItem(i, inventory.getSelected());
-                else virtualInventory.setItem(i, AttachmentItems.get(i - 9));
-            }
-            return virtualInventory;
+        ArrayList<ItemStack> AttachmentItems = getAttachmentItems();
+        int size = AttachmentItems.size() + 9;
+        VirtualInventory virtualInventory = new VirtualInventory(size, inventory.player);
+        for (int i = 0; i < size; i++) {
+            if (i < 9) virtualInventory.setItem(i, inventory.getSelected());
+            else virtualInventory.setItem(i, AttachmentItems.get(i - 9));
         }
-        else return inventory;
+        return virtualInventory;
 //        else return AttachmentFromBackpack.useVirtualInventory(inventory);
     }
     public static void onRuleChange(MinecraftServer server, GameRules.BooleanValue value) {
         server.getPlayerList().getPlayers().forEach(player -> {
-            NetworkHandler.sendToClient(player, new PrimitivePacket("gamerule.liberateAttachment", value.get()));
+//            NetworkHandler.sendToClient(player, new PrimitivePacket("gamerule.liberateAttachment", value.get()));
+            boolean liberateAttachment = player.level().getGameRules().getBoolean(RuleRegistry.LIBERATE_ATTACHMENT);
+            NetworkHandler.sendToClient(player, new PrimitivePacket("gamerule.liberateAttachment", liberateAttachment));
+            boolean showAttachmentDetail = player.level().getGameRules().getBoolean(RuleRegistry.SHOW_ATTACHMENT_DETAIL);
+            NetworkHandler.sendToClient(player, new PrimitivePacket("gamerule.showAttachmentDetail", showAttachmentDetail));
         });
     }
     public static void syncRuleWhenLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer serverPlayer)) return;
-        boolean value = serverPlayer.level().getGameRules().getBoolean(RuleRegistry.LIBERATE_ATTACHMENT);
-        NetworkHandler.sendToClient(serverPlayer, new PrimitivePacket("gamerule.liberateAttachment", value));
+        boolean liberateAttachment = serverPlayer.level().getGameRules().getBoolean(RuleRegistry.LIBERATE_ATTACHMENT);
+        NetworkHandler.sendToClient(serverPlayer, new PrimitivePacket("gamerule.liberateAttachment", liberateAttachment));
+        boolean showAttachmentDetail = serverPlayer.level().getGameRules().getBoolean(RuleRegistry.SHOW_ATTACHMENT_DETAIL);
+        NetworkHandler.sendToClient(serverPlayer, new PrimitivePacket("gamerule.showAttachmentDetail", showAttachmentDetail));
     }
 }
