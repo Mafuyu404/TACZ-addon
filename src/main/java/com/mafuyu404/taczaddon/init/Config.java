@@ -21,6 +21,7 @@ public class Config {
     public static final ForgeConfigSpec.ConfigValue<Boolean> GUNSMITHTABLE_MEMORY;
     public static final ForgeConfigSpec.ConfigValue<Boolean> GUNSMITHTABLE_CONTAINER_READER;
     public static final ForgeConfigSpec.ConfigValue<Integer> LESS_ALLOW_GUN;
+    public static final ForgeConfigSpec.ConfigValue<Integer> GUNSMITHTABLE_MASS_CRAFT_TIME;
     public static final ForgeConfigSpec.ConfigValue<List<? extends String>> MELEE_WEAPON_LIST;
     private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
     public static final ForgeConfigSpec SPEC;
@@ -54,6 +55,9 @@ public class Config {
         GUNSMITHTABLE_CONTAINER_READER = BUILDER
                 .comment("开启后，使用枪械工作台制作东西时将读取周边容器的物品。")
                 .define("enableContainerReader", true);
+        GUNSMITHTABLE_MASS_CRAFT_TIME = BUILDER
+                .comment("在这里填入正整数，即制作东西时按住SHIFT会批量制作的次数。")
+                .define("enableMassCraftTime", 4);
         BUILDER.pop();
         BUILDER.push("Attachment Setting");
         LESS_ALLOW_GUN = BUILDER
@@ -99,4 +103,5 @@ public class Config {
         return GUNSMITHTABLE_CONTAINER_READER.get();
     }
     public static int getAllowGunAmount() { return LESS_ALLOW_GUN.get(); }
+    public static int getMassCraftTime() { return GUNSMITHTABLE_MASS_CRAFT_TIME.get(); }
 }

@@ -7,6 +7,7 @@ import com.mafuyu404.taczaddon.TACZaddon;
 import com.mafuyu404.taczaddon.network.PrimitivePacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -15,7 +16,7 @@ import net.minecraftforge.fml.loading.FMLEnvironment;
 
 import java.util.ArrayList;
 
-@Mod.EventBusSubscriber(modid = TACZaddon.MODID)
+@Mod.EventBusSubscriber(modid = TACZaddon.MODID, value = Dist.DEDICATED_SERVER)
 public class ServerEvent {
     @SubscribeEvent
     public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {

@@ -1,28 +1,33 @@
 package com.mafuyu404.taczaddon.event;
 
 import com.mafuyu404.taczaddon.TACZaddon;
-import com.mafuyu404.taczaddon.common.AttachmentFromBackpack;
-import com.mafuyu404.taczaddon.common.LiberateAttachment;
-import com.mafuyu404.taczaddon.compat.JeiPlugin;
+import com.mafuyu404.taczaddon.compat.JeiCompat;
 import com.mafuyu404.taczaddon.init.DataStorage;
-import com.mafuyu404.taczaddon.init.VirtualInventoryChangeEvent;
+import com.mafuyu404.taczaddon.init.KeyBindings;
+import com.mafuyu404.taczaddon.init.NetworkHandler;
+import com.mafuyu404.taczaddon.network.SwitchGunPacket;
 import com.mojang.blaze3d.platform.InputConstants;
-import com.tacz.guns.api.client.animation.ObjectAnimation;
-import com.tacz.guns.api.client.animation.statemachine.LuaAnimationStateMachine;
-import com.tacz.guns.client.animation.statemachine.GunAnimationStateContext;
+import com.tacz.guns.api.TimelessAPI;
+import com.tacz.guns.api.item.IGun;
 import com.tacz.guns.client.gui.GunSmithTableScreen;
-import mezz.jei.api.recipe.RecipeIngredientRole;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.InputEvent;
-import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import org.lwjgl.glfw.GLFW;
 
-@Mod.EventBusSubscriber(modid = TACZaddon.MODID)
+import java.util.ArrayList;
+import java.util.Arrays;
+
+@Mod.EventBusSubscriber(modid = TACZaddon.MODID, value = Dist.CLIENT)
 public class ClientEvent {
     @SubscribeEvent
     public static void onVirtualInventoryAdd(PlayerInteractEvent.RightClickBlock event) {
@@ -47,20 +52,72 @@ public class ClientEvent {
     }
     @SubscribeEvent
     public static void onClick(InputEvent.MouseButton event) {
+        if (Minecraft.getInstance().screen == null) return;
         if (!(Minecraft.getInstance().screen instanceof GunSmithTableScreen)) return;
         if (event.getAction() != InputConstants.RELEASE) return;
         Object data = DataStorage.get("GunSmithTableJEI");
         if (data == null) return;
         ItemStack itemStack = (ItemStack) data;
         if (itemStack.isEmpty()) return;
-        JeiPlugin.getJeiRuntime().ifPresent(jeiRuntime -> {
-            jeiRuntime.getIngredientManager().getIngredientTypeChecked(itemStack)
-                .ifPresent(type -> {
-                    DataStorage.set("GunSmithTableJEI", ItemStack.EMPTY);
-                    jeiRuntime.getRecipesGui().show(
-                            jeiRuntime.getJeiHelpers().getFocusFactory().createFocus(RecipeIngredientRole.OUTPUT, type, itemStack)
-                    );
-                });
+        boolean result = JeiCompat.showRecipes(itemStack);
+        if (result) DataStorage.set("GunSmithTableJEI", ItemStack.EMPTY);
+    }
+
+    @SubscribeEvent
+    public static void storeGunList(InputEvent.Key event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.screen != null) return;
+        if (event.getKey() != KeyBindings.SWITCH_GUN_KEY.getKey().getValue() || event.getAction() != GLFW.GLFW_PRESS) return;
+        ItemStack gunItem = mc.player.getMainHandItem();
+        if (IGun.getIGunOrNull(gunItem) == null) return;
+        ArrayList<String> GunList = new ArrayList<>();
+        Inventory inventory = mc.player.getInventory();
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            if (IGun.getIGunOrNull(inventory.getItem(i)) != null) GunList.add(inventory.getItem(i).getTag().getString("GunId"));
+        }
+        if (GunList.size() <= 1) return;
+        DataStorage.set("storeGunList", GunList);
+    }
+    @SubscribeEvent
+    public static void switchGun(InputEvent.MouseScrollingEvent event) {
+        if (!KeyBindings.SWITCH_GUN_KEY.isDown()) return;
+        LocalPlayer player = Minecraft.getInstance().player;
+        ItemStack gunItem = player.getMainHandItem();
+        if (IGun.getIGunOrNull(gunItem) == null) return;
+        Object data = DataStorage.get("storeGunList");
+        if (data == null) return;
+        ArrayList<String> GunList = (ArrayList<String>) data;
+        int index = GunList.lastIndexOf(gunItem.getTag().getString("GunId"));
+        if (index == -1) return;
+        if (event.getScrollDelta() < 0) index = (index == GunList.size() - 1) ? 0 : index + 1;
+        else index = (index == 0) ? GunList.size() - 1 : index - 1;
+        int slot = -1;
+        System.out.print(index);
+        System.out.print("\n");
+        Inventory inventory = player.getInventory();
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            int _i = (event.getScrollDelta() < 0) ? i : inventory.getContainerSize() - 1 - i;
+            ItemStack itemStack = inventory.getItem(_i);
+            if (!itemStack.isEmpty() && inventory.getItem(_i).getTag() != null) {
+                if (inventory.getItem(_i).getTag().getString("GunId").equals(GunList.get(index))) slot = _i;
+            }
+        }
+        if (slot == -1) return;
+        NetworkHandler.CHANNEL.sendToServer(new SwitchGunPacket(slot));
+        event.setCanceled(true);
+    }
+    @SubscribeEvent
+    public static void test(LivingEvent.LivingJumpEvent event) {
+        TimelessAPI.getAllClientAttachmentIndex().forEach(entry -> {
+            System.out.print("\n");
+            System.out.print(entry.getKey().toString());
+            System.out.print("\n");
+            entry.getValue().getData().getModifier().forEach((s, jsonProperty) -> {
+                System.out.print(jsonProperty.getComponents().size());
+                System.out.print("+");
+                System.out.print(Arrays.toString(jsonProperty.getComponents().stream().map(Component::getString).toArray()));
+                System.out.print("\n");
+            });
         });
     }
 }

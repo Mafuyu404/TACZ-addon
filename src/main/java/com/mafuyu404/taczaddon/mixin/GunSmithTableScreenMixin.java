@@ -3,19 +3,24 @@ package com.mafuyu404.taczaddon.mixin;
 import com.mafuyu404.taczaddon.init.*;
 import com.mafuyu404.taczaddon.common.BetterGunSmithTable;
 import com.mafuyu404.taczaddon.network.ContainerPositionPacket;
+import com.tacz.guns.api.TimelessAPI;
 import com.tacz.guns.api.item.IGun;
 import com.tacz.guns.client.gui.GunSmithTableScreen;
 import com.tacz.guns.crafting.GunSmithTableRecipe;
+import com.tacz.guns.inventory.GunSmithTableMenu;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -27,7 +32,7 @@ import javax.annotation.Nullable;
 import java.util.*;
 
 @Mixin(value = GunSmithTableScreen.class, remap = false)
-public abstract class GunSmithTableScreenMixin {
+public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<GunSmithTableMenu> {
     @Shadow @Final private Map<String, List<ResourceLocation>> recipes;
     @Shadow @Final private List<String> recipeKeys;
 
@@ -38,6 +43,10 @@ public abstract class GunSmithTableScreenMixin {
     @Shadow private List<ResourceLocation> selectedRecipeList;
     @Shadow private int indexPage;
 
+    public GunSmithTableScreenMixin(GunSmithTableMenu menu, Inventory inventory, Component title) {
+        super(menu, inventory, title);
+    }
+
     @Shadow protected abstract void getPlayerIngredientCount(GunSmithTableRecipe recipe);
 
     @Shadow @Nullable protected abstract GunSmithTableRecipe getSelectedRecipe(ResourceLocation recipeId);
@@ -46,6 +55,8 @@ public abstract class GunSmithTableScreenMixin {
 
     @Shadow public abstract void updateIngredientCount();
 
+    @Shadow public abstract void render(@NotNull GuiGraphics graphics, int mouseX, int mouseY, float partialTick);
+
     private boolean req = false;
 
     @ModifyVariable(method = "classifyRecipes", at = @At("STORE"), ordinal = 0)
@@ -53,14 +64,15 @@ public abstract class GunSmithTableScreenMixin {
         return BetterGunSmithTable.storeRecipeId(id);
     }
 
+    @Unique
+    private String tACZ_addon$selectedAttachmentProp = "选择属性";
     @ModifyVariable(method = "classifyRecipes", at = @At("STORE"), ordinal = 0)
     private String controlRecipes(String groupName) {
-        return BetterGunSmithTable.controlRecipes(groupName);
+        return BetterGunSmithTable.controlRecipes(groupName, tACZ_addon$selectedAttachmentProp);
     }
 
     @ModifyVariable(method = "addTypeButtons", at = @At("STORE"), ordinal = 1)
     private int filterType(int typeIndex) {
-//        return BetterGunSmithTable.filterType(typeIndex, this.recipeKeys, this.recipes);
         if (!Config.enableBetterGunSmithTable()) return typeIndex;
         Player player = Minecraft.getInstance().player;
         ItemStack gunItem = player.getOffhandItem();
@@ -104,6 +116,16 @@ public abstract class GunSmithTableScreenMixin {
 
     @Inject(method = "<init>", at = @At("RETURN"))
     private void onScreenLoad(CallbackInfo ci) {
+        HashMap<String, String> StoredAttachmentData = new HashMap<>();
+        TimelessAPI.getAllClientAttachmentIndex().forEach(entry -> {
+            StringBuilder data = new StringBuilder();
+            entry.getValue().getData().getModifier().forEach((s, jsonProperty) -> {
+                jsonProperty.getComponents().forEach(component -> data.append(component.getString()));
+            });
+            StoredAttachmentData.put(entry.getKey().toString(), data.toString());
+        });
+        if (DataStorage.get("BetterGunSmithTable.storedAttachmentData") == null) DataStorage.set("BetterGunSmithTable.storedAttachmentData", StoredAttachmentData);
+
         if (!Config.enableGunSmithTableMemory()) return;
 
         if (DataStorage.get("BetterGunSmithTable.storedTypePage") == null) DataStorage.set("BetterGunSmithTable.storedTypePage", 0);
@@ -174,7 +196,7 @@ public abstract class GunSmithTableScreenMixin {
     private HashMap<String, Boolean> tACZ_addon$hover = new HashMap<>();
     @Inject(method = "render", at = @At("HEAD"), remap = true)
     private void storedGraphics(GuiGraphics graphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
-        this.tACZ_addon$setMouse(new int[] { mouseX, mouseY });
+        this.tACZ_addon$mouse = new int[] { mouseX, mouseY };
     }
     @ModifyArg(method = "lambda$render$16", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;renderTooltip(Lnet/minecraft/client/gui/Font;Lnet/minecraft/world/item/ItemStack;II)V"))
     private Font fontfontfont(Font p_282308_) {
@@ -196,14 +218,28 @@ public abstract class GunSmithTableScreenMixin {
             }
         }
     }
-
     @Unique
     private boolean tACZ_addon$isHovering(int x, int y) {
         return tACZ_addon$mouse[0] >= x && tACZ_addon$mouse[0] <= x + 16 && tACZ_addon$mouse[1] >= y && tACZ_addon$mouse[1] <= y + 16;
     }
 
     @Unique
-    public void tACZ_addon$setMouse(int[] mouse) {
-        this.tACZ_addon$mouse = mouse;
+    private int tACZ_addon$massCount = 0;
+    @Unique
+    private Button.OnPress tACZ_addon$onCraft;
+    @ModifyArg(method = "addCraftButton", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/ImageButton;<init>(IIIIIIILnet/minecraft/resources/ResourceLocation;Lnet/minecraft/client/gui/components/Button$OnPress;)V", ordinal = 0), remap = true)
+    private Button.OnPress eeeee(Button.OnPress p_94276_) {
+        tACZ_addon$onCraft = p_94276_;
+        return p_94276_;
+    }
+    @Inject(method = "lambda$addCraftButton$3", at = @At(value = "INVOKE", target = "Lnet/minecraftforge/network/simple/SimpleChannel;sendToServer(Ljava/lang/Object;)V"))
+    private void massCraft(Button b, CallbackInfo ci) {
+        if (!Screen.hasShiftDown()) return;
+        tACZ_addon$massCount++;
+        if (tACZ_addon$massCount >= Config.getMassCraftTime()) {
+            tACZ_addon$massCount = 0;
+            return;
+        }
+        tACZ_addon$onCraft.onPress(b);
     }
 }

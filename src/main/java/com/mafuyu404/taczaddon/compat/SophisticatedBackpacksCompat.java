@@ -1,9 +1,14 @@
 package com.mafuyu404.taczaddon.compat;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.fml.ModList;
 
+import java.util.ArrayList;
+
 public class SophisticatedBackpacksCompat {
-    private static final String MOD_ID = "shouldersurfing";
+    private static final String MOD_ID = "sophisticatedbackpacks";
     private static boolean INSTALLED = false;
 
     public static void init() {
@@ -17,9 +22,11 @@ public class SophisticatedBackpacksCompat {
 //        return Minecraft.getInstance().player.getInventory();
 //    }
 
-    public static void setItem() {
+    public static ArrayList<ItemStack> getItemsFromBackpackBLock(BlockPos blockPos, Player player) {
+        ArrayList<ItemStack> items = new ArrayList<>();
         if (INSTALLED) {
-            SophisticatedBackpacksCompatInner.setItem();
+            return SophisticatedBackpacksCompatInner.getItemsFromBackpackBLock(blockPos, player);
         }
+        return items;
     }
 }

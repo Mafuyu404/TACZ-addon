@@ -1,6 +1,7 @@
 package com.mafuyu404.taczaddon;
 
 import com.mafuyu404.taczaddon.init.Config;
+import com.mafuyu404.taczaddon.init.KeyBindings;
 import com.mafuyu404.taczaddon.init.RuleRegistry;
 import com.mafuyu404.taczaddon.init.NetworkHandler;
 import com.mojang.logging.LogUtils;
@@ -33,7 +34,7 @@ public class TACZaddon
         );
 
         MinecraftForge.EVENT_BUS.register(new RuleRegistry());
-        MinecraftForge.EVENT_BUS.register(this);
+//        MinecraftForge.EVENT_BUS.addListener(KeyBindings::registerKeys);
 
     }
 }
