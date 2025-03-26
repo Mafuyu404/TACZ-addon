@@ -34,7 +34,6 @@ public class TACZaddon
         );
 
         MinecraftForge.EVENT_BUS.register(new RuleRegistry());
-//        MinecraftForge.EVENT_BUS.addListener(KeyBindings::registerKeys);
 
     }
 }

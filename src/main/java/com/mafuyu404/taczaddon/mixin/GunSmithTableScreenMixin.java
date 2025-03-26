@@ -20,7 +20,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -43,8 +42,8 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
     @Shadow private List<ResourceLocation> selectedRecipeList;
     @Shadow private int indexPage;
 
-    public GunSmithTableScreenMixin(GunSmithTableMenu menu, Inventory inventory, Component title) {
-        super(menu, inventory, title);
+    public GunSmithTableScreenMixin(GunSmithTableMenu p_97741_, Inventory p_97742_, Component p_97743_) {
+        super(p_97741_, p_97742_, p_97743_);
     }
 
     @Shadow protected abstract void getPlayerIngredientCount(GunSmithTableRecipe recipe);
@@ -55,8 +54,6 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
 
     @Shadow public abstract void updateIngredientCount();
 
-    @Shadow public abstract void render(@NotNull GuiGraphics graphics, int mouseX, int mouseY, float partialTick);
-
     private boolean req = false;
 
     @ModifyVariable(method = "classifyRecipes", at = @At("STORE"), ordinal = 0)
@@ -65,10 +62,13 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
     }
 
     @Unique
-    private String tACZ_addon$selectedAttachmentProp = "选择属性";
+    private ArrayList<String> tACZ_addon$AttachmentProp = new ArrayList<>();
+    @Unique
+    private int tACZ_addon$selectedAttachmentPropIndex = 0;
+    @Unique DropDown tACZ_addon$dropdown = null;
     @ModifyVariable(method = "classifyRecipes", at = @At("STORE"), ordinal = 0)
     private String controlRecipes(String groupName) {
-        return BetterGunSmithTable.controlRecipes(groupName, tACZ_addon$selectedAttachmentProp);
+        return BetterGunSmithTable.controlRecipes(groupName, "选择属性");
     }
 
     @ModifyVariable(method = "addTypeButtons", at = @At("STORE"), ordinal = 1)
@@ -100,6 +100,11 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
     }
 
     @Inject(method = "init", at = @At("HEAD"), remap = true)
+    private void onInit(CallbackInfo ci) {
+        if (tACZ_addon$selectedAttachmentPropIndex != 0) ((VirtualContainerLoader) this).refreshRecipes(tACZ_addon$AttachmentProp.get(tACZ_addon$selectedAttachmentPropIndex), false);
+    }
+
+    @Inject(method = "init", at = @At("TAIL"), remap = true)
     private void onScreenChanged(CallbackInfo ci) {
         DataStorage.set("BetterGunSmithTable.storedType", this.selectedType);
         DataStorage.set("BetterGunSmithTable.storedTypePage", this.typePage);
@@ -112,6 +117,15 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
             req = true;
         }
         else req = false;
+        if (tACZ_addon$dropdown != null) {
+            tACZ_addon$selectedAttachmentPropIndex = tACZ_addon$dropdown.getSelected();
+        }
+        tACZ_addon$dropdown = new DropDown(leftPos - 64, topPos - 16, 64);
+        for (String prop : tACZ_addon$AttachmentProp) {
+            tACZ_addon$dropdown.addOption(Component.literal(prop));
+        }
+        tACZ_addon$dropdown.setSelected(tACZ_addon$selectedAttachmentPropIndex);
+        this.addRenderableWidget(tACZ_addon$dropdown);
     }
 
     @Inject(method = "<init>", at = @At("RETURN"))
@@ -125,6 +139,24 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
             StoredAttachmentData.put(entry.getKey().toString(), data.toString());
         });
         if (DataStorage.get("BetterGunSmithTable.storedAttachmentData") == null) DataStorage.set("BetterGunSmithTable.storedAttachmentData", StoredAttachmentData);
+
+        tACZ_addon$AttachmentProp.add("选择属性");
+        tACZ_addon$AttachmentProp.add("开镜时间");
+        tACZ_addon$AttachmentProp.add("优势射程");
+        tACZ_addon$AttachmentProp.add("竖直后座力");
+        tACZ_addon$AttachmentProp.add("水平后座力");
+        tACZ_addon$AttachmentProp.add("爆头倍率");
+        tACZ_addon$AttachmentProp.add("伤害");
+        tACZ_addon$AttachmentProp.add("射速");
+        tACZ_addon$AttachmentProp.add("弹速");
+        tACZ_addon$AttachmentProp.add("瞄准精度");
+        tACZ_addon$AttachmentProp.add("腰射精度");
+        tACZ_addon$AttachmentProp.add("声音范围");
+        tACZ_addon$AttachmentProp.add("消音");
+        tACZ_addon$AttachmentProp.add("点燃实体");
+        tACZ_addon$AttachmentProp.add("穿甲倍率");
+        tACZ_addon$AttachmentProp.add("穿透");
+        tACZ_addon$AttachmentProp.add("爆炸");
 
         if (!Config.enableGunSmithTableMemory()) return;
 
@@ -159,7 +191,8 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
         this.selectedRecipe = storedRecipe;
         this.getPlayerIngredientCount(this.selectedRecipe);
         this.typePage = storedTypePage;
-        this.updateIngredientCount();
+
+        this.updateIngredientCount(); // 替代init用
     }
 
     @Inject(method = "lambda$addCraftButton$3", at = @At(value = "INVOKE", target = "Lnet/minecraftforge/network/simple/SimpleChannel;sendToServer(Ljava/lang/Object;)V"))

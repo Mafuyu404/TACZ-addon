@@ -9,4 +9,6 @@ public interface VirtualContainerLoader {
     void tACZ_addon$setVirtualContanier(ArrayList<ItemStack> items);
 
     ArrayList<ItemStack> tACZ_addon$getVirtualContanier();
+
+    void refreshRecipes(String prop, boolean refreshPage);
 }
