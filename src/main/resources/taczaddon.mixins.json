@@ -12,7 +12,8 @@
     "GunSmithTableMenuMixin",
     "InventoryAccessor",
     "LocalPlayerReloadMixin",
-    "LocalPlayerShootMixin"
+    "LocalPlayerShootMixin",
+    "NoCrawlMixin"
   ],
   "client": [
     "AimKeyMixin",

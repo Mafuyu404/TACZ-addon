@@ -108,16 +108,16 @@ public class ClientEvent {
     }
     @SubscribeEvent
     public static void test(LivingEvent.LivingJumpEvent event) {
-        TimelessAPI.getAllClientAttachmentIndex().forEach(entry -> {
-            System.out.print("\n");
-            System.out.print(entry.getKey().toString());
-            System.out.print("\n");
-            entry.getValue().getData().getModifier().forEach((s, jsonProperty) -> {
-                System.out.print(jsonProperty.getComponents().size());
-                System.out.print("+");
-                System.out.print(Arrays.toString(jsonProperty.getComponents().stream().map(Component::getString).toArray()));
-                System.out.print("\n");
-            });
-        });
+//        TimelessAPI.getAllClientAttachmentIndex().forEach(entry -> {
+//            System.out.print("\n");
+//            System.out.print(entry.getKey().toString());
+//            System.out.print("\n");
+//            entry.getValue().getData().getModifier().forEach((s, jsonProperty) -> {
+//                System.out.print(jsonProperty.getComponents().size());
+//                System.out.print("+");
+//                System.out.print(Arrays.toString(jsonProperty.getComponents().stream().map(Component::getString).toArray()));
+//                System.out.print("\n");
+//            });
+//        });
     }
 }
