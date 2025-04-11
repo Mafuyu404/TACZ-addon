@@ -5,12 +5,15 @@
   "compatibilityLevel": "JAVA_17",
   "refmap": "taczaddon.refmap.json",
   "mixins": [
+    "AbstractGunItemMixin",
     "ClientAttachmentItemTooltipMixin",
     "ClientMessageRefitGunMixin",
     "ClientMessageUnloadAttachmentMixin",
+    "GunHudOverlayMixin",
     "GunReloadCooldownMixin",
     "GunSmithTableMenuMixin",
     "InventoryAccessor",
+    "LivingEntityShootMixin",
     "LocalPlayerReloadMixin",
     "LocalPlayerShootMixin",
     "NoCrawlMixin"
@@ -20,6 +23,7 @@
     "GunRefitScreenMixin",
     "GunSmithTableScreenMixin",
     "InteractGunSmithTable",
+    "InventoryScreenMixin",
     "VirtualContanier"
   ],
   "server": []

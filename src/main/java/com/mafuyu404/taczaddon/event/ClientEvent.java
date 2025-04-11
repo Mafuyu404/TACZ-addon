@@ -7,12 +7,11 @@ import com.mafuyu404.taczaddon.init.KeyBindings;
 import com.mafuyu404.taczaddon.init.NetworkHandler;
 import com.mafuyu404.taczaddon.network.SwitchGunPacket;
 import com.mojang.blaze3d.platform.InputConstants;
-import com.tacz.guns.api.TimelessAPI;
 import com.tacz.guns.api.item.IGun;
 import com.tacz.guns.client.gui.GunSmithTableScreen;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
@@ -25,7 +24,6 @@ import net.minecraftforge.fml.common.Mod;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 
 @Mod.EventBusSubscriber(modid = TACZaddon.MODID, value = Dist.CLIENT)
 public class ClientEvent {
@@ -51,7 +49,7 @@ public class ClientEvent {
 //        }
     }
     @SubscribeEvent
-    public static void onClick(InputEvent.MouseButton event) {
+    public static void JEIRecipes(InputEvent.MouseButton event) {
         if (Minecraft.getInstance().screen == null) return;
         if (!(Minecraft.getInstance().screen instanceof GunSmithTableScreen)) return;
         if (event.getAction() != InputConstants.RELEASE) return;
@@ -80,6 +78,7 @@ public class ClientEvent {
     }
     @SubscribeEvent
     public static void switchGun(InputEvent.MouseScrollingEvent event) {
+        if (Minecraft.getInstance().screen != null) return;
         if (!KeyBindings.SWITCH_GUN_KEY.isDown()) return;
         LocalPlayer player = Minecraft.getInstance().player;
         ItemStack gunItem = player.getMainHandItem();
@@ -107,17 +106,14 @@ public class ClientEvent {
         event.setCanceled(true);
     }
     @SubscribeEvent
-    public static void test(LivingEvent.LivingJumpEvent event) {
-//        TimelessAPI.getAllClientAttachmentIndex().forEach(entry -> {
-//            System.out.print("\n");
-//            System.out.print(entry.getKey().toString());
-//            System.out.print("\n");
-//            entry.getValue().getData().getModifier().forEach((s, jsonProperty) -> {
-//                System.out.print(jsonProperty.getComponents().size());
-//                System.out.print("+");
-//                System.out.print(Arrays.toString(jsonProperty.getComponents().stream().map(Component::getString).toArray()));
-//                System.out.print("\n");
-//            });
-//        });
+    public static void ammoBox(InputEvent.MouseButton event) {
+//        Minecraft mc = Minecraft.getInstance();
+//        if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
+//        if (event.getAction() != InputConstants.RELEASE) return;
+//        if (event.getButton() != 1) return;
+//        System.out.print(event.getButton()+"\n");
+//        if (!mc.options.keyShift.isDown()) return;
+
+//        if (event.getButton() != InputConstants.RELEASE) return;
     }
 }

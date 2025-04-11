@@ -12,6 +12,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameRules;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 
@@ -54,8 +55,8 @@ public class LiberateAttachment {
             NetworkHandler.sendToClient(player, new PrimitivePacket("gamerule.showAttachmentDetail", showAttachmentDetail));
         });
     }
-    public static void syncRuleWhenLogin(PlayerEvent.PlayerLoggedInEvent event) {
-        if (!(event.getEntity() instanceof ServerPlayer serverPlayer)) return;
+    public static void syncRuleWhenLogin(ServerPlayer serverPlayer) {
+        System.out.print("rule\n");
         boolean liberateAttachment = serverPlayer.level().getGameRules().getBoolean(RuleRegistry.LIBERATE_ATTACHMENT);
         NetworkHandler.sendToClient(serverPlayer, new PrimitivePacket("gamerule.liberateAttachment", liberateAttachment));
         boolean showAttachmentDetail = serverPlayer.level().getGameRules().getBoolean(RuleRegistry.SHOW_ATTACHMENT_DETAIL);

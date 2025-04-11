@@ -31,7 +31,7 @@ public class LocalPlayerShootMixin {
 //    }
 //
     @Redirect(method = "shoot", at = @At(value = "INVOKE", target = "Lcom/tacz/guns/api/entity/IGunOperator;getSynSprintTime()F"))
-    private float isReloading(IGunOperator instance) {
+    private float slideShoot(IGunOperator instance) {
         if (this.player.getTags().contains("slide")) return 0F;
         return instance.getSynSprintTime();
     }

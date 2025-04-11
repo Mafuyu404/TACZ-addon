@@ -13,7 +13,6 @@ import java.util.function.Supplier;
 
 public class SwitchGunPacket {
     private final int slot;
-    private static final Gson gson = new Gson();
 
     public SwitchGunPacket(int slot) {
         this.slot = slot;
@@ -34,7 +33,6 @@ public class SwitchGunPacket {
             ItemStack target = inventory.getItem(msg.slot).copy();
             inventory.setItem(msg.slot, player.getMainHandItem());
             inventory.setItem(inventory.selected, target);
-//            NetworkHandler.sendToClient(player, );
         });
         ctx.get().setPacketHandled(true);
     }

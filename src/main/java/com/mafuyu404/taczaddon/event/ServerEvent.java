@@ -6,8 +6,10 @@ import com.mafuyu404.taczaddon.init.*;
 import com.mafuyu404.taczaddon.TACZaddon;
 import com.mafuyu404.taczaddon.network.PrimitivePacket;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -16,12 +18,14 @@ import net.minecraftforge.fml.loading.FMLEnvironment;
 
 import java.util.ArrayList;
 
-@Mod.EventBusSubscriber(modid = TACZaddon.MODID, value = Dist.DEDICATED_SERVER)
+@Mod.EventBusSubscriber(modid = TACZaddon.MODID)
 public class ServerEvent {
     @SubscribeEvent
-    public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
-        LiberateAttachment.syncRuleWhenLogin(event);
-        AttachmentFromBackpack.syncBackpackWhenLogin(event);
+    public static void onPlayerLogin(EntityJoinLevelEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        if (player.isLocalPlayer()) return;
+        LiberateAttachment.syncRuleWhenLogin((ServerPlayer) player);
+//        AttachmentFromBackpack.syncBackpackWhenLogin(event);
     }
     @SubscribeEvent
     public static void onVirtualInventorySetItem(VirtualInventoryChangeEvent.SetItemEvent event) {

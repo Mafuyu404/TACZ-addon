@@ -75,6 +75,7 @@ public class ClientAttachmentItemTooltipMixin {
         HashMap<String, String> attr = new HashMap<>();
         HashMap<String, Double> originAttr = new HashMap<>();
         HashMap<String, Double> newAttr = new HashMap<>();
+        HashMap<String, Double> defaultAttr = new HashMap<>();
 
         TimelessAPI.getCommonGunIndex(gunId).ifPresent(i -> {
             GunData gunData = i.getGunData();
@@ -91,23 +92,33 @@ public class ClientAttachmentItemTooltipMixin {
 
             cacheProperty.eval(gunItem, gunData);
 
-            AttachmentPropertyManager.getModifiers().forEach((key, Modifier) -> Modifier.getPropertyDiagramsData(gunItem, gunData, cacheProperty).forEach(diagramsData -> newAttr.putAll(handleData(diagramsData))));
+            AttachmentPropertyManager.getModifiers().forEach((key, Modifier) -> Modifier.getPropertyDiagramsData(gunItem, gunData, cacheProperty).forEach(diagramsData -> {
+                defaultAttr.put(Component.translatable(diagramsData.titleKey()).getString(), extractValue(diagramsData.defaultString()));
+                newAttr.putAll(handleData(diagramsData));
+            }));
         });
         newAttr.forEach((title, newVal) -> {
             if (originAttr.containsKey(title)) {
                 double originVal = originAttr.get(title);
                 double offset = newVal - originVal;
+                double defaultValue = defaultAttr.get(title);
                 String text = title + " ";
                 if (offset > 0) text += "+";
-                text += Math.round(offset / 1e7) * 0.01d;
+//                text += Math.round(offset / 1e7) * 0.01d;
+                text += (double) (Math.round(offset * 100d) / 100d);
                 if (Objects.equals(title, "重量")) text += "kg";
-                if (title.contains("时间")) text += "s";
+                if (title.contains("时间") || title.contains("延迟")) text += "s";
+                if (title.contains("瞄准精度") || title.contains("穿甲倍率")) text += "%";
+                if (title.contains("射速")) text += "rpm";
+                if (title.contains("射程")) text += "m";
+                if (title.contains("弹速")) text += "m/s";
+                text += " (" + (offset > 0 ? "+" : "") + Math.ceil(offset / defaultValue * 100) + "%)";
                 attr.put(title, text);
             }
         });
         value.getComponents().forEach(component -> {
             String title = component.getString().split(" ")[1];
-            System.out.print(title + component.getStyle().getColor().toString() + "\n");
+//            System.out.print(title + component.getStyle().getColor().toString() + "\n");
             if (title.equals("腰射精度")) title = "腰射扩散";
             if (title.equals("竖直后座力")) title = "垂直后坐力";
             if (title.equals("水平后座力")) title = "水平后坐力";
@@ -128,15 +139,17 @@ public class ClientAttachmentItemTooltipMixin {
         if (!positivelyString.split(" ")[1].contains("+-")) text += positivelyString.split(" ")[1];
         else text += negativeString.split(" ")[1];
 //        System.out.print(text + "\n");
-        String pattern = "[-+]?\\d+\\.\\d+";
+        HashMap<String, Double> result = new HashMap<>();
+        result.put(Component.translatable(titleKey).getString(), extractValue(text));
+        return result;
+    }
+    private double extractValue(String text) {
+        String pattern = "[-+]?\\d+(?:\\.\\d+)?";
         Matcher matcher = Pattern.compile(pattern).matcher(text);
         double val = 0;
         while (matcher.find()) {
             val = Double.parseDouble(matcher.group());
         }
-//        if (text.contains("-")) val *= -1;
-        HashMap<String, Double> result = new HashMap<>();
-        result.put(Component.translatable(titleKey).getString(), val);
-        return result;
+        return val;
     }
 }

@@ -24,6 +24,7 @@ public class NetworkHandler {
         CHANNEL.registerMessage(packetId++, ContainerReaderPacket.class, ContainerReaderPacket::encode, ContainerReaderPacket::decode, ContainerReaderPacket::handle);
         CHANNEL.registerMessage(packetId++, ContainerPositionPacket.class, ContainerPositionPacket::encode, ContainerPositionPacket::decode, ContainerPositionPacket::handle);
         CHANNEL.registerMessage(packetId++, SwitchGunPacket.class, SwitchGunPacket::encode, SwitchGunPacket::decode, SwitchGunPacket::handle);
+        CHANNEL.registerMessage(packetId++, AmmoBoxCollectPacket.class, AmmoBoxCollectPacket::encode, AmmoBoxCollectPacket::decode, AmmoBoxCollectPacket::handle);
 //        CHANNEL.registerMessage(
 //                packetId++,
 //                CommonMessagePacket.class,

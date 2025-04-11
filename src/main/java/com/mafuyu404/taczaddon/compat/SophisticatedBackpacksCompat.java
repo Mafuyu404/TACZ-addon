@@ -29,4 +29,18 @@ public class SophisticatedBackpacksCompat {
         }
         return items;
     }
+    public static ArrayList<ItemStack> getItemsFromBackpackItem(ItemStack itemStack) {
+        ArrayList<ItemStack> items = new ArrayList<>();
+        if (INSTALLED) {
+            return SophisticatedBackpacksCompatInner.getItemsFromBackpackItem(itemStack);
+        }
+        return items;
+    }
+    public static ArrayList<ItemStack> getItemsFromInventoryBackpack(Player player) {
+        ArrayList<ItemStack> items = new ArrayList<>();
+        if (INSTALLED) {
+            return SophisticatedBackpacksCompatInner.getItemsFromInventoryBackpack(player);
+        }
+        return items;
+    }
 }
