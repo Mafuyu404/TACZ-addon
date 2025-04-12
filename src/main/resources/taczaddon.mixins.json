@@ -16,6 +16,7 @@
     "LivingEntityShootMixin",
     "LocalPlayerReloadMixin",
     "LocalPlayerShootMixin",
+    "ModernKineticGunScriptAPIMixin",
     "NoCrawlMixin"
   ],
   "client": [

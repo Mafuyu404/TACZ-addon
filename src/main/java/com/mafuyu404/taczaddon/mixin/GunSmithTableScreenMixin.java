@@ -228,7 +228,7 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
     @Unique
     private HashMap<String, Boolean> tACZ_addon$hover = new HashMap<>();
     @Inject(method = "render", at = @At("HEAD"), remap = true)
-    private void storedGraphics(GuiGraphics graphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+    private void storedMousePos(GuiGraphics graphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
         this.tACZ_addon$mouse = new int[] { mouseX, mouseY };
     }
     @ModifyArg(method = "lambda$render$16", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;renderTooltip(Lnet/minecraft/client/gui/Font;Lnet/minecraft/world/item/ItemStack;II)V"))

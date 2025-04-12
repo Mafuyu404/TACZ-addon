@@ -1,11 +1,15 @@
 package com.mafuyu404.taczaddon.compat;
 
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.fml.ModList;
+import net.minecraftforge.items.IItemHandler;
 
 import java.util.ArrayList;
+import java.util.function.Consumer;
 
 public class SophisticatedBackpacksCompat {
     private static final String MOD_ID = "sophisticatedbackpacks";
@@ -42,5 +46,15 @@ public class SophisticatedBackpacksCompat {
             return SophisticatedBackpacksCompatInner.getItemsFromInventoryBackpack(player);
         }
         return items;
+    }
+    public static void syncAllBackpack(Player player) {
+        if (INSTALLED) {
+            SophisticatedBackpacksCompatInner.syncAllBackpack((LocalPlayer) player);
+        }
+    }
+    public static void modifyBackpack(ServerPlayer player, ItemStack backpackItem, Consumer<IItemHandler> action) {
+        if (INSTALLED) {
+            SophisticatedBackpacksCompatInner.modifyBackpack(player, backpackItem, action);
+        }
     }
 }

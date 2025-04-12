@@ -2,17 +2,20 @@ package com.mafuyu404.taczaddon.event;
 
 import com.mafuyu404.taczaddon.TACZaddon;
 import com.mafuyu404.taczaddon.compat.JeiCompat;
+import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
 import com.mafuyu404.taczaddon.init.DataStorage;
 import com.mafuyu404.taczaddon.init.KeyBindings;
 import com.mafuyu404.taczaddon.init.NetworkHandler;
 import com.mafuyu404.taczaddon.network.SwitchGunPacket;
 import com.mojang.blaze3d.platform.InputConstants;
+import com.tacz.guns.api.event.common.GunReloadEvent;
 import com.tacz.guns.api.item.IGun;
 import com.tacz.guns.client.gui.GunSmithTableScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.InputEvent;
@@ -104,16 +107,5 @@ public class ClientEvent {
         if (slot == -1) return;
         NetworkHandler.CHANNEL.sendToServer(new SwitchGunPacket(slot));
         event.setCanceled(true);
-    }
-    @SubscribeEvent
-    public static void ammoBox(InputEvent.MouseButton event) {
-//        Minecraft mc = Minecraft.getInstance();
-//        if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
-//        if (event.getAction() != InputConstants.RELEASE) return;
-//        if (event.getButton() != 1) return;
-//        System.out.print(event.getButton()+"\n");
-//        if (!mc.options.keyShift.isDown()) return;
-
-//        if (event.getButton() != InputConstants.RELEASE) return;
     }
 }

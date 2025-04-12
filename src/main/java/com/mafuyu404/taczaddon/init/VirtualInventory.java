@@ -1,6 +1,7 @@
 package com.mafuyu404.taczaddon.init;
 
 import com.google.common.collect.ImmutableList;
+import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
 import com.mafuyu404.taczaddon.mixin.InventoryAccessor;
 import net.minecraft.core.NonNullList;
 import net.minecraft.world.entity.player.Inventory;
@@ -13,6 +14,8 @@ import net.minecraftforge.items.IItemHandler;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 public class VirtualInventory extends Inventory {
     public  int size;
@@ -31,7 +34,7 @@ public class VirtualInventory extends Inventory {
         }
         return this;
     }
-    public IItemHandler getHandler() {
+    public ItemHandler getHandler() {
         return new ItemHandler(this);
     }
     public static class ItemHandler implements IItemHandler {
