@@ -38,11 +38,8 @@ public class DropDown extends AbstractWidget {
 
     @Override
     public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        // 绘制基础下拉框
         guiGraphics.fill(getX(), getY(), getX() + width, getY() + itemHeight, 0xFF000000);
         guiGraphics.renderOutline(getX(), getY(), width, itemHeight, 0xFFFFFFFF);
-
-        // 绘制当前选中项
         if (!options.isEmpty()) {
             guiGraphics.drawString(
                     Minecraft.getInstance().font,
@@ -53,24 +50,20 @@ public class DropDown extends AbstractWidget {
             );
         }
 
-        // 展开状态下绘制选项列表
+        // 展开状态
         if (isExpanded) {
             int totalHeight = Math.min(options.size(), maxVisibleItems) * itemHeight;
-
-            // 绘制选项区域背景
             guiGraphics.fill(
                     getX(), getY() + itemHeight,
                     getX() + width, getY() + itemHeight + totalHeight,
                     0xFF000000
             );
 
-            // 绘制可见选项
             int itemsToShow = Math.min(options.size() - scrollOffset, maxVisibleItems);
             for (int i = 0; i < itemsToShow; i++) {
                 int actualIndex = i + scrollOffset;
                 int yPos = getY() + itemHeight + (i * itemHeight);
 
-                // 高亮逻辑
                 boolean isHovered = isMouseOverOption(mouseX, mouseY, i);
                 if (isHovered) {
                     guiGraphics.fill(
@@ -79,7 +72,6 @@ public class DropDown extends AbstractWidget {
                             0x80444444
                     );
                 }
-
                 guiGraphics.drawString(
                         Minecraft.getInstance().font,
                         options.get(actualIndex),
@@ -103,7 +95,6 @@ public class DropDown extends AbstractWidget {
                 isExpanded = true;
                 scrollOffset = 0; // 展开时重置滚动位置
             } else {
-                // 检测点击的是否为有效选项
                 for (int i = 0; i < Math.min(options.size(), maxVisibleItems); i++) {
                     if (isMouseOverOption(mouseX, mouseY, i)) {
                         selectedIndex = i + scrollOffset;
@@ -120,23 +111,16 @@ public class DropDown extends AbstractWidget {
     }
 
     private void drawScrollBar(GuiGraphics guiGraphics, int totalHeight) {
-        // 计算滚动条参数
         int contentHeight = options.size() * itemHeight;
         int visibleHeight = maxVisibleItems * itemHeight;
         float scrollRatio = (float) scrollOffset / (options.size() - maxVisibleItems);
         int scrollBarHeight = (int) ((float) visibleHeight * visibleHeight / contentHeight);
-
-        // 滚动条位置计算
         int scrollY = getY() + itemHeight + (int) (scrollRatio * (totalHeight - scrollBarHeight));
-
-        // 绘制滚动条背景
         guiGraphics.fill(
                 getX() + width - SCROLL_BAR_WIDTH - 1, getY() + itemHeight,
                 getX() + width - 1, getY() + itemHeight + totalHeight,
                 0xFF666666
         );
-
-        // 绘制滚动条滑块
         guiGraphics.fill(
                 getX() + width - SCROLL_BAR_WIDTH - 1, scrollY,
                 getX() + width - 1, scrollY + scrollBarHeight,

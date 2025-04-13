@@ -1,16 +1,15 @@
 package com.mafuyu404.taczaddon.mixin;
 
 import com.mafuyu404.taczaddon.common.BetterMelee;
-import com.tacz.guns.api.entity.IGunOperator;
 import com.tacz.guns.api.entity.ShootResult;
 import com.tacz.guns.client.gameplay.LocalPlayerShoot;
+import com.tacz.guns.entity.sync.ModSyncedEntityData;
 import net.minecraft.client.player.LocalPlayer;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(value = LocalPlayerShoot.class, remap = false)
@@ -30,9 +29,8 @@ public class LocalPlayerShootMixin {
 //        tac$reload.cancelReload();
 //    }
 //
-    @Redirect(method = "shoot", at = @At(value = "INVOKE", target = "Lcom/tacz/guns/api/entity/IGunOperator;getSynSprintTime()F"))
-    private float slideShoot(IGunOperator instance) {
-        if (this.player.getTags().contains("slide")) return 0F;
-        return instance.getSynSprintTime();
+    @Inject(method = "shoot", at = @At("HEAD"))
+    private void slideShoot(CallbackInfoReturnable<ShootResult> cir) {
+        if (this.player.getTags().contains("slide")) ModSyncedEntityData.SPRINT_TIME_KEY.setValue(player, 0.0F);
     }
 }

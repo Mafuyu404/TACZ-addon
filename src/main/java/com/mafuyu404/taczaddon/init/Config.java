@@ -20,6 +20,7 @@ public class Config {
     public static final ForgeConfigSpec.ConfigValue<Boolean> GUNSMITHTABLE_CRAFT_TOAST;
     public static final ForgeConfigSpec.ConfigValue<Boolean> GUNSMITHTABLE_MEMORY;
     public static final ForgeConfigSpec.ConfigValue<Boolean> GUNSMITHTABLE_CONTAINER_READER;
+    public static final ForgeConfigSpec.ConfigValue<Boolean> SHOW_ATTACHMENT_ATTRIBUTE;
     public static final ForgeConfigSpec.ConfigValue<Integer> LESS_ALLOW_GUN;
     public static final ForgeConfigSpec.ConfigValue<Integer> GUNSMITHTABLE_MASS_CRAFT_TIME;
     public static final ForgeConfigSpec.ConfigValue<List<? extends String>> MELEE_WEAPON_LIST;
@@ -63,6 +64,9 @@ public class Config {
         LESS_ALLOW_GUN = BUILDER
                 .comment("在这里填入正整数，即对配件按shift时显示的适用枪械数量。")
                 .define("enableLessAllowGun", 16);
+        SHOW_ATTACHMENT_ATTRIBUTE = BUILDER
+                .comment("开启后，配件将显示详细数值。")
+                .define("enableAttachmentDetail", true);
         BUILDER.pop();
         SPEC = BUILDER.build();
     }

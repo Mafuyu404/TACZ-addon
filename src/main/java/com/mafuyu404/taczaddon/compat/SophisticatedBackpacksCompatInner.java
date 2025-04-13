@@ -4,17 +4,21 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.fml.loading.FMLEnvironment;
 import net.minecraftforge.items.IItemHandler;
 import net.p3pp3rf1y.sophisticatedbackpacks.api.CapabilityBackpackWrapper;
 import net.p3pp3rf1y.sophisticatedbackpacks.backpack.BackpackStorage;
 import net.p3pp3rf1y.sophisticatedbackpacks.backpack.wrapper.BackpackWrapper;
 import net.p3pp3rf1y.sophisticatedbackpacks.backpack.wrapper.IBackpackWrapper;
+import net.p3pp3rf1y.sophisticatedbackpacks.common.gui.BackpackContainer;
 import net.p3pp3rf1y.sophisticatedbackpacks.common.gui.BackpackContext;
 import net.p3pp3rf1y.sophisticatedbackpacks.network.BackpackContentsMessage;
 import net.p3pp3rf1y.sophisticatedbackpacks.network.RequestBackpackInventoryContentsMessage;
 import net.p3pp3rf1y.sophisticatedbackpacks.network.SBPPacketHandler;
+import net.p3pp3rf1y.sophisticatedbackpacks.util.PlayerInventoryProvider;
 import net.p3pp3rf1y.sophisticatedcore.inventory.InventoryHandler;
 
 import java.util.ArrayList;
@@ -83,8 +87,10 @@ public class SophisticatedBackpacksCompatInner {
     public static void modifyBackpack(ServerPlayer player, ItemStack backpackItem, Consumer<IItemHandler> action) {
         BackpackWrapper backpackWrapper = new BackpackWrapper(backpackItem);
         IBackpackWrapper iBackpackWrapper = backpackItem.getCapability(CapabilityBackpackWrapper.getCapabilityInstance()).orElse(IBackpackWrapper.Noop.INSTANCE);
-        action.accept(backpackWrapper.getInventoryHandler());
-        action.accept(iBackpackWrapper.getInventoryHandler());
+        IItemHandler inventoryHandler = backpackWrapper.getInventoryHandler();
+        IItemHandler iInventoryHandler = iBackpackWrapper.getInventoryHandler();
+        action.accept(inventoryHandler);
+        action.accept(iInventoryHandler);
         UUID uuid = iBackpackWrapper.getContentsUuid().get();
         CompoundTag backpackContent = BackpackStorage.get().getOrCreateBackpackContents(uuid);
         SBPPacketHandler.INSTANCE.sendToClient(player, new BackpackContentsMessage(uuid, backpackContent));

@@ -6,6 +6,7 @@ import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
 import com.mafuyu404.taczaddon.init.*;
 import com.mafuyu404.taczaddon.TACZaddon;
 import com.mafuyu404.taczaddon.network.PrimitivePacket;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
@@ -44,26 +45,10 @@ public class ServerEvent {
 //        AttachmentFromBackpack.onAttachmentUnload(event);
     }
     @SubscribeEvent
-    public static void jump(LivingEvent.LivingJumpEvent event) {
-        if (!(event.getEntity() instanceof Player player)) return;
-//        System.out.print(player.isLocalPlayer()+""+SophisticatedBackpacksCompat.getItemsFromInventoryBackpack(player)+"\n");
-        player.getInventory().items.forEach(itemStack -> {
-            if (!itemStack.isEmpty()) {
-                String [] id = itemStack.getItem().getDescriptionId().split("\\.");
-                if (id[1].equals("sophisticatedbackpacks") && id[2].contains("backpack")) {
-                    ArrayList<ItemStack> items = new ArrayList<>();
-                    BackpackContext.Item context = new BackpackContext.Item(PlayerInventoryProvider.MAIN_INVENTORY, player.getInventory().findSlotMatchingItem(itemStack));
-                    Optional<PlayerInventoryHandler> inventoryHandler = PlayerInventoryProvider.get().getPlayerInventoryHandler(PlayerInventoryProvider.MAIN_INVENTORY);
-                    ItemStack stack = inventoryHandler.get().getStackInSlot(player, "", player.getInventory().findSlotMatchingItem(itemStack));
-                    InventoryHandler handler = context.getBackpackWrapper(player).getInventoryHandler();
-                    int size = itemStack.getTag().getInt("inventorySlots");
-                    for (int i = 0; i < size; i++) {
-                        ItemStack item = handler.getStackInSlot(i);
-                        items.add(item);
-                    }
-                    System.out.print(player.isLocalPlayer()+""+items+"\n");
-                }
-            }
-        });
+    public void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        if (FMLEnvironment.dist.isClient()) return;
+        if (event.getEntity() instanceof ServerPlayer player) {
+            System.out.print(player.getUUID()+"\n");
+        }
     }
 }

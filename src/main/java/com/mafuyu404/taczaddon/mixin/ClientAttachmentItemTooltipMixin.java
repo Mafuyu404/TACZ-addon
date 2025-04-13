@@ -44,16 +44,9 @@ public class ClientAttachmentItemTooltipMixin {
         cir.setReturnValue(result);
     }
 
-//    @Unique
-//    private AttachmentType attachmentType;
-//
-//    @Inject(method = "addText", at = @At("HEAD"))
-//    private void getAttachmentItem(AttachmentType type, CallbackInfo ci) {
-//        attachmentType = type;
-//    }
-
     @Redirect(method = "lambda$addText$4", at = @At(value = "INVOKE", target = "Lcom/tacz/guns/api/modifier/JsonProperty;getComponents()Ljava/util/List;"))
     private List<Component> modifyAttachmentDetail(JsonProperty<?> value) {
+        if (!Config.SHOW_ATTACHMENT_ATTRIBUTE.get()) return value.getComponents();
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) {
             return value.getComponents();

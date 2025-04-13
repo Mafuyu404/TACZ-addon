@@ -56,7 +56,7 @@ public class LiberateAttachment {
         });
     }
     public static void syncRuleWhenLogin(ServerPlayer serverPlayer) {
-        System.out.print("rule\n");
+//        System.out.print("rule\n");
         boolean liberateAttachment = serverPlayer.level().getGameRules().getBoolean(RuleRegistry.LIBERATE_ATTACHMENT);
         NetworkHandler.sendToClient(serverPlayer, new PrimitivePacket("gamerule.liberateAttachment", liberateAttachment));
         boolean showAttachmentDetail = serverPlayer.level().getGameRules().getBoolean(RuleRegistry.SHOW_ATTACHMENT_DETAIL);

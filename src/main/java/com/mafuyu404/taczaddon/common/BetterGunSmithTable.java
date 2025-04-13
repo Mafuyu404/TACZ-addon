@@ -9,23 +9,11 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.fml.ModList;
 
 import java.util.*;
 
 public class BetterGunSmithTable {
-//    private static final List<GunSmithTableRecipe> recipeList = Minecraft.getInstance().level.getRecipeManager().getAllRecipesFor(ModRecipe.GUN_SMITH_TABLE_CRAFTING);
-//    private static GunSmithTableRecipe EmptyRecipe;
-//    public static GunSmithTableRecipe getEmptyRecipe() {
-//        String gunId = Minecraft.getInstance().player.getMainHandItem().getTag().getString("GunId");
-//        if (EmptyRecipe == null || !EmptyRecipe.getId().toString().equals(gunId)) {
-//            recipeList.forEach(recipe -> {
-//                if (recipe.getId().toString().equals(gunId)) {
-//                    EmptyRecipe = recipe;
-//                }
-//            });
-//        }
-//        return EmptyRecipe;
-//    }
     private static ResourceLocation recipeId;
 
     public static ResourceLocation storeRecipeId(ResourceLocation id) {
@@ -34,12 +22,15 @@ public class BetterGunSmithTable {
     }
     public static String controlRecipes(String groupName, String selectedAttachmentProp) {
         if (!Config.enableBetterGunSmithTable()) return groupName;
+        if (ModList.get().isLoaded("tacztweaks")) return groupName;
         Object data = DataStorage.get("BetterGunSmithTable.storedAttachmentData");
         Player player = Minecraft.getInstance().player;
         ItemStack gunItem = player.getOffhandItem();
         if (IGun.getIGunOrNull(player.getMainHandItem()) != null) gunItem = player.getMainHandItem();
-        ResourceLocation itemId = ResourceLocation.tryParse(recipeId.toString().split(":")[0] + ":" + recipeId.toString().split("/")[1]);
+        System.out.print(recipeId+"");
         IGun iGun = IGun.getIGunOrNull(gunItem);
+        if (!recipeId.toString().contains("/") && (iGun == null || Objects.equals(selectedAttachmentProp, "选择属性"))) return groupName;
+        ResourceLocation itemId = ResourceLocation.tryParse(recipeId.toString().split(":")[0] + ":" + recipeId.toString().split("/")[1]);
         if (iGun != null) {
             ResourceLocation gunId = iGun.getGunId(gunItem);
             boolean isAmmo = TimelessAPI.getCommonGunIndex(gunId).map(gunIndex -> gunIndex.getGunData().getAmmoId().equals(itemId)).orElse(false);
