@@ -1,4 +1,6 @@
 {
-  "key.taczaddon.switch_gun.desc": "快速切枪",
-  "key.categories.taczaddon": "TaCZ addon"
+  "key.taczaddon.switch_gun.desc": "Quickly Switch Gun",
+  "key.categories.taczaddon": "TaCZ addon",
+  "gui.taczaddon.gun_smith_table.page_index": "%s (Page-%s/%s)",
+  "gui.taczaddon.gun_smith_table.default_prop": "Prop Filter"
 }

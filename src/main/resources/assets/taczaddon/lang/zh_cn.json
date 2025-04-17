@@ -1,0 +1,6 @@
+{
+  "key.taczaddon.switch_gun.desc": "快速切枪",
+  "key.categories.taczaddon": "TaCZ addon",
+  "gui.taczaddon.gun_smith_table.page_index": "%s (第%s页-共%s页)",
+  "gui.taczaddon.gun_smith_table.default_prop": "选择属性"
+}

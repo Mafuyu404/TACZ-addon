@@ -49,12 +49,18 @@ public class SophisticatedBackpacksCompat {
     }
     public static void syncAllBackpack(Player player) {
         if (INSTALLED) {
-            SophisticatedBackpacksCompatInner.syncAllBackpack((LocalPlayer) player);
+            SophisticatedBackpacksCompatInner.syncAllBackpack(player);
         }
     }
     public static void modifyBackpack(ServerPlayer player, ItemStack backpackItem, Consumer<IItemHandler> action) {
         if (INSTALLED) {
             SophisticatedBackpacksCompatInner.modifyBackpack(player, backpackItem, action);
         }
+    }
+    public static ArrayList<ItemStack> getAllInventoryBackpack(Player player) {
+        if (INSTALLED) {
+            return SophisticatedBackpacksCompatInner.getAllInventoryBackpack(player);
+        }
+        return new ArrayList<>();
     }
 }

@@ -8,6 +8,7 @@ import com.tacz.guns.api.item.IGun;
 import com.tacz.guns.client.gui.GunSmithTableScreen;
 import com.tacz.guns.crafting.GunSmithTableRecipe;
 import com.tacz.guns.inventory.GunSmithTableMenu;
+import com.tacz.guns.resource.modifier.AttachmentPropertyManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -124,7 +125,8 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
         }
         tACZ_addon$dropdown = new DropDown(leftPos - 64, topPos - 16, 64);
         for (String prop : tACZ_addon$AttachmentProp) {
-            tACZ_addon$dropdown.addOption(Component.literal(prop));
+            String text = Component.translatable(prop).getString().replace("+ ", "");
+            tACZ_addon$dropdown.addOption(Component.literal(text));
         }
         tACZ_addon$dropdown.setSelected(tACZ_addon$selectedAttachmentPropIndex);
         this.addRenderableWidget(tACZ_addon$dropdown);
@@ -142,23 +144,20 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
         });
         if (DataStorage.get("BetterGunSmithTable.storedAttachmentData") == null) DataStorage.set("BetterGunSmithTable.storedAttachmentData", StoredAttachmentData);
 
-        tACZ_addon$AttachmentProp.add("选择属性");
-        tACZ_addon$AttachmentProp.add("开镜时间");
-        tACZ_addon$AttachmentProp.add("优势射程");
-        tACZ_addon$AttachmentProp.add("竖直后座力");
-        tACZ_addon$AttachmentProp.add("水平后座力");
-        tACZ_addon$AttachmentProp.add("爆头倍率");
-        tACZ_addon$AttachmentProp.add("伤害");
-        tACZ_addon$AttachmentProp.add("射速");
-        tACZ_addon$AttachmentProp.add("弹速");
-        tACZ_addon$AttachmentProp.add("瞄准精度");
-        tACZ_addon$AttachmentProp.add("腰射精度");
-        tACZ_addon$AttachmentProp.add("声音范围");
-        tACZ_addon$AttachmentProp.add("消音");
-        tACZ_addon$AttachmentProp.add("点燃实体");
-        tACZ_addon$AttachmentProp.add("穿甲倍率");
-        tACZ_addon$AttachmentProp.add("穿透");
-        tACZ_addon$AttachmentProp.add("爆炸");
+        tACZ_addon$AttachmentProp.add("gui.taczaddon.gun_smith_table.default_prop");
+        AttachmentPropertyManager.getModifiers().forEach((s, iAttachmentModifier) -> {
+//            System.out.print(s+"\n");
+            String prop = Component.translatable("tooltip.tacz.attachment." + s + ".increase").getString();
+//            System.out.print(prop+"\n");
+            if (s.equals("ignite")) {
+                tACZ_addon$AttachmentProp.add("tooltip.tacz.attachment.ignite.block");
+                tACZ_addon$AttachmentProp.add("tooltip.tacz.attachment.ignite.entity");
+                return;
+            }
+            if (s.equals("weight_modifier") || s.equals("recoil")) return;
+            if (prop.contains("tooltip")) tACZ_addon$AttachmentProp.add("tooltip.tacz.attachment." + s);
+            else tACZ_addon$AttachmentProp.add("tooltip.tacz.attachment." + s + ".increase");
+        });
 
         if (!Config.enableGunSmithTableMemory()) return;
         if (ModList.get().isLoaded("tacztweaks")) return;
@@ -209,7 +208,7 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
     @ModifyArg(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;drawString(Lnet/minecraft/client/gui/Font;Lnet/minecraft/network/chat/Component;IIIZ)I", ordinal = 0), index = 1, remap = true)
     private Component renderPageInfo(Component p_282131_) {
         String type = Component.translatable(String.format("tacz.type.%s.name", this.selectedType)).getString();
-        String title = String.format("%s (第%s页-共%s页)", type, this.indexPage + 1, (int) Math.ceil((double) this.selectedRecipeList.size() / 6));
+        String title = String.format(Component.translatable("gui.taczaddon.gun_smith_table.page_index").getString(), type, this.indexPage + 1, (int) Math.ceil((double) this.selectedRecipeList.size() / 6));
         return Component.translatable(title);
     }
 

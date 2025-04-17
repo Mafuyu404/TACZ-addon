@@ -1,4 +1,4 @@
-//package com.mafuyu404.taczaddon.compat;
+package com.mafuyu404.taczaddon.compat.kubejs;
 //
 //import com.mafuyu404.taczaddon.TACZaddon;
 //import com.tacz.guns.api.item.IAttachment;

@@ -21,7 +21,7 @@ public class ModernKineticGunScriptAPIMixin {
     private int useBackpackAmmo(AbstractGunItem abstractGunItem, IItemHandler cap, ItemStack gunItem, int neededAmount) {
         if (!(shooter instanceof Player player)) return abstractGunItem.findAndExtractInventoryAmmos(cap, gunItem, neededAmount);
         final int[] cnt = {neededAmount};
-        player.getInventory().items.forEach(itemStack -> {
+        SophisticatedBackpacksCompat.getAllInventoryBackpack(player).forEach(itemStack -> {
             if (itemStack.isEmpty()) return;
             String[] id = itemStack.getItem().getDescriptionId().split("\\.");
             if (!(id[1].equals("sophisticatedbackpacks") && id[2].contains("backpack"))) return;

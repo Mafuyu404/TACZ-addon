@@ -149,8 +149,6 @@ public class DropDown extends AbstractWidget {
             // 限制滚动范围 [0, maxScroll]
             int maxScroll = Math.max(0, options.size() - maxVisibleItems);
             scrollOffset = clamp(newScrollOffset, 0, maxScroll);
-            System.out.print(scrollOffset);
-            System.out.print("\n");
             return true; // 拦截滚动事件
         }
         return super.mouseScrolled(mouseX, mouseY, delta);

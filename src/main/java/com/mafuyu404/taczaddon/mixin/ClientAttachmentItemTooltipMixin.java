@@ -16,6 +16,8 @@ import com.tacz.guns.util.AllowAttachmentTagMatcher;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ComponentContents;
+import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Final;
@@ -86,38 +88,38 @@ public class ClientAttachmentItemTooltipMixin {
             cacheProperty.eval(gunItem, gunData);
 
             AttachmentPropertyManager.getModifiers().forEach((key, Modifier) -> Modifier.getPropertyDiagramsData(gunItem, gunData, cacheProperty).forEach(diagramsData -> {
-                defaultAttr.put(Component.translatable(diagramsData.titleKey()).getString(), extractValue(diagramsData.defaultString()));
+                defaultAttr.put(diagramsData.titleKey().split("\\.")[4], extractValue(diagramsData.defaultString()));
                 newAttr.putAll(handleData(diagramsData));
             }));
         });
-        newAttr.forEach((title, newVal) -> {
-            if (originAttr.containsKey(title)) {
-                double originVal = originAttr.get(title);
+        newAttr.forEach((titleKey, newVal) -> {
+            if (originAttr.containsKey(titleKey)) {
+                double originVal = originAttr.get(titleKey);
                 double offset = newVal - originVal;
-                double defaultValue = defaultAttr.get(title);
-                String text = title + " ";
-                if (offset > 0) text += "+";
-//                text += Math.round(offset / 1e7) * 0.01d;
-                text += (double) (Math.round(offset * 100d) / 100d);
-                if (Objects.equals(title, "重量")) text += "kg";
-                if (title.contains("时间") || title.contains("延迟")) text += "s";
-                if (title.contains("瞄准精度") || title.contains("穿甲倍率")) text += "%";
-                if (title.contains("射速")) text += "rpm";
-                if (title.contains("射程")) text += "m";
-                if (title.contains("弹速")) text += "m/s";
-                text += " (" + (offset > 0 ? "+" : "") + Math.ceil(offset / defaultValue * 100) + "%)";
-                attr.put(title, text);
+                double defaultValue = defaultAttr.get(titleKey);
+                String remark = "";
+                if (offset > 0) remark += "+";
+                remark += (double) (Math.round(offset * 100d) / 100d);
+                if (titleKey.equals("weight")) remark += "kg";
+                if (titleKey.equals("ads") || titleKey.contains("time")) remark += "s";
+                if (titleKey.equals("aim_inaccuracy") || titleKey.equals("armor_ignore")) remark += "%";
+                if (titleKey.equals("rpm")) remark += "rpm";
+                if (titleKey.equals("effective_range")) remark += "m";
+                if (titleKey.contains("ammo_speed")) remark += "m/s";
+                remark += " (" + (offset > 0 ? "+" : "") + Math.ceil(offset / defaultValue * 100) + "%)";
+                attr.put(titleKey, remark);
             }
         });
         value.getComponents().forEach(component -> {
-            String title = component.getString().split(" ")[1];
-//            System.out.print(title + component.getStyle().getColor().toString() + "\n");
-            if (title.equals("腰射精度")) title = "腰射扩散";
-            if (title.equals("竖直后座力")) title = "垂直后坐力";
-            if (title.equals("水平后座力")) title = "水平后坐力";
-            String text;
-            if (attr.containsKey(title)) text = attr.get(title);
-            else text = title + " " + component.getString().split(" ")[0];
+            String translationKey = getTranslationKey(component);
+            if (translationKey == null) return;
+            String titleKey = translationKey.split("\\.")[3];
+            if (titleKey.equals("inaccuracy")) titleKey = "hipfire_inaccuracy";
+            String title = titleKey.equals("hipfire_inaccuracy") ? Component.translatable("gui.tacz.gun_refit.property_diagrams.hipfire_inaccuracy").getString() : component.getString().replace("+ ", "").replace("- ", "");
+            String remark;
+            if (attr.containsKey(titleKey)) remark = attr.get(titleKey);
+            else remark = component.getString().split(" ")[0];
+            String text = title + " " + remark;
             if ((component.getStyle().getColor().toString().equals("red"))) text = "§c" + text;
             else text = "§a" + text;
             result.add(Component.translatable(text));
@@ -128,12 +130,11 @@ public class ClientAttachmentItemTooltipMixin {
         String titleKey = diagramsData.titleKey();
         String positivelyString = diagramsData.positivelyString();
         String negativeString = diagramsData.negativeString();
-        String text = Component.translatable(titleKey).getString();
-        if (!positivelyString.split(" ")[1].contains("+-")) text += positivelyString.split(" ")[1];
-        else text += negativeString.split(" ")[1];
-//        System.out.print(text + "\n");
+        String text;
+        if (!positivelyString.split(" ")[1].contains("+-")) text = positivelyString;
+        else text = negativeString;
         HashMap<String, Double> result = new HashMap<>();
-        result.put(Component.translatable(titleKey).getString(), extractValue(text));
+        result.put(titleKey.split("\\.")[4], extractValue(text));
         return result;
     }
     private double extractValue(String text) {
@@ -144,5 +145,12 @@ public class ClientAttachmentItemTooltipMixin {
             val = Double.parseDouble(matcher.group());
         }
         return val;
+    }
+    private static String getTranslationKey(Component component) {
+        ComponentContents contents = component.getContents();
+        if (contents instanceof TranslatableContents translatable) {
+            return translatable.getKey();
+        }
+        return null;
     }
 }

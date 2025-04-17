@@ -32,8 +32,8 @@ public class ServerEvent {
     @SubscribeEvent
     public static void onPlayerLogin(EntityJoinLevelEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
-        if (player.isLocalPlayer()) return;
-        LiberateAttachment.syncRuleWhenLogin((ServerPlayer) player);
+        if (!(player instanceof ServerPlayer serverPlayer)) return;
+        LiberateAttachment.syncRuleWhenLogin(serverPlayer);
 //        AttachmentFromBackpack.syncBackpackWhenLogin(event);
     }
     @SubscribeEvent

@@ -4,6 +4,8 @@ import com.mafuyu404.taczaddon.init.DataStorage;
 import com.mafuyu404.taczaddon.init.VirtualContainerLoader;
 import com.tacz.guns.client.gui.GunSmithTableScreen;
 import com.tacz.guns.crafting.GunSmithTableRecipe;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Final;
@@ -38,14 +40,17 @@ public abstract class VirtualContanier implements VirtualContainerLoader {
         return this.tACZ_addon$virtualContanier;
     }
 
-    public void refreshRecipes(String prop, boolean refreshPage) {
+    public void refreshRecipes(String propKey, boolean refreshPage) {
+        String prop = Component.translatable(propKey).getString().replace("+ ", "");
         ArrayList<ResourceLocation> result = new ArrayList<>();
         Object data = DataStorage.get("BetterGunSmithTable.storedAttachmentData");
-        if (data != null && !Objects.equals(prop, "选择属性")) {
+        if (data != null && !Objects.equals(prop, "gui.taczaddon.gun_smith_table.default_prop")) {
             HashMap<String, String> AttachmentData = (HashMap<String, String>) data;
             this.recipes.get(this.selectedType).forEach(resourceLocation -> {
                 GunSmithTableRecipe recipe = this.getSelectedRecipe(resourceLocation);
-                String itemId = recipe.getOutput().getTag().getString("AttachmentId");
+                CompoundTag tag = recipe.getOutput().getTag();
+                if (tag == null) return;
+                String itemId = tag.getString("AttachmentId");
                 if (AttachmentData.get(itemId.toString()) == null) return;
                 if (!AttachmentData.get(itemId.toString()).contains(prop)) {
                     return;
