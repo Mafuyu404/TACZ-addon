@@ -3,6 +3,7 @@ package com.mafuyu404.taczaddon.mixin;
 import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
 import com.mafuyu404.taczaddon.init.ContainerMaster;
 import com.mafuyu404.taczaddon.init.VirtualInventory;
+import com.tacz.guns.crafting.GunSmithTableRecipe;
 import com.tacz.guns.inventory.GunSmithTableMenu;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -10,9 +11,12 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.util.LazyOptional;
+import net.minecraftforge.items.IItemHandler;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.ArrayList;
 
@@ -33,6 +37,7 @@ public class GunSmithTableMenuMixin {
         }
         if (player.getPersistentData().contains("BetterGunSmithTable.nearbyBackpackPos")) {
             String backpackPos = player.getPersistentData().getString("BetterGunSmithTable.nearbyBackpackPos");
+            System.out.print(backpackPos+"\n");
             String[] Bpos = backpackPos.split(";");
             if (backpackPos.contains(";")) for (String po : Bpos) {
                 String[] parsedPos = po.split(",");
@@ -47,5 +52,13 @@ public class GunSmithTableMenuMixin {
             virtualInventory.setItem(i, containerItems.get(i));
         }
         return LazyOptional.of(() -> (T) virtualInventory.getHandler());
+    }
+
+    @Inject(method = "lambda$doCraft$1", at = @At("RETURN"))
+    private void modify(GunSmithTableRecipe recipe, Player player, IItemHandler handler, CallbackInfo ci) {
+        for (int i = 0; i < handler.getSlots(); i++) {
+            System.out.print(handler.getStackInSlot(i)+", ");
+        }
+        System.out.print("\n");
     }
 }

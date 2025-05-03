@@ -1,6 +1,5 @@
 package com.mafuyu404.taczaddon.compat;
 
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
@@ -19,42 +18,37 @@ public class SophisticatedBackpacksCompat {
         INSTALLED = ModList.get().isLoaded(MOD_ID);
     }
 
-//    public static Inventory get() {
-//        if (INSTALLED) {
-//            return SophisticatedBackpacksCompatInner.get();
-//        }
-//        return Minecraft.getInstance().player.getInventory();
-//    }
-
     public static ArrayList<ItemStack> getItemsFromBackpackBLock(BlockPos blockPos, Player player) {
-        ArrayList<ItemStack> items = new ArrayList<>();
         if (INSTALLED) {
             return SophisticatedBackpacksCompatInner.getItemsFromBackpackBLock(blockPos, player);
         }
-        return items;
+        return new ArrayList<>();
     }
     public static ArrayList<ItemStack> getItemsFromBackpackItem(ItemStack itemStack) {
-        ArrayList<ItemStack> items = new ArrayList<>();
         if (INSTALLED) {
             return SophisticatedBackpacksCompatInner.getItemsFromBackpackItem(itemStack);
         }
-        return items;
+        return new ArrayList<>();
     }
     public static ArrayList<ItemStack> getItemsFromInventoryBackpack(Player player) {
-        ArrayList<ItemStack> items = new ArrayList<>();
         if (INSTALLED) {
             return SophisticatedBackpacksCompatInner.getItemsFromInventoryBackpack(player);
         }
-        return items;
+        return new ArrayList<>();
     }
     public static void syncAllBackpack(Player player) {
         if (INSTALLED) {
             SophisticatedBackpacksCompatInner.syncAllBackpack(player);
         }
     }
-    public static void modifyBackpack(ServerPlayer player, ItemStack backpackItem, Consumer<IItemHandler> action) {
+    public static void modifyInventoryBackpack(ServerPlayer player, ItemStack backpackItem, Consumer<IItemHandler> action) {
         if (INSTALLED) {
-            SophisticatedBackpacksCompatInner.modifyBackpack(player, backpackItem, action);
+            SophisticatedBackpacksCompatInner.modifyInventoryBackpack(player, backpackItem, action);
+        }
+    }
+    public static void modifyBlockBackpack(ServerPlayer player, BlockPos blockPos, Consumer<IItemHandler> action) {
+        if (INSTALLED) {
+            SophisticatedBackpacksCompatInner.modifyBlockBackpack(player, blockPos, action);
         }
     }
     public static ArrayList<ItemStack> getAllInventoryBackpack(Player player) {

@@ -15,7 +15,6 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 public class ClientSetupEvent {
     @SubscribeEvent
     public static void onClientSetup(FMLClientSetupEvent event) {
-        // 与 Shoulder Surfing Reloaded 的兼容
         event.enqueueWork(ShoulderSurfingCompat::init);
         event.enqueueWork(JeiCompat::init);
         event.enqueueWork(SophisticatedBackpacksCompat::init);

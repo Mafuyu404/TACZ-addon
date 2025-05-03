@@ -1,31 +1,19 @@
 package com.mafuyu404.taczaddon.event;
 
-import com.mafuyu404.taczaddon.common.AttachmentFromBackpack;
 import com.mafuyu404.taczaddon.common.LiberateAttachment;
-import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
 import com.mafuyu404.taczaddon.init.*;
 import com.mafuyu404.taczaddon.TACZaddon;
-import com.mafuyu404.taczaddon.network.PrimitivePacket;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.loading.FMLEnvironment;
+import net.p3pp3rf1y.sophisticatedbackpacks.common.gui.BackpackContainer;
 import net.p3pp3rf1y.sophisticatedbackpacks.common.gui.BackpackContext;
-import net.p3pp3rf1y.sophisticatedbackpacks.util.PlayerInventoryHandler;
 import net.p3pp3rf1y.sophisticatedbackpacks.util.PlayerInventoryProvider;
-import net.p3pp3rf1y.sophisticatedcore.inventory.InventoryHandler;
-
-import java.util.ArrayList;
-import java.util.Optional;
 
 @Mod.EventBusSubscriber(modid = TACZaddon.MODID)
 public class ServerEvent {
@@ -51,4 +39,18 @@ public class ServerEvent {
             System.out.print(player.getUUID()+"\n");
         }
     }
+//    @SubscribeEvent
+//    public static void jump(LivingEvent.LivingJumpEvent event) {
+//        if (!(event.getEntity() instanceof Player player)) return;
+//        PlayerInventoryProvider.get().runOnBackpacks(player, (backpack, inventoryName, identifier, index) -> {
+//            BackpackContext.Item backpackContext = new BackpackContext.Item(inventoryName, identifier, index);
+//            BackpackContainer container = new BackpackContainer(player.containerMenu.containerId + 1, player, backpackContext);
+//            int size = backpack.getTag().getInt("inventorySlots");
+//            container.realInventorySlots.forEach(slot -> {
+//                if (slot.index < size)
+//            });
+//            System.out.print(container.realInventorySlots.size()+"\n");
+//            return false;
+//        });
+//    }
 }

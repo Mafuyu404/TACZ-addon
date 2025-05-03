@@ -54,8 +54,9 @@ public class ContainerPositionPacket {
                 }
             }
             if (player != null) {
-                if (!Bpos.isEmpty()) player.getPersistentData().putString("BetterGunSmithTable.nearbyContainerPos", Cpos.toString());
-                if (!Cpos.isEmpty()) player.getPersistentData().putString("BetterGunSmithTable.nearbyBackpackPos", Bpos.toString());
+                System.out.print(Bpos+"\n");
+                if (!Cpos.isEmpty()) player.getPersistentData().putString("BetterGunSmithTable.nearbyContainerPos", Cpos.toString());
+                if (!Bpos.isEmpty()) player.getPersistentData().putString("BetterGunSmithTable.nearbyBackpackPos", Bpos.toString());
             }
             NetworkHandler.sendToClient(player, new ContainerReaderPacket(items));
         });
