@@ -125,6 +125,10 @@ repositories {
             includeGroup "mezz.jei"
         }
     }
+    mavenLocal()
+    flatDir {
+        dir 'libs'
+    }
 //    maven {
 //        // location of a maven mirror for JEI files, as a fallback
 //        name = "Mod Maven"
@@ -140,7 +144,8 @@ dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
-    implementation fg.deobf("curse.maven:timeless-and-classics-zero-1028108:6069384")
+//    implementation fg.deobf("curse.maven:timeless-and-classics-zero-1028108:6069384")
+    implementation fg.deobf("libs:tacz:1.20.1-1.1.5-all")
 
     implementation fg.deobf("curse.maven:shoulder-surfing-reloaded-243190:5455954")
 

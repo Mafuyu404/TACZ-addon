@@ -4,7 +4,6 @@ import com.mafuyu404.taczaddon.init.VirtualInventory;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;
@@ -87,20 +86,19 @@ public class SophisticatedBackpacksCompatInner {
 
     public static void modifyBackpack(ServerPlayer player, BackpackContext backpackContext, Consumer<IItemHandler> action) {
         BackpackContainer container = new BackpackContainer(player.containerMenu.containerId + 1, player, backpackContext);
-        int size = container.getStorageWrapper().getBackpack().getTag().getInt("inventorySlots");
+        int size = container.realInventorySlots.size() - player.getInventory().items.size();
+
+        InventoryHandler inventoryHandler = container.getStorageWrapper().getInventoryHandler();
         VirtualInventory virtualInventory = new VirtualInventory(size, player);
         for (int i = 0; i < size; i++) {
-            virtualInventory.setItem(i, container.realInventorySlots.get(i).getItem());
+            virtualInventory.setItem(i, inventoryHandler.getStackInSlot(i));
         }
         action.accept(virtualInventory.getHandler());
 
-        InventoryHandler inventoryHandler = container.getStorageWrapper().getInventoryHandler();
         for (int i = 0; i < size; i++) {
-            inventoryHandler.extractItem(i, inventoryHandler.getStackInSlot(i).getCount(), false);
-            inventoryHandler.insertItem(i, virtualInventory.getItem(i), false);
+            container.realInventorySlots.get(i).set(virtualInventory.getItem(i));
         }
 
-        container.sendAllDataToRemote();
         UUID uuid = container.getStorageWrapper().getContentsUuid().get();
         CompoundTag backpackContent = BackpackStorage.get().getOrCreateBackpackContents(uuid);
         SBPPacketHandler.INSTANCE.sendToClient(player, new BackpackContentsMessage(uuid, backpackContent));

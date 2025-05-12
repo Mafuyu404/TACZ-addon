@@ -54,11 +54,8 @@ public class GunSmithTableMenuMixin {
         return LazyOptional.of(() -> (T) virtualInventory.getHandler());
     }
 
-    @Inject(method = "lambda$doCraft$1", at = @At("RETURN"))
-    private void modify(GunSmithTableRecipe recipe, Player player, IItemHandler handler, CallbackInfo ci) {
-        for (int i = 0; i < handler.getSlots(); i++) {
-            System.out.print(handler.getStackInSlot(i)+", ");
-        }
-        System.out.print("\n");
+    @Redirect(method = "lambda$doCraft$3", at = @At(value = "INVOKE", target = "Lcom/tacz/guns/network/NetworkHandler;sendToClientPlayer(Ljava/lang/Object;Lnet/minecraft/world/entity/player/Player;)V"))
+    private void modify(Object message, Player player) {
+        System.out.print("send\n");
     }
 }

@@ -22,9 +22,9 @@ public class ModernKineticGunScriptAPIMixin {
 
     @Shadow private ItemStack itemStack;
 
-    @Redirect(method = "lambda$consumeAmmoFromPlayer$2", at = @At(value = "INVOKE", target = "Lcom/tacz/guns/api/item/gun/AbstractGunItem;findAndExtractInventoryAmmos(Lnet/minecraftforge/items/IItemHandler;Lnet/minecraft/world/item/ItemStack;I)I"))
+    @Redirect(method = "lambda$consumeAmmoFromPlayer$4", at = @At(value = "INVOKE", target = "Lcom/tacz/guns/api/item/gun/AbstractGunItem;findAndExtractInventoryAmmo(Lnet/minecraftforge/items/IItemHandler;Lnet/minecraft/world/item/ItemStack;I)I"))
     private int useBackpackAmmo(AbstractGunItem abstractGunItem, IItemHandler cap, ItemStack gunItem, int neededAmount) {
-        if (!(shooter instanceof Player player)) return abstractGunItem.findAndExtractInventoryAmmos(cap, gunItem, neededAmount);
+        if (!(shooter instanceof Player player)) return abstractGunItem.findAndExtractInventoryAmmo(cap, gunItem, neededAmount);
         final int[] cnt = {neededAmount};
         SophisticatedBackpacksCompat.getAllInventoryBackpack(player).forEach(itemStack -> {
             if (itemStack.isEmpty()) return;
@@ -32,11 +32,11 @@ public class ModernKineticGunScriptAPIMixin {
             if (!(id[1].equals("sophisticatedbackpacks") && id[2].contains("backpack"))) return;
             final int[] used = new int[1];
             SophisticatedBackpacksCompat.modifyInventoryBackpack((ServerPlayer) player, itemStack, iItemHandler -> {
-                used[0] = abstractGunItem.findAndExtractInventoryAmmos(iItemHandler, gunItem, cnt[0]);
+                used[0] = abstractGunItem.findAndExtractInventoryAmmo(iItemHandler, gunItem, cnt[0]);
             });
             cnt[0] -= used[0];
         });
-        int inventoryAmmoUsed = abstractGunItem.findAndExtractInventoryAmmos(cap, gunItem, cnt[0]);
+        int inventoryAmmoUsed = abstractGunItem.findAndExtractInventoryAmmo(cap, gunItem, cnt[0]);
         cnt[0] -= inventoryAmmoUsed;
         return neededAmount - cnt[0];
     }

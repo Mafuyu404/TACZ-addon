@@ -46,7 +46,7 @@ public class ClientAttachmentItemTooltipMixin {
         cir.setReturnValue(result);
     }
 
-    @Redirect(method = "lambda$addText$4", at = @At(value = "INVOKE", target = "Lcom/tacz/guns/api/modifier/JsonProperty;getComponents()Ljava/util/List;"))
+    @Redirect(method = "lambda$addText$5", at = @At(value = "INVOKE", target = "Lcom/tacz/guns/api/modifier/JsonProperty;getComponents()Ljava/util/List;"))
     private List<Component> modifyAttachmentDetail(JsonProperty<?> value) {
         if (!Config.SHOW_ATTACHMENT_ATTRIBUTE.get()) return value.getComponents();
         LocalPlayer player = Minecraft.getInstance().player;
