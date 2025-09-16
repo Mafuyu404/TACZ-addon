@@ -1,5 +1,6 @@
 package com.mafuyu404.taczaddon.mixin;
 
+import com.mafuyu404.taczaddon.common.BetterGunSmithTable;
 import com.mafuyu404.taczaddon.init.Config;
 import com.tacz.guns.api.TimelessAPI;
 import com.tacz.guns.api.item.IAttachment;
@@ -14,18 +15,22 @@ import com.tacz.guns.resource.modifier.AttachmentPropertyManager;
 import com.tacz.guns.resource.pojo.data.gun.GunData;
 import com.tacz.guns.util.AllowAttachmentTagMatcher;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentContents;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.*;
@@ -35,6 +40,8 @@ import java.util.regex.Pattern;
 @Mixin(value = ClientAttachmentItemTooltip.class, remap = false)
 public class ClientAttachmentItemTooltipMixin {
     @Shadow @Final private ResourceLocation attachmentId;
+
+    @Shadow @Final private List<Component> components;
 
     @Inject(method = "getAllAllowGuns", at = @At("RETURN"), cancellable = true)
     private static void modifyShowAllowGun(List<ItemStack> output, ResourceLocation attachmentId, CallbackInfoReturnable<List<ItemStack>> cir) {

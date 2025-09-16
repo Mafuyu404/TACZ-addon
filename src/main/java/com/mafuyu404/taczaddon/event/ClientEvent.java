@@ -1,21 +1,23 @@
 package com.mafuyu404.taczaddon.event;
 
 import com.mafuyu404.taczaddon.TACZaddon;
-import com.mafuyu404.taczaddon.compat.JeiCompat;
+import com.mafuyu404.taczaddon.common.BetterGunSmithTable;
 import com.mafuyu404.taczaddon.init.DataStorage;
 import com.mafuyu404.taczaddon.init.KeyBindings;
 import com.mafuyu404.taczaddon.init.NetworkHandler;
 import com.mafuyu404.taczaddon.network.SwitchGunPacket;
-import com.mojang.blaze3d.platform.InputConstants;
 import com.tacz.guns.api.item.IGun;
-import com.tacz.guns.client.gui.GunSmithTableScreen;
+import com.tacz.guns.item.AmmoBoxItem;
+import com.tacz.guns.item.AttachmentItem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.InputEvent;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -45,18 +47,6 @@ public class ClientEvent {
 //                }
 //            }
 //        }
-    }
-    @SubscribeEvent
-    public static void JEIRecipes(InputEvent.MouseButton event) {
-        if (Minecraft.getInstance().screen == null) return;
-        if (!(Minecraft.getInstance().screen instanceof GunSmithTableScreen)) return;
-        if (event.getAction() != InputConstants.RELEASE) return;
-        Object data = DataStorage.get("GunSmithTableJEI");
-        if (data == null) return;
-        ItemStack itemStack = (ItemStack) data;
-        if (itemStack.isEmpty()) return;
-        boolean result = JeiCompat.showRecipes(itemStack);
-        if (result) DataStorage.set("GunSmithTableJEI", ItemStack.EMPTY);
     }
 
     @SubscribeEvent
@@ -103,4 +93,15 @@ public class ClientEvent {
         NetworkHandler.CHANNEL.sendToServer(new SwitchGunPacket(slot));
         event.setCanceled(true);
     }
+//
+//    @SubscribeEvent
+//    public static void tooltip(ItemTooltipEvent event) {
+//        if (event.getItemStack().getItem() instanceof AmmoBoxItem) {
+//            event.getToolTip().add(event.getToolTip().size(), Component.translatable("tooltip.taczaddon.ammo_box"));
+//        }
+//
+//        if (event.getItemStack().getItem() instanceof AttachmentItem) {
+//            if (!BetterGunSmithTable.isHoldingGun(Minecraft.getInstance().player)) event.getToolTip().add(event.getToolTip().size(), Component.translatable("tooltip.taczaddon.more_attachment_info"));
+//        }
+//    }
 }

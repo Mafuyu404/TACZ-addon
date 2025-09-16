@@ -1,0 +1,12 @@
+{
+  "type": "taczaddon:gun_smithing",
+  "template": {
+    "tag": "minecraft:trim_templates"
+  },
+  "base": {
+    "item": "tacz:modern_kinetic_gun"
+  },
+  "addition": {
+    "item": "minecraft:echo_shard"
+  }
+}

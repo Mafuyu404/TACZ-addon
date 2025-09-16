@@ -13,13 +13,17 @@
     "GunReloadCooldownMixin",
     "GunSmithTableMenuMixin",
     "InventoryAccessor",
+    "LivingEntityDrawGunMixin",
     "LivingEntityShootMixin",
+    "LocalPlayerDrawMixin",
     "LocalPlayerReloadMixin",
     "LocalPlayerShootMixin",
     "ModernKineticGunScriptAPIMixin",
-    "NoCrawlMixin"
+    "NoCrawlMixin",
+    "SmithingMenuMixin"
   ],
   "client": [
+    "AbstractContainerScreenMixin",
     "AimKeyMixin",
     "GunRefitScreenMixin",
     "GunSmithTableScreenMixin",

@@ -1,6 +1,5 @@
 package com.mafuyu404.taczaddon.init;
 
-import com.tacz.guns.client.gui.GunSmithTableScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -9,6 +8,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 public class DropDown extends AbstractWidget {
     private final List<Component> options = new ArrayList<>();
@@ -34,6 +34,9 @@ public class DropDown extends AbstractWidget {
         if (index >= 0 && index < options.size()) {
             selectedIndex = index;
         }
+    }
+    public Component getOption(int i) {
+        return options.get(i);
     }
 
     @Override
@@ -86,6 +89,8 @@ public class DropDown extends AbstractWidget {
         }
     }
 
+    public Consumer<Integer> action = null;
+
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (!isMouseOver(mouseX, mouseY) && !isExpanded) return false;
@@ -99,7 +104,8 @@ public class DropDown extends AbstractWidget {
                     if (isMouseOverOption(mouseX, mouseY, i)) {
                         selectedIndex = i + scrollOffset;
                         isExpanded = false;
-                        ((VirtualContainerLoader) Minecraft.getInstance().screen).refreshRecipes(options.get(i).getString(), true);
+                        if (action != null) action.accept(selectedIndex);
+//                        ((VirtualContainerLoader) Minecraft.getInstance().screen).refreshRecipes(options.get(i).getString(), true);
                         return true;
                     }
                 }

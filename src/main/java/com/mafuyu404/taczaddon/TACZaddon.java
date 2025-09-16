@@ -1,6 +1,7 @@
 package com.mafuyu404.taczaddon;
 
 import com.mafuyu404.taczaddon.init.Config;
+import com.mafuyu404.taczaddon.init.ModRecipeSerializers;
 import com.mafuyu404.taczaddon.init.RuleRegistry;
 import com.mafuyu404.taczaddon.init.NetworkHandler;
 import net.minecraftforge.common.MinecraftForge;
@@ -23,6 +24,7 @@ public class TACZaddon
         NetworkHandler.register();
 
         IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();
+        ModRecipeSerializers.SERIALIZERS.register(bus);
         // 注册配置和事件
         ModLoadingContext.get().registerConfig(
                 ModConfig.Type.CLIENT,

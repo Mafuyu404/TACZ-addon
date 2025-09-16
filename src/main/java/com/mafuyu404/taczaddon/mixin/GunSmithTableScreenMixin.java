@@ -3,19 +3,24 @@ package com.mafuyu404.taczaddon.mixin;
 import com.mafuyu404.taczaddon.init.*;
 import com.mafuyu404.taczaddon.common.BetterGunSmithTable;
 import com.mafuyu404.taczaddon.network.ContainerPositionPacket;
+import com.tacz.guns.api.TimelessAPI;
+import com.tacz.guns.api.item.IGun;
 import com.tacz.guns.client.gui.GunSmithTableScreen;
 import com.tacz.guns.crafting.GunSmithTableRecipe;
 import com.tacz.guns.inventory.GunSmithTableMenu;
+import com.tacz.guns.resource.modifier.AttachmentPropertyManager;
+import it.unimi.dsi.fastutil.Pair;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -50,6 +55,9 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
     @Shadow public abstract void updateIngredientCount();
 
     @Shadow private ResourceLocation selectedType;
+
+    @Shadow protected abstract boolean isSuitableForMainHand(GunSmithTableRecipe recipe);
+
     private boolean req = false;
 
     @ModifyVariable(method = "classifyRecipes", at = @At("STORE"), ordinal = 0)
@@ -101,6 +109,44 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
 //        if (tACZ_addon$selectedAttachmentPropIndex != 0) ((VirtualContainerLoader) this).refreshRecipes(tACZ_addon$AttachmentProp.get(tACZ_addon$selectedAttachmentPropIndex), false);
 //    }
 
+    @Redirect(method = "classifyRecipes", at = @At(value = "INVOKE", target = "Ljava/util/List;add(Ljava/lang/Object;)Z"))
+    private boolean filter(List<Pair<ResourceLocation, ResourceLocation>> list, Object e) {
+        Pair<ResourceLocation, ResourceLocation> pair = (Pair<ResourceLocation, ResourceLocation>) e;
+
+        boolean apply = true;
+        ResourceLocation group = pair.left();
+        String id = pair.right().toString();
+
+        if (id.contains("/")) {
+            ResourceLocation itemId = ResourceLocation.tryParse(id.split(":")[0] + ":" + id.split("/")[1]);
+
+            Player player = Minecraft.getInstance().player;
+
+            ItemStack gunItem = BetterGunSmithTable.getHoldingGun(player);
+            if (gunItem != null) {
+                boolean matchAmmo = BetterGunSmithTable.allowAmmo(gunItem, itemId);
+                boolean matchAttachment = BetterGunSmithTable.allowAttachment(gunItem, itemId);
+                if (!matchAmmo && !matchAttachment) apply = false;
+            }
+
+            if (tACZ_addon$selectedAttachmentPropIndex != 0) {
+                String propKey = tACZ_addon$AttachmentProp.get(tACZ_addon$selectedAttachmentPropIndex);
+                Component selectedOption = Component.translatable(propKey);
+                Object data = DataStorage.get("BetterGunSmithTable.storedAttachmentData");
+                if (data != null) {
+                    HashMap<String, String> AttachmentData = (HashMap<String, String>) data;
+                    if (AttachmentData.get(itemId.toString()) == null) apply = false;
+                    else if (!AttachmentData.get(itemId.toString()).contains(selectedOption.getString())) {
+                        apply = false;
+                    }
+                }
+            }
+        }
+
+        if (apply) list.add(pair);
+        return true;
+    }
+
     @Inject(method = "init", at = @At("TAIL"), remap = true)
     private void onScreenChanged(CallbackInfo ci) {
 //        DataStorage.set("BetterGunSmithTable.storedType", this.selectedType);
@@ -108,50 +154,57 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
 //        DataStorage.set("BetterGunSmithTable.storedIndexPage", this.indexPage);
 //        DataStorage.set("BetterGunSmithTable.storedRecipe", this.selectedRecipe);
 //        if (!Config.enableGunSmithTableContainerReader()) return;
-//        if (!req) {
-//            BlockPos blockPos = (BlockPos) DataStorage.get("BetterGunSmithTable.interactBlockPos");
-//            NetworkHandler.CHANNEL.sendToServer(new ContainerPositionPacket(blockPos));
-//            req = true;
-//        }
-//        else req = false;
-//        if (tACZ_addon$dropdown != null) {
-//            tACZ_addon$selectedAttachmentPropIndex = tACZ_addon$dropdown.getSelected();
-//        }
-//        tACZ_addon$dropdown = new DropDown(leftPos - 64, topPos - 16, 64);
-//        for (String prop : tACZ_addon$AttachmentProp) {
-//            String text = Component.translatable(prop).getString().replace("+ ", "");
-//            tACZ_addon$dropdown.addOption(Component.literal(text));
-//        }
-//        tACZ_addon$dropdown.setSelected(tACZ_addon$selectedAttachmentPropIndex);
-//        this.addRenderableWidget(tACZ_addon$dropdown);
-//    }
+        if (Config.enableGunSmithTableContainerReader()) {
+            if (req) {
+                BlockPos blockPos = (BlockPos) DataStorage.get("BetterGunSmithTable.interactBlockPos");
+                NetworkHandler.CHANNEL.sendToServer(new ContainerPositionPacket(blockPos));
+            }
+            req = !req;
+        }
 
-//    @Inject(method = "<init>", at = @At("RETURN"))
-//    private void onScreenLoad(CallbackInfo ci) {
-//        HashMap<String, String> StoredAttachmentData = new HashMap<>();
-//        TimelessAPI.getAllClientAttachmentIndex().forEach(entry -> {
-//            StringBuilder data = new StringBuilder();
-//            entry.getValue().getData().getModifier().forEach((s, jsonProperty) -> {
-//                jsonProperty.getComponents().forEach(component -> data.append(component.getString()));
-//            });
-//            StoredAttachmentData.put(entry.getKey().toString(), data.toString());
-//        });
-//        if (DataStorage.get("BetterGunSmithTable.storedAttachmentData") == null) DataStorage.set("BetterGunSmithTable.storedAttachmentData", StoredAttachmentData);
-//
-//        tACZ_addon$AttachmentProp.add("gui.taczaddon.gun_smith_table.default_prop");
-//        AttachmentPropertyManager.getModifiers().forEach((s, iAttachmentModifier) -> {
-////            System.out.print(s+"\n");
-//            String prop = Component.translatable("tooltip.tacz.attachment." + s + ".increase").getString();
-////            System.out.print(prop+"\n");
-//            if (s.equals("ignite")) {
-//                tACZ_addon$AttachmentProp.add("tooltip.tacz.attachment.ignite.block");
-//                tACZ_addon$AttachmentProp.add("tooltip.tacz.attachment.ignite.entity");
-//                return;
-//            }
-//            if (s.equals("weight_modifier") || s.equals("recoil")) return;
-//            if (prop.contains("tooltip")) tACZ_addon$AttachmentProp.add("tooltip.tacz.attachment." + s);
-//            else tACZ_addon$AttachmentProp.add("tooltip.tacz.attachment." + s + ".increase");
-//        });
+        if (tACZ_addon$dropdown != null) {
+            tACZ_addon$selectedAttachmentPropIndex = tACZ_addon$dropdown.getSelected();
+        }
+        tACZ_addon$dropdown = new DropDown(leftPos - 64, topPos - 20, 64);
+        for (String prop : tACZ_addon$AttachmentProp) {
+            String text = Component.translatable(prop).getString().replace("+ ", "");
+            tACZ_addon$dropdown.addOption(Component.translatable(text));
+        }
+        tACZ_addon$dropdown.setSelected(tACZ_addon$selectedAttachmentPropIndex);
+        tACZ_addon$dropdown.action = this::refreshRecipes;
+        this.addRenderableWidget(tACZ_addon$dropdown);
+        System.out.print("init\n");
+    }
+
+    private void refreshRecipes(int index) {
+        tACZ_addon$selectedAttachmentPropIndex = tACZ_addon$dropdown.getSelected();
+//        this.updateIngredientCount();
+    }
+
+    @Inject(method = "<init>", at = @At("RETURN"))
+    private void onScreenLoad(CallbackInfo ci) {
+        HashMap<String, String> StoredAttachmentData = new HashMap<>();
+        TimelessAPI.getAllClientAttachmentIndex().forEach(entry -> {
+            StringBuilder data = new StringBuilder();
+            entry.getValue().getData().getModifier().forEach((s, jsonProperty) -> {
+                jsonProperty.getComponents().forEach(component -> data.append(component.getString()));
+            });
+            StoredAttachmentData.put(entry.getKey().toString(), data.toString());
+        });
+        if (DataStorage.get("BetterGunSmithTable.storedAttachmentData") == null) DataStorage.set("BetterGunSmithTable.storedAttachmentData", StoredAttachmentData);
+
+        tACZ_addon$AttachmentProp.add("gui.taczaddon.gun_smith_table.default_prop");
+        AttachmentPropertyManager.getModifiers().forEach((s, iAttachmentModifier) -> {
+            String prop = Component.translatable("tooltip.tacz.attachment." + s + ".increase").getString();
+            if (s.equals("ignite")) {
+                tACZ_addon$AttachmentProp.add("tooltip.tacz.attachment.ignite.block");
+                tACZ_addon$AttachmentProp.add("tooltip.tacz.attachment.ignite.entity");
+                return;
+            }
+            if (s.equals("weight_modifier") || s.equals("recoil")) return;
+            if (prop.contains("tooltip")) tACZ_addon$AttachmentProp.add("tooltip.tacz.attachment." + s);
+            else tACZ_addon$AttachmentProp.add("tooltip.tacz.attachment." + s + ".increase");
+        });
 //
 //        if (!Config.enableGunSmithTableMemory()) return;
 //        if (ModList.get().isLoaded("tacztweaks")) return;

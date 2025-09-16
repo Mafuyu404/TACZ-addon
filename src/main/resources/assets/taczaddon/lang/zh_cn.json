@@ -2,5 +2,7 @@
   "key.taczaddon.switch_gun.desc": "快速切枪",
   "key.categories.taczaddon": "TaCZ addon",
   "gui.taczaddon.gun_smith_table.page_index": "%s (第%s页-共%s页)",
-  "gui.taczaddon.gun_smith_table.default_prop": "选择属性"
+  "gui.taczaddon.gun_smith_table.default_prop": "选择属性",
+  "tooltip.taczaddon.more_attachment_info": "持枪查看属性详情",
+  "tooltip.taczaddon.ammo_box": "Shift+右键收集全部弹药"
 }

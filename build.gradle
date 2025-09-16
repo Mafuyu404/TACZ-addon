@@ -145,7 +145,7 @@ dependencies {
 
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 //    implementation fg.deobf("curse.maven:timeless-and-classics-zero-1028108:6069384")
-    implementation fg.deobf("libs:tacz:1.20.1-1.1.5-all")
+    implementation fg.deobf("libs:tacz:1.20.1-1.1.6-hotfix")
 
     implementation fg.deobf("curse.maven:shoulder-surfing-reloaded-243190:5455954")
 
@@ -161,6 +161,8 @@ dependencies {
     implementation fg.deobf("mezz.jei:jei-1.20.1-forge:15.20.0.104")
 
     implementation fg.deobf("curse.maven:curios-309927:5843594")
+
+    implementation fg.deobf("curse.maven:kiwi-303657:6907020")
 
 }
 

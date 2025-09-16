@@ -24,6 +24,8 @@ public class Config {
     public static final ForgeConfigSpec.ConfigValue<Integer> LESS_ALLOW_GUN;
     public static final ForgeConfigSpec.ConfigValue<Integer> GUNSMITHTABLE_MASS_CRAFT_TIME;
     public static final ForgeConfigSpec.ConfigValue<List<? extends String>> MELEE_WEAPON_LIST;
+    public static final ForgeConfigSpec.ConfigValue<Boolean> FAST_SWAP_GUN;
+
     private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
     public static final ForgeConfigSpec SPEC;
 
@@ -38,11 +40,7 @@ public class Config {
                         entry -> entry instanceof String
                 );
         BUILDER.pop();
-        BUILDER.push("Camera Setting");
-        BETTER_AIM_CAMERA = BUILDER
-                .comment("开启后，如果正处于非第一人称视角，使用枪械瞄准将自动切换为第一人称，取消瞄准后切换为原视角。")
-                .define("enableBetterAimCamera", true);
-        BUILDER.pop();
+
         BUILDER.push("GunSmithTable Setting");
         BETTER_GUNSMITHTABLE = BUILDER
                 .comment("开启后，持枪与枪械工作台互动将只显示可用配件和弹药。")
@@ -60,6 +58,7 @@ public class Config {
                 .comment("在这里填入正整数，即制作东西时按住SHIFT会批量制作的次数。")
                 .define("enableMassCraftTime", 4);
         BUILDER.pop();
+
         BUILDER.push("Attachment Setting");
         LESS_ALLOW_GUN = BUILDER
                 .comment("在这里填入正整数，即对配件按shift时显示的适用枪械数量。")
@@ -68,6 +67,16 @@ public class Config {
                 .comment("开启后，配件将显示详细数值。")
                 .define("enableAttachmentDetail", true);
         BUILDER.pop();
+
+        BUILDER.push("Other Setting");
+        BETTER_AIM_CAMERA = BUILDER
+                .comment("开启后，如果正处于非第一人称视角，使用枪械瞄准将自动切换为第一人称，取消瞄准后切换为原视角。")
+                .define("enableBetterAimCamera", true);
+        FAST_SWAP_GUN = BUILDER
+                .comment("开启后，切枪将没有后摇。")
+                .define("enableFastSwapGun", true);
+        BUILDER.pop();
+
         SPEC = BUILDER.build();
     }
 

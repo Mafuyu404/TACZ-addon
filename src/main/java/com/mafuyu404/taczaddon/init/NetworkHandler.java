@@ -20,7 +20,6 @@ public class NetworkHandler {
     public static void register() {
         int packetId = 0;
         CHANNEL.registerMessage(packetId++, PrimitivePacket.class, PrimitivePacket::encode, PrimitivePacket::decode, PrimitivePacket::handle);
-        CHANNEL.registerMessage(packetId++, BackpackItemsPacket.class, BackpackItemsPacket::encode, BackpackItemsPacket::decode, BackpackItemsPacket::handle);
         CHANNEL.registerMessage(packetId++, ContainerReaderPacket.class, ContainerReaderPacket::encode, ContainerReaderPacket::decode, ContainerReaderPacket::handle);
         CHANNEL.registerMessage(packetId++, ContainerPositionPacket.class, ContainerPositionPacket::encode, ContainerPositionPacket::decode, ContainerPositionPacket::handle);
         CHANNEL.registerMessage(packetId++, SwitchGunPacket.class, SwitchGunPacket::encode, SwitchGunPacket::decode, SwitchGunPacket::handle);

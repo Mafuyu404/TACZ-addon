@@ -37,9 +37,9 @@ public class LiberateAttachment {
     }
     public static Inventory useVirtualInventory(Inventory inventory) {
         ArrayList<ItemStack> AttachmentItems = getAttachmentItems();
-        int size = AttachmentItems.size() + 9;
+        int size = AttachmentItems.size() + 10;
         VirtualInventory virtualInventory = new VirtualInventory(size, inventory.player);
-        for (int i = 0; i < size; i++) {
+        for (int i = 0; i < size - 1; i++) {
             if (i < 9) virtualInventory.setItem(i, inventory.getSelected());
             else virtualInventory.setItem(i, AttachmentItems.get(i - 9));
         }
