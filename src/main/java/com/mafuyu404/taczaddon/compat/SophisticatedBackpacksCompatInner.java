@@ -89,14 +89,11 @@ public class SophisticatedBackpacksCompatInner {
         int size = container.realInventorySlots.size() - player.getInventory().items.size();
 
         InventoryHandler inventoryHandler = container.getStorageWrapper().getInventoryHandler();
-        VirtualInventory virtualInventory = new VirtualInventory(size, player);
-        for (int i = 0; i < size; i++) {
-            virtualInventory.setItem(i, inventoryHandler.getStackInSlot(i));
-        }
-        action.accept(virtualInventory.getHandler());
+
+        action.accept(inventoryHandler);
 
         for (int i = 0; i < size; i++) {
-            container.realInventorySlots.get(i).set(virtualInventory.getItem(i));
+            container.realInventorySlots.get(i).set(inventoryHandler.getStackInSlot(i));
         }
 
         UUID uuid = container.getStorageWrapper().getContentsUuid().get();

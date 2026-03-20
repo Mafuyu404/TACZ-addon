@@ -9,6 +9,7 @@
     "ClientAttachmentItemTooltipMixin",
     "ClientMessageRefitGunMixin",
     "ClientMessageUnloadAttachmentMixin",
+    "GunAnimationStateContextMixin",
     "GunHudOverlayMixin",
     "GunReloadCooldownMixin",
     "GunSmithTableMenuMixin",
@@ -18,6 +19,7 @@
     "LocalPlayerDrawMixin",
     "LocalPlayerReloadMixin",
     "LocalPlayerShootMixin",
+    "ModernKineticGunScriptAPIHasAmmoMixin",
     "ModernKineticGunScriptAPIMixin",
     "NoCrawlMixin",
     "SmithingMenuMixin"

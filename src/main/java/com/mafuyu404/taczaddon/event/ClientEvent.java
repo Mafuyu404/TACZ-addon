@@ -2,9 +2,11 @@ package com.mafuyu404.taczaddon.event;
 
 import com.mafuyu404.taczaddon.TACZaddon;
 import com.mafuyu404.taczaddon.common.BetterGunSmithTable;
+import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
 import com.mafuyu404.taczaddon.init.DataStorage;
 import com.mafuyu404.taczaddon.init.KeyBindings;
 import com.mafuyu404.taczaddon.init.NetworkHandler;
+import com.mafuyu404.taczaddon.init.VirtualInventory;
 import com.mafuyu404.taczaddon.network.SwitchGunPacket;
 import com.tacz.guns.api.item.IGun;
 import com.tacz.guns.item.AmmoBoxItem;
@@ -13,6 +15,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.InputEvent;
@@ -104,4 +107,24 @@ public class ClientEvent {
 //            if (!BetterGunSmithTable.isHoldingGun(Minecraft.getInstance().player)) event.getToolTip().add(event.getToolTip().size(), Component.translatable("tooltip.taczaddon.more_attachment_info"));
 //        }
 //    }
+
+    public static VirtualInventory _virtualInventory = null;
+
+    @SubscribeEvent
+    public static void storageBackpack(TickEvent.ClientTickEvent event) {
+        if (event.phase == TickEvent.Phase.END) return;
+        Player player = Minecraft.getInstance().player;
+        if (player == null) return;
+        if (DataStorage.get("backpackData") == null) {
+            SophisticatedBackpacksCompat.syncAllBackpack(player);
+            DataStorage.set("backpackData", true);
+        }
+        ArrayList<ItemStack> backpack = SophisticatedBackpacksCompat.getItemsFromInventoryBackpack(player);
+        backpack.addAll(player.getInventory().items);
+        VirtualInventory virtualInventory = new VirtualInventory(backpack.size(), player);
+        for (int i = 0; i < backpack.size(); i++) {
+            virtualInventory.setItem(i, backpack.get(i));
+        }
+        _virtualInventory = virtualInventory;
+    }
 }
