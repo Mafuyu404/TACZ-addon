@@ -16,6 +16,10 @@ public class SetupEvent {
         event.enqueueWork(JeiCompat::init);
         event.enqueueWork(SophisticatedBackpacksCompat::init);
     }
+    @SubscribeEvent
+    public static void onServerSetup(FMLDedicatedServerSetupEvent event) {
+        event.enqueueWork(SophisticatedBackpacksCompat::init);
+    }
 //    @SubscribeEvent
 //    public static void registerRecipes(RegisterEvent event) {
 //        event.register(ForgeRegistries.Keys.RECIPE_SERIALIZERS, helper -> {
