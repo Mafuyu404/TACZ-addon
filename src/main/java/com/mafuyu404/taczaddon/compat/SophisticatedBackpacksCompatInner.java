@@ -70,8 +70,9 @@ public class SophisticatedBackpacksCompatInner {
     public static void syncAllBackpack(Player player) {
         getAllInventoryBackpack(player).forEach(itemStack -> {
             IBackpackWrapper backpackWrapper = itemStack.getCapability(CapabilityBackpackWrapper.getCapabilityInstance()).orElse(IBackpackWrapper.Noop.INSTANCE);
-            UUID uuid = backpackWrapper.getContentsUuid().get();
-            SBPPacketHandler.INSTANCE.sendToServer(new RequestBackpackInventoryContentsMessage(uuid));
+            backpackWrapper.getContentsUuid().ifPresent(uuid -> {
+                SBPPacketHandler.INSTANCE.sendToServer(new RequestBackpackInventoryContentsMessage(uuid));
+            });
         });
     }
 
