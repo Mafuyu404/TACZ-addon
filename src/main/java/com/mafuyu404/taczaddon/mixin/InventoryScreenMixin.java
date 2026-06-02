@@ -25,6 +25,7 @@ public class InventoryScreenMixin extends Screen {
     @Inject(method = "slotClicked", at = @At("HEAD"), cancellable = true)
     private void betterAmmoBox(Slot slot, int index, int key, ClickType p_98868_, CallbackInfo ci) {
         if (!hasShiftDown() || key != 1) return;
+        if (slot == null) return;
         if (!(slot.getItem().getItem() instanceof AmmoBoxItem)) return;
         NetworkHandler.CHANNEL.sendToServer(new AmmoBoxCollectPacket(index));
         ci.cancel();

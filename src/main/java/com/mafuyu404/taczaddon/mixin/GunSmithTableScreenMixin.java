@@ -4,7 +4,6 @@ import com.mafuyu404.taczaddon.init.*;
 import com.mafuyu404.taczaddon.common.BetterGunSmithTable;
 import com.mafuyu404.taczaddon.network.ContainerPositionPacket;
 import com.tacz.guns.api.TimelessAPI;
-import com.tacz.guns.api.item.IGun;
 import com.tacz.guns.client.gui.GunSmithTableScreen;
 import com.tacz.guns.crafting.GunSmithTableRecipe;
 import com.tacz.guns.inventory.GunSmithTableMenu;
@@ -16,13 +15,10 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -34,29 +30,20 @@ import java.util.*;
 
 @Mixin(value = GunSmithTableScreen.class, remap = false)
 public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<GunSmithTableMenu> {
-    @Shadow @Final private Map<String, List<ResourceLocation>> recipes;
-
     @Shadow @Nullable private GunSmithTableRecipe selectedRecipe;
-
 
     @Shadow private List<ResourceLocation> selectedRecipeList;
     @Shadow private int indexPage;
 
+    @Shadow
+    public abstract void updateIngredientCount();
+
+    @Shadow
+    private ResourceLocation selectedType;
+
     public GunSmithTableScreenMixin(GunSmithTableMenu p_97741_, Inventory p_97742_, Component p_97743_) {
         super(p_97741_, p_97742_, p_97743_);
     }
-
-    @Shadow protected abstract void getPlayerIngredientCount(GunSmithTableRecipe recipe);
-
-    @Shadow @Nullable protected abstract GunSmithTableRecipe getSelectedRecipe(ResourceLocation recipeId);
-
-    @Shadow private int typePage;
-
-    @Shadow public abstract void updateIngredientCount();
-
-    @Shadow private ResourceLocation selectedType;
-
-    @Shadow protected abstract boolean isSuitableForMainHand(GunSmithTableRecipe recipe);
 
     private boolean req = false;
 
@@ -70,44 +57,6 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
     @Unique
     private int tACZ_addon$selectedAttachmentPropIndex = 0;
     @Unique DropDown tACZ_addon$dropdown = null;
-//    @ModifyVariable(method = "classifyRecipes", at = @At("STORE"), ordinal = 0)
-//    private String controlRecipes(String groupName) {
-//        return BetterGunSmithTable.controlRecipes(groupName, "选择属性");
-//    }
-
-//    @ModifyVariable(method = "addTypeButtons", at = @At("STORE"), ordinal = 1)
-//    private int filterType(int typeIndex) {
-//        if (!Config.enableBetterGunSmithTable()) return typeIndex;
-//        Player player = Minecraft.getInstance().player;
-//        ItemStack gunItem = player.getOffhandItem();
-//        if (IGun.getIGunOrNull(player.getMainHandItem()) != null) gunItem = player.getMainHandItem();
-//        IGun iGun = IGun.getIGunOrNull(gunItem);
-//        if (iGun == null) return typeIndex;
-//        if (typeIndex == 0) {
-//            ArrayList<String> showTypes = new ArrayList<>();
-//            ArrayList<String> emptyTypes = new ArrayList<>();
-//            for (String recipeKey : this.recipeKeys) {
-//                if (this.recipes.get(recipeKey).isEmpty()) emptyTypes.add(recipeKey);
-//                else showTypes.add(recipeKey);
-//            }
-//            for (int i = 0; i < showTypes.size(); i++) {
-//                this.recipeKeys.set(i, showTypes.get(i));
-//            }
-//            for (int i = 0; i < emptyTypes.size(); i++) {
-//                this.recipeKeys.set(i + showTypes.size(), emptyTypes.get(i));
-//            }
-//        }
-//        String type = this.recipeKeys.get(typeIndex);
-//        List<ResourceLocation> recipes = this.recipes.get(type);
-//        System.out.print("List"+recipes+"\n");
-//        if (recipes.isEmpty()) return this.recipes.size() + 100;
-//        return typeIndex;
-//    }
-
-//    @Inject(method = "init", at = @At("HEAD"), remap = true)
-//    private void onInit(CallbackInfo ci) {
-//        if (tACZ_addon$selectedAttachmentPropIndex != 0) ((VirtualContainerLoader) this).refreshRecipes(tACZ_addon$AttachmentProp.get(tACZ_addon$selectedAttachmentPropIndex), false);
-//    }
 
     @Redirect(method = "classifyRecipes", at = @At(value = "INVOKE", target = "Ljava/util/List;add(Ljava/lang/Object;)Z"))
     private boolean filter(List<Pair<ResourceLocation, ResourceLocation>> list, Object e) {
@@ -119,15 +68,6 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
 
         if (id.contains("/")) {
             ResourceLocation itemId = ResourceLocation.tryParse(id.split(":")[0] + ":" + id.split("/")[1]);
-
-            Player player = Minecraft.getInstance().player;
-
-            ItemStack gunItem = BetterGunSmithTable.getHoldingGun(player);
-            if (gunItem != null) {
-                boolean matchAmmo = BetterGunSmithTable.allowAmmo(gunItem, itemId);
-                boolean matchAttachment = BetterGunSmithTable.allowAttachment(gunItem, itemId);
-                if (!matchAmmo && !matchAttachment) apply = false;
-            }
 
             if (tACZ_addon$selectedAttachmentPropIndex != 0) {
                 String propKey = tACZ_addon$AttachmentProp.get(tACZ_addon$selectedAttachmentPropIndex);
@@ -149,11 +89,6 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
 
     @Inject(method = "init", at = @At("TAIL"), remap = true)
     private void onScreenChanged(CallbackInfo ci) {
-//        DataStorage.set("BetterGunSmithTable.storedType", this.selectedType);
-//        DataStorage.set("BetterGunSmithTable.storedTypePage", this.typePage);
-//        DataStorage.set("BetterGunSmithTable.storedIndexPage", this.indexPage);
-//        DataStorage.set("BetterGunSmithTable.storedRecipe", this.selectedRecipe);
-//        if (!Config.enableGunSmithTableContainerReader()) return;
         if (Config.enableGunSmithTableContainerReader()) {
             if (req) {
                 BlockPos blockPos = (BlockPos) DataStorage.get("BetterGunSmithTable.interactBlockPos");
@@ -173,7 +108,6 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
         tACZ_addon$dropdown.setSelected(tACZ_addon$selectedAttachmentPropIndex);
         tACZ_addon$dropdown.action = this::refreshRecipes;
         this.addRenderableWidget(tACZ_addon$dropdown);
-        System.out.print("init\n");
     }
 
     private void refreshRecipes(int index) {
@@ -205,43 +139,6 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
             if (prop.contains("tooltip")) tACZ_addon$AttachmentProp.add("tooltip.tacz.attachment." + s);
             else tACZ_addon$AttachmentProp.add("tooltip.tacz.attachment." + s + ".increase");
         });
-//
-//        if (!Config.enableGunSmithTableMemory()) return;
-//        if (ModList.get().isLoaded("tacztweaks")) return;
-//
-//        if (DataStorage.get("BetterGunSmithTable.storedTypePage") == null) DataStorage.set("BetterGunSmithTable.storedTypePage", 0);
-//        int storedTypePage = (int) DataStorage.get("BetterGunSmithTable.storedTypePage");
-//
-//        if (DataStorage.get("BetterGunSmithTable.storedType") == null) DataStorage.set("BetterGunSmithTable.storedType", "ammo");
-//        final String[] storedType = {(String) DataStorage.get("BetterGunSmithTable.storedType")};
-//
-//        final int[] showTypeCount = {0};
-//        this.recipes.forEach((type, recipes) -> {
-//            if (!recipes.isEmpty()) {
-//                showTypeCount[0]++;
-//                if (this.recipes.get(storedType[0]).isEmpty()) storedType[0] = type;
-//            }
-//        });
-//        this.selectedRecipeList = this.recipes.get(storedType[0]);
-//        if (showTypeCount[0] < 8)  storedTypePage = 0;
-//
-//        if (DataStorage.get("BetterGunSmithTable.storedIndexPage") == null) DataStorage.set("BetterGunSmithTable.storedIndexPage", 0);
-//        int storedIndexPage = (int) DataStorage.get("BetterGunSmithTable.storedIndexPage");
-//
-//        if (this.selectedRecipeList.size() <= storedIndexPage * 6) storedIndexPage = 0;
-//
-//        if (DataStorage.get("BetterGunSmithTable.storedRecipe") == null) DataStorage.set("BetterGunSmithTable.storedRecipe", this.getSelectedRecipe(this.selectedRecipeList.get(0)));
-//        GunSmithTableRecipe storedRecipe = (GunSmithTableRecipe) DataStorage.get("BetterGunSmithTable.storedRecipe");
-//
-//        if ((this.selectedRecipeList.indexOf(storedRecipe.getId()) >= (storedIndexPage + 1) * 6) || !this.selectedRecipeList.contains(storedRecipe.getId())) storedRecipe = this.getSelectedRecipe(this.selectedRecipeList.get(0));
-//
-//        this.selectedType = storedType[0];
-//        this.indexPage = storedIndexPage;
-//        this.selectedRecipe = storedRecipe;
-//        this.getPlayerIngredientCount(this.selectedRecipe);
-//        this.typePage = storedTypePage;
-//
-//        this.updateIngredientCount(); // 替代init用
     }
 
     @Inject(method = "lambda$addCraftButton$5", at = @At(value = "INVOKE", target = "Lnet/minecraftforge/network/simple/SimpleChannel;sendToServer(Ljava/lang/Object;)V"))
