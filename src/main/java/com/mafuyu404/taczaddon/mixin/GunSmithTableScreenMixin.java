@@ -67,7 +67,36 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
         super(p_97741_, p_97742_, p_97743_);
     }
 
-    private boolean req = false;
+    @Unique
+    private boolean tACZ_addon$containerSnapshotRequested = false;
+
+    @Unique
+    @Nullable
+    private BlockPos tACZ_addon$lastRequestedContainerPos = null;
+
+    @Unique
+    private void tACZ_addon$requestNearbyContainerSnapshotIfNeeded() {
+        if (!Config.enableGunSmithTableContainerReader()) {
+            return;
+        }
+
+        Object rawPos = DataStorage.get("BetterGunSmithTable.interactBlockPos");
+        if (!(rawPos instanceof BlockPos blockPos)) {
+            return;
+        }
+
+        if (!blockPos.equals(this.tACZ_addon$lastRequestedContainerPos)) {
+            this.tACZ_addon$lastRequestedContainerPos = blockPos;
+            this.tACZ_addon$containerSnapshotRequested = false;
+        }
+
+        if (this.tACZ_addon$containerSnapshotRequested) {
+            return;
+        }
+
+        this.tACZ_addon$containerSnapshotRequested = true;
+        NetworkHandler.CHANNEL.sendToServer(new ContainerPositionPacket(blockPos));
+    }
 
     @Unique
     private ArrayList<String> tACZ_addon$AttachmentProp = new ArrayList<>();
@@ -243,13 +272,7 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
 
     @Inject(method = "init", at = @At("TAIL"), remap = true)
     private void onScreenChanged(CallbackInfo ci) {
-        if (Config.enableGunSmithTableContainerReader()) {
-            if (req) {
-                BlockPos blockPos = (BlockPos) DataStorage.get("BetterGunSmithTable.interactBlockPos");
-                NetworkHandler.CHANNEL.sendToServer(new ContainerPositionPacket(blockPos));
-            }
-            req = !req;
-        }
+        this.tACZ_addon$requestNearbyContainerSnapshotIfNeeded();
 
         if (tACZ_addon$dropdown != null) {
             tACZ_addon$selectedAttachmentPropIndex = tACZ_addon$dropdown.getSelected();

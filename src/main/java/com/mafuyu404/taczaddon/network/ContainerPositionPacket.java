@@ -32,20 +32,36 @@ public class ContainerPositionPacket {
     public static void handle(ContainerPositionPacket msg, Supplier<NetworkEvent.Context> ctx) {
         ctx.get().enqueueWork(() -> {
             ServerPlayer player = ctx.get().getSender();
+            if (player == null || msg.blockPos == null) {
+                return;
+            }
+
             ArrayList<ItemStack> items = new ArrayList<>();
             StringBuilder Cpos = new StringBuilder();
             StringBuilder Bpos = new StringBuilder();
+
             for (int x = msg.blockPos.getX() - 2; x <= msg.blockPos.getX() + 2; x++) {
                 for (int y = msg.blockPos.getY() - 1; y <= msg.blockPos.getY() + 1; y++) {
                     for (int z = msg.blockPos.getZ() - 2; z <= msg.blockPos.getZ() + 2; z++) {
                         BlockPos blockPos = new BlockPos(x, y, z);
-                        ArrayList<ItemStack> containerContent = ContainerMaster.readContainerFromPos(player.level(), blockPos);
-                        Matcher matcher = Pattern.compile("(.*backpack.*){2,}").matcher(player.level().getBlockState(blockPos).getBlock().getDescriptionId());
+
+                        ArrayList<ItemStack> containerContent =
+                                ContainerMaster.readContainerFromPos(player.level(), blockPos);
+
+                        Matcher matcher = Pattern
+                                .compile("(.*backpack.*){2,}")
+                                .matcher(player.level().getBlockState(blockPos).getBlock().getDescriptionId());
+
                         if (matcher.matches()) {
-                            ArrayList<ItemStack> backpack = SophisticatedBackpacksCompat.getItemsFromBackpackBLock(blockPos, player);
-                            items.addAll(backpack);
-                            Bpos.append(String.format("%s,%s,%s;", x, y, z));
+                            ArrayList<ItemStack> backpack =
+                                    SophisticatedBackpacksCompat.getItemsFromBackpackBLock(blockPos, player);
+
+                            if (!backpack.isEmpty()) {
+                                items.addAll(backpack);
+                                Bpos.append(String.format("%s,%s,%s;", x, y, z));
+                            }
                         }
+
                         if (!containerContent.isEmpty()) {
                             items.addAll(containerContent);
                             Cpos.append(String.format("%s,%s,%s;", x, y, z));
@@ -53,17 +69,22 @@ public class ContainerPositionPacket {
                     }
                 }
             }
-            if (player != null) {
-                if (!Cpos.isEmpty()) player.getPersistentData().putString("BetterGunSmithTable.nearbyContainerPos", Cpos.toString());
-                if (!Bpos.isEmpty()) player.getPersistentData().putString("BetterGunSmithTable.nearbyBackpackPos", Bpos.toString());
+
+            if (Cpos.isEmpty()) {
+                player.getPersistentData().remove("BetterGunSmithTable.nearbyContainerPos");
+            } else {
+                player.getPersistentData().putString("BetterGunSmithTable.nearbyContainerPos", Cpos.toString());
             }
 
-//            ArrayList<ItemStack> inventoryBackpack = SophisticatedBackpacksCompat.getItemsFromInventoryBackpack(player);
-//            items.addAll(inventoryBackpack);
+            if (Bpos.isEmpty()) {
+                player.getPersistentData().remove("BetterGunSmithTable.nearbyBackpackPos");
+            } else {
+                player.getPersistentData().putString("BetterGunSmithTable.nearbyBackpackPos", Bpos.toString());
+            }
 
             NetworkHandler.sendToClient(player, new ContainerReaderPacket(items));
-//            NetworkHandler.sendToClient(player, new ContainerReaderPacket(items));
         });
+
         ctx.get().setPacketHandled(true);
     }
 }
