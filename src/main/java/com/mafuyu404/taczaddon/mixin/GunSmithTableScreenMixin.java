@@ -8,6 +8,7 @@ import com.tacz.guns.client.gui.GunSmithTableScreen;
 import com.tacz.guns.crafting.GunSmithTableRecipe;
 import com.tacz.guns.inventory.GunSmithTableMenu;
 import com.tacz.guns.resource.modifier.AttachmentPropertyManager;
+import com.tacz.guns.resource.pojo.data.block.TabConfig;
 import it.unimi.dsi.fastutil.Pair;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -19,6 +20,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -41,15 +43,59 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
     @Shadow
     private ResourceLocation selectedType;
 
+    @Shadow @Final
+    private Map<ResourceLocation, List<ResourceLocation>> recipes;
+
+    @Shadow @Final
+    private LinkedHashMap<ResourceLocation, TabConfig> recipeKeys;
+
+    @Shadow
+    private int typePage;
+
+    @Shadow
+    @Nullable
+    private GunSmithTableRecipe getSelectedRecipe(ResourceLocation recipeId) {
+        throw new AssertionError();
+    }
+
+    @Shadow
+    private void getPlayerIngredientCount(GunSmithTableRecipe recipe) {
+        throw new AssertionError();
+    }
+
     public GunSmithTableScreenMixin(GunSmithTableMenu p_97741_, Inventory p_97742_, Component p_97743_) {
         super(p_97741_, p_97742_, p_97743_);
     }
 
-    private boolean req = false;
+    @Unique
+    private boolean tACZ_addon$containerSnapshotRequested = false;
 
-    @ModifyVariable(method = "classifyRecipes", at = @At("STORE"), ordinal = 0)
-    private ResourceLocation readId(ResourceLocation id) {
-        return BetterGunSmithTable.storeRecipeId(id);
+    @Unique
+    @Nullable
+    private BlockPos tACZ_addon$lastRequestedContainerPos = null;
+
+    @Unique
+    private void tACZ_addon$requestNearbyContainerSnapshotIfNeeded() {
+        if (!Config.enableGunSmithTableContainerReader()) {
+            return;
+        }
+
+        Object rawPos = DataStorage.get("BetterGunSmithTable.interactBlockPos");
+        if (!(rawPos instanceof BlockPos blockPos)) {
+            return;
+        }
+
+        if (!blockPos.equals(this.tACZ_addon$lastRequestedContainerPos)) {
+            this.tACZ_addon$lastRequestedContainerPos = blockPos;
+            this.tACZ_addon$containerSnapshotRequested = false;
+        }
+
+        if (this.tACZ_addon$containerSnapshotRequested) {
+            return;
+        }
+
+        this.tACZ_addon$containerSnapshotRequested = true;
+        NetworkHandler.CHANNEL.sendToServer(new ContainerPositionPacket(blockPos));
     }
 
     @Unique
@@ -57,6 +103,9 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
     @Unique
     private int tACZ_addon$selectedAttachmentPropIndex = 0;
     @Unique DropDown tACZ_addon$dropdown = null;
+
+    @Unique
+    private boolean tACZ_addon$browseStateRestored = false;
 
     @Redirect(method = "classifyRecipes", at = @At(value = "INVOKE", target = "Ljava/util/List;add(Ljava/lang/Object;)Z"))
     private boolean filter(List<Pair<ResourceLocation, ResourceLocation>> list, Object e) {
@@ -87,31 +136,170 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
         return true;
     }
 
+    @Inject(method = "init", at = @At("HEAD"), remap = true)
+    private void tACZ_addon$restoreAttachmentFilterBeforeClassify(CallbackInfo ci) {
+        if (this.tACZ_addon$browseStateRestored) {
+            return;
+        }
+
+        ResourceLocation tableId = this.menu.getBlockId();
+
+        BetterGunSmithTable.getBrowseState(tableId).ifPresent(state -> {
+            int maxIndex = Math.max(0, this.tACZ_addon$AttachmentProp.size() - 1);
+            this.tACZ_addon$selectedAttachmentPropIndex =
+                    this.tACZ_addon$clamp(state.attachmentPropIndex(), 0, maxIndex);
+        });
+    }
+
+    @Inject(
+            method = "init",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lcom/tacz/guns/client/gui/GunSmithTableScreen;updateSelectedRecipeAfterFiltering()V",
+                    shift = At.Shift.AFTER
+            ),
+            remap = false
+    )
+    private void tACZ_addon$restoreBrowseStateAfterClassify(CallbackInfo ci) {
+        if (this.tACZ_addon$browseStateRestored) {
+            return;
+        }
+
+        this.tACZ_addon$browseStateRestored = true;
+
+        ResourceLocation tableId = this.menu.getBlockId();
+
+        BetterGunSmithTable.getBrowseState(tableId)
+                .ifPresent(this::tACZ_addon$applyBrowseState);
+    }
+
+    @Unique
+    private void tACZ_addon$applyBrowseState(BetterGunSmithTable.BrowseState state) {
+        int maxPropIndex = Math.max(0, this.tACZ_addon$AttachmentProp.size() - 1);
+        this.tACZ_addon$selectedAttachmentPropIndex =
+                this.tACZ_addon$clamp(state.attachmentPropIndex(), 0, maxPropIndex);
+
+        ResourceLocation savedType = state.selectedType();
+
+        if (savedType != null && this.recipes.containsKey(savedType)) {
+            this.selectedType = savedType;
+            this.selectedRecipeList = this.recipes.get(savedType);
+        }
+
+        this.typePage = this.tACZ_addon$typePageFor(this.selectedType, state.typePage());
+
+        if (this.selectedRecipeList == null || this.selectedRecipeList.isEmpty()) {
+            this.indexPage = 0;
+            this.selectedRecipe = null;
+            return;
+        }
+
+        int maxRecipePage = (this.selectedRecipeList.size() - 1) / 6;
+
+        ResourceLocation savedRecipeId = state.selectedRecipeId();
+        int recipeIndex = savedRecipeId == null ? -1 : this.selectedRecipeList.indexOf(savedRecipeId);
+
+        if (recipeIndex >= 0) {
+            this.indexPage = recipeIndex / 6;
+            this.selectedRecipe = this.getSelectedRecipe(savedRecipeId);
+        } else {
+            this.indexPage = this.tACZ_addon$clamp(state.indexPage(), 0, maxRecipePage);
+
+            int fallbackIndex = Math.min(this.indexPage * 6, this.selectedRecipeList.size() - 1);
+            this.selectedRecipe = this.getSelectedRecipe(this.selectedRecipeList.get(fallbackIndex));
+        }
+
+        if (this.selectedRecipe == null) {
+            this.indexPage = 0;
+            this.selectedRecipe = this.getSelectedRecipe(this.selectedRecipeList.get(0));
+        }
+
+        if (this.selectedRecipe != null) {
+            this.getPlayerIngredientCount(this.selectedRecipe);
+        }
+    }
+
+    @Unique
+    private int tACZ_addon$typePageFor(ResourceLocation selectedType, int fallbackTypePage) {
+        int maxTypePage = this.recipeKeys.isEmpty() ? 0 : (this.recipeKeys.size() - 1) / 7;
+
+        if (selectedType == null) {
+            return this.tACZ_addon$clamp(fallbackTypePage, 0, maxTypePage);
+        }
+
+        int index = 0;
+        for (ResourceLocation type : this.recipeKeys.keySet()) {
+            if (selectedType.equals(type)) {
+                return index / 7;
+            }
+            index++;
+        }
+
+        return this.tACZ_addon$clamp(fallbackTypePage, 0, maxTypePage);
+    }
+
+    @Unique
+    private void tACZ_addon$saveBrowseState() {
+        ResourceLocation tableId = this.menu.getBlockId();
+        if (tableId == null) {
+            return;
+        }
+
+        ResourceLocation selectedRecipeId =
+                this.selectedRecipe == null ? null : this.selectedRecipe.getId();
+
+        int propIndex = this.tACZ_addon$dropdown == null
+                ? this.tACZ_addon$selectedAttachmentPropIndex
+                : this.tACZ_addon$dropdown.getSelected();
+
+        BetterGunSmithTable.saveBrowseState(
+                tableId,
+                this.selectedType,
+                selectedRecipeId,
+                this.typePage,
+                this.indexPage,
+                propIndex
+        );
+    }
+
+    @Unique
+    private int tACZ_addon$clamp(int value, int min, int max) {
+        if (max < min) {
+            return min;
+        }
+        return Math.max(min, Math.min(max, value));
+    }
+
     @Inject(method = "init", at = @At("TAIL"), remap = true)
     private void onScreenChanged(CallbackInfo ci) {
-        if (Config.enableGunSmithTableContainerReader()) {
-            if (req) {
-                BlockPos blockPos = (BlockPos) DataStorage.get("BetterGunSmithTable.interactBlockPos");
-                NetworkHandler.CHANNEL.sendToServer(new ContainerPositionPacket(blockPos));
-            }
-            req = !req;
-        }
+        this.tACZ_addon$requestNearbyContainerSnapshotIfNeeded();
 
         if (tACZ_addon$dropdown != null) {
             tACZ_addon$selectedAttachmentPropIndex = tACZ_addon$dropdown.getSelected();
         }
+
         tACZ_addon$dropdown = new DropDown(leftPos - 64, topPos - 20, 64);
+
         for (String prop : tACZ_addon$AttachmentProp) {
             String text = Component.translatable(prop).getString().replace("+ ", "");
             tACZ_addon$dropdown.addOption(Component.translatable(text));
         }
+
+        int maxIndex = Math.max(0, tACZ_addon$AttachmentProp.size() - 1);
+        tACZ_addon$selectedAttachmentPropIndex =
+                tACZ_addon$clamp(tACZ_addon$selectedAttachmentPropIndex, 0, maxIndex);
+
         tACZ_addon$dropdown.setSelected(tACZ_addon$selectedAttachmentPropIndex);
         tACZ_addon$dropdown.action = this::refreshRecipes;
+
         this.addRenderableWidget(tACZ_addon$dropdown);
+
+        this.tACZ_addon$saveBrowseState();
     }
 
     private void refreshRecipes(int index) {
-        tACZ_addon$selectedAttachmentPropIndex = tACZ_addon$dropdown.getSelected();
+        tACZ_addon$selectedAttachmentPropIndex = index;
+        this.tACZ_addon$saveBrowseState();
         this.updateIngredientCount();
     }
 
@@ -168,31 +356,64 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
     }
 
     @Unique
-    private int[] tACZ_addon$mouse;
+    private int[] tACZ_addon$mouse = new int[] { 0, 0 };
+
     @Unique
     private HashMap<String, Boolean> tACZ_addon$hover = new HashMap<>();
+
     @Inject(method = "render", at = @At("HEAD"), remap = true)
     private void storedMousePos(GuiGraphics graphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
-        this.tACZ_addon$mouse = new int[] { mouseX, mouseY };
+        this.tACZ_addon$mouse[0] = mouseX;
+        this.tACZ_addon$mouse[1] = mouseY;
     }
-    @Redirect(method = "renderIngredient", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;renderFakeItem(Lnet/minecraft/world/item/ItemStack;II)V"), remap = true)
+
+    @Redirect(
+            method = "renderIngredient",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/GuiGraphics;renderFakeItem(Lnet/minecraft/world/item/ItemStack;II)V"
+            ),
+            remap = true
+    )
     private void renderBetterIngredient(GuiGraphics graphics, ItemStack itemStack, int x, int y) {
         graphics.renderItem(itemStack, x, y);
+
+        String hoverKey = x + ":" + y;
+
         if (tACZ_addon$isHovering(x, y)) {
-            graphics.renderTooltip(Minecraft.getInstance().font, itemStack, tACZ_addon$mouse[0], tACZ_addon$mouse[1]);
+            graphics.renderTooltip(
+                    Minecraft.getInstance().font,
+                    itemStack,
+                    tACZ_addon$mouse[0],
+                    tACZ_addon$mouse[1]
+            );
+
             DataStorage.set("GunSmithTableJEI", itemStack);
-            this.tACZ_addon$hover.put(x + String.valueOf(y), true);
-        }
-        else {
-            this.tACZ_addon$hover.put(x + String.valueOf(y), false);
-            if (this.tACZ_addon$hover.values().stream().filter(Boolean::booleanValue).toArray().length == 0) {
+            this.tACZ_addon$hover.put(hoverKey, true);
+        } else {
+            this.tACZ_addon$hover.put(hoverKey, false);
+
+            boolean anyHovering = this.tACZ_addon$hover.values()
+                    .stream()
+                    .anyMatch(Boolean::booleanValue);
+
+            if (!anyHovering) {
                 DataStorage.set("GunSmithTableJEI", ItemStack.EMPTY);
             }
         }
     }
+
     @Unique
     private boolean tACZ_addon$isHovering(int x, int y) {
-        return tACZ_addon$mouse[0] >= x && tACZ_addon$mouse[0] <= x + 16 && tACZ_addon$mouse[1] >= y && tACZ_addon$mouse[1] <= y + 16;
+        if (this.tACZ_addon$mouse == null || this.tACZ_addon$mouse.length < 2) {
+            return false;
+        }
+
+        int mouseX = this.tACZ_addon$mouse[0];
+        int mouseY = this.tACZ_addon$mouse[1];
+
+        return mouseX >= x && mouseX <= x + 16
+                && mouseY >= y && mouseY <= y + 16;
     }
 
     @Unique

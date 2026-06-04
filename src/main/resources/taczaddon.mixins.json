@@ -16,7 +16,6 @@
     "InventoryAccessor",
     "LivingEntityDrawGunMixin",
     "LivingEntityShootMixin",
-    "LocalPlayerDrawMixin",
     "LocalPlayerReloadMixin",
     "LocalPlayerShootMixin",
     "ModernKineticGunScriptAPIHasAmmoMixin",
@@ -31,7 +30,9 @@
     "GunSmithTableScreenMixin",
     "InteractGunSmithTable",
     "InventoryScreenMixin",
-    "VirtualContanier"
+    "VirtualContanier",
+    "LocalPlayerDrawMixin",
+    "AnimateGeoItemRendererMixin"
   ],
   "server": []
 }
