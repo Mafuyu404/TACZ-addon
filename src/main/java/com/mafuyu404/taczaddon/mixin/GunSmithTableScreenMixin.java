@@ -356,31 +356,64 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
     }
 
     @Unique
-    private int[] tACZ_addon$mouse;
+    private int[] tACZ_addon$mouse = new int[] { 0, 0 };
+
     @Unique
     private HashMap<String, Boolean> tACZ_addon$hover = new HashMap<>();
+
     @Inject(method = "render", at = @At("HEAD"), remap = true)
     private void storedMousePos(GuiGraphics graphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
-        this.tACZ_addon$mouse = new int[] { mouseX, mouseY };
+        this.tACZ_addon$mouse[0] = mouseX;
+        this.tACZ_addon$mouse[1] = mouseY;
     }
-    @Redirect(method = "renderIngredient", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;renderFakeItem(Lnet/minecraft/world/item/ItemStack;II)V"), remap = true)
+
+    @Redirect(
+            method = "renderIngredient",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/GuiGraphics;renderFakeItem(Lnet/minecraft/world/item/ItemStack;II)V"
+            ),
+            remap = true
+    )
     private void renderBetterIngredient(GuiGraphics graphics, ItemStack itemStack, int x, int y) {
         graphics.renderItem(itemStack, x, y);
+
+        String hoverKey = x + ":" + y;
+
         if (tACZ_addon$isHovering(x, y)) {
-            graphics.renderTooltip(Minecraft.getInstance().font, itemStack, tACZ_addon$mouse[0], tACZ_addon$mouse[1]);
+            graphics.renderTooltip(
+                    Minecraft.getInstance().font,
+                    itemStack,
+                    tACZ_addon$mouse[0],
+                    tACZ_addon$mouse[1]
+            );
+
             DataStorage.set("GunSmithTableJEI", itemStack);
-            this.tACZ_addon$hover.put(x + String.valueOf(y), true);
-        }
-        else {
-            this.tACZ_addon$hover.put(x + String.valueOf(y), false);
-            if (this.tACZ_addon$hover.values().stream().filter(Boolean::booleanValue).toArray().length == 0) {
+            this.tACZ_addon$hover.put(hoverKey, true);
+        } else {
+            this.tACZ_addon$hover.put(hoverKey, false);
+
+            boolean anyHovering = this.tACZ_addon$hover.values()
+                    .stream()
+                    .anyMatch(Boolean::booleanValue);
+
+            if (!anyHovering) {
                 DataStorage.set("GunSmithTableJEI", ItemStack.EMPTY);
             }
         }
     }
+
     @Unique
     private boolean tACZ_addon$isHovering(int x, int y) {
-        return tACZ_addon$mouse[0] >= x && tACZ_addon$mouse[0] <= x + 16 && tACZ_addon$mouse[1] >= y && tACZ_addon$mouse[1] <= y + 16;
+        if (this.tACZ_addon$mouse == null || this.tACZ_addon$mouse.length < 2) {
+            return false;
+        }
+
+        int mouseX = this.tACZ_addon$mouse[0];
+        int mouseY = this.tACZ_addon$mouse[1];
+
+        return mouseX >= x && mouseX <= x + 16
+                && mouseY >= y && mouseY <= y + 16;
     }
 
     @Unique
