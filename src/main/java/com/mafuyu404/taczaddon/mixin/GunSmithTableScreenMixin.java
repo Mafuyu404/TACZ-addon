@@ -26,6 +26,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -332,16 +333,55 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
     @Inject(method = "lambda$addCraftButton$5", at = @At(value = "INVOKE", target = "Lnet/minecraftforge/network/simple/SimpleChannel;sendToServer(Ljava/lang/Object;)V"))
     private void onCrafted(Button b, CallbackInfo ci) {
         if (Config.enableGunSmithTableCraftToast()) ItemIconToast.create(
-            "已制作",
-            this.selectedRecipe.getOutput().getHoverName().getString() + " x " + this.selectedRecipe.getOutput().getCount(),
-            this.selectedRecipe.getOutput());
+                "已制作",
+                this.selectedRecipe.getOutput().getHoverName().getString() + " x " + this.selectedRecipe.getOutput().getCount(),
+                this.selectedRecipe.getOutput());
     }
 
     @ModifyArg(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;drawString(Lnet/minecraft/client/gui/Font;Lnet/minecraft/network/chat/Component;IIIZ)I", ordinal = 0), index = 1, remap = true)
     private Component renderPageInfo(Component p_282131_) {
+        if (this.selectedType == null || this.selectedRecipeList == null || this.selectedRecipeList.isEmpty()) {
+            return Component.literal(String.format(
+                    Component.translatable("gui.taczaddon.gun_smith_table.page_index").getString(),
+                    "-",
+                    0,
+                    0
+            ));
+        }
+
         String type = Component.translatable(String.format("tacz.type.%s.name", this.selectedType.getPath())).getString();
-        String title = String.format(Component.translatable("gui.taczaddon.gun_smith_table.page_index").getString(), type, this.indexPage + 1, (int) Math.ceil((double) this.selectedRecipeList.size() / 6));
-        return Component.translatable(title);
+        int maxPage = Math.max(1, (int) Math.ceil((double) this.selectedRecipeList.size() / 6.0D));
+        String title = String.format(
+                Component.translatable("gui.taczaddon.gun_smith_table.page_index").getString(),
+                type,
+                this.indexPage + 1,
+                maxPage
+        );
+        return Component.literal(title);
+    }
+
+    @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true, remap = true)
+    private void tACZ_addon$guardMouseScrolledWhenNoRecipes(
+            double mouseX,
+            double mouseY,
+            double delta,
+            CallbackInfoReturnable<Boolean> cir
+    ) {
+        boolean insideRecipeList =
+                mouseX > (double) (this.leftPos + 143)
+                        && mouseX < (double) (this.leftPos + 143 + 94)
+                        && mouseY > (double) (this.topPos + 66)
+                        && mouseY < (double) (this.topPos + 66 + 85);
+
+        if (!insideRecipeList) {
+            return;
+        }
+
+        if (this.selectedRecipeList == null || this.selectedRecipeList.isEmpty()) {
+            this.indexPage = 0;
+            this.selectedRecipe = null;
+            cir.setReturnValue(true);
+        }
     }
 
     @ModifyVariable(method = "getPlayerIngredientCount", at = @At("STORE"), ordinal = 0)
@@ -356,15 +396,18 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
     }
 
     @Unique
-    private int[] tACZ_addon$mouse = new int[] { 0, 0 };
+    private int tACZ_addon$mouseX = 0;
+
+    @Unique
+    private int tACZ_addon$mouseY = 0;
 
     @Unique
     private HashMap<String, Boolean> tACZ_addon$hover = new HashMap<>();
 
     @Inject(method = "render", at = @At("HEAD"), remap = true)
     private void storedMousePos(GuiGraphics graphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
-        this.tACZ_addon$mouse[0] = mouseX;
-        this.tACZ_addon$mouse[1] = mouseY;
+        this.tACZ_addon$mouseX = mouseX;
+        this.tACZ_addon$mouseY = mouseY;
     }
 
     @Redirect(
@@ -384,8 +427,8 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
             graphics.renderTooltip(
                     Minecraft.getInstance().font,
                     itemStack,
-                    tACZ_addon$mouse[0],
-                    tACZ_addon$mouse[1]
+                    this.tACZ_addon$mouseX,
+                    this.tACZ_addon$mouseY
             );
 
             DataStorage.set("GunSmithTableJEI", itemStack);
@@ -405,12 +448,8 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
 
     @Unique
     private boolean tACZ_addon$isHovering(int x, int y) {
-        if (this.tACZ_addon$mouse == null || this.tACZ_addon$mouse.length < 2) {
-            return false;
-        }
-
-        int mouseX = this.tACZ_addon$mouse[0];
-        int mouseY = this.tACZ_addon$mouse[1];
+        int mouseX = this.tACZ_addon$mouseX;
+        int mouseY = this.tACZ_addon$mouseY;
 
         return mouseX >= x && mouseX <= x + 16
                 && mouseY >= y && mouseY <= y + 16;
