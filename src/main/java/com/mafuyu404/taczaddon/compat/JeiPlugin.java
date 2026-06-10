@@ -8,7 +8,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
-import net.p3pp3rf1y.sophisticatedbackpacks.SophisticatedBackpacks;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;

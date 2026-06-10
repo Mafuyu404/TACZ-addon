@@ -35,8 +35,9 @@ public class ContainerReaderPacket {
 
     public static void handle(ContainerReaderPacket msg, Supplier<NetworkEvent.Context> ctx) {
         ctx.get().enqueueWork(() -> {
-            if (Minecraft.getInstance().screen instanceof GunSmithTableScreen screen) {
-                ((VirtualContainerLoader) Minecraft.getInstance().screen).tACZ_addon$setVirtualContanier(msg.items);
+            if (Minecraft.getInstance().screen instanceof GunSmithTableScreen screen
+                    && screen instanceof VirtualContainerLoader loader) {
+                loader.taczaddon$setVirtualContainer(msg.items);
                 screen.updateIngredientCount();
             }
         });

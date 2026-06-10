@@ -8,8 +8,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(value = GunReloadTime.class,remap = false)
 public class GunReloadCooldownMixin {
-    @Inject(method = {"getEmptyTime","getTacticalTime"},at = @At("RETURN"),cancellable = true,remap = false)
-    public void cooldown(CallbackInfoReturnable<Float> cir){
-//        cir.setReturnValue((float) (cir.getReturnValue() / 3));
+    @Inject(method = {"getEmptyTime","getTacticalTime"},at = @At("RETURN"),remap = false)
+    public void taczaddon$cooldown(CallbackInfoReturnable<Float> cir){
+        // Intentionally observes reload timings without changing TaCZ's return values.
     }
 }

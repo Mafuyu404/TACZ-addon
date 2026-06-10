@@ -1,6 +1,5 @@
 package com.mafuyu404.taczaddon.compat;
 
-import com.mafuyu404.taczaddon.init.VirtualInventory;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
@@ -21,7 +20,6 @@ import net.p3pp3rf1y.sophisticatedbackpacks.util.PlayerInventoryProvider;
 import net.p3pp3rf1y.sophisticatedcore.inventory.InventoryHandler;
 
 import java.util.ArrayList;
-import java.util.UUID;
 import java.util.function.Consumer;
 
 public class SophisticatedBackpacksCompatInner {
@@ -29,8 +27,18 @@ public class SophisticatedBackpacksCompatInner {
         ArrayList<ItemStack> items = new ArrayList<>();
         BackpackContext.Block context = new BackpackContext.Block(blockPos);
         IBackpackWrapper wrapper = context.getBackpackWrapper(player);
+        if (wrapper == IBackpackWrapper.Noop.INSTANCE) {
+            return items;
+        }
+
+        ItemStack backpackStack = wrapper.getBackpack();
+        CompoundTag backpackTag = backpackStack.getTag();
+        if (backpackStack.isEmpty() || backpackTag == null) {
+            return items;
+        }
+
         InventoryHandler backpack = wrapper.getInventoryHandler();
-        int size = wrapper.getBackpack().getTag().getInt("inventorySlots");
+        int size = backpackTag.getInt("inventorySlots");
         for (int i = 0; i < size; i++) {
             items.add(backpack.getSlotStack(i));
         }
@@ -44,14 +52,14 @@ public class SophisticatedBackpacksCompatInner {
 
     public static ArrayList<ItemStack> getItemsFromBackpackItem(ItemStack itemStack) {
         ArrayList<ItemStack> items = new ArrayList<>();
-//        IBackpackWrapper backpackWrapper = itemStack.getCapability(CapabilityBackpackWrapper.getCapabilityInstance()).orElse(IBackpackWrapper.Noop.INSTANCE);
-//                    UUID uuid = backpackWrapper.getContentsUuid().get();
-//                    CompoundTag backpack = BackpackStorage.get().getOrCreateBackpackContents(uuid);
-//                    ListTag itemList =  backpack.getCompound("inventory").getList("Items", Tag.TAG_COMPOUND);
-//        旧方案
+        CompoundTag backpackTag = itemStack.getTag();
+        if (itemStack.isEmpty() || !(itemStack.getItem() instanceof BackpackItem) || backpackTag == null) {
+            return items;
+        }
+
         BackpackWrapper backpackWrapper = new BackpackWrapper(itemStack);
         InventoryHandler handler = backpackWrapper.getInventoryHandler();
-        int size = itemStack.getTag().getInt("inventorySlots");
+        int size = backpackTag.getInt("inventorySlots");
         for (int i = 0; i < size; i++) {
             ItemStack item = handler.getStackInSlot(i);
             items.add(item);
@@ -97,9 +105,10 @@ public class SophisticatedBackpacksCompatInner {
             container.realInventorySlots.get(i).set(inventoryHandler.getStackInSlot(i));
         }
 
-        UUID uuid = container.getStorageWrapper().getContentsUuid().get();
-        CompoundTag backpackContent = BackpackStorage.get().getOrCreateBackpackContents(uuid);
-        SBPPacketHandler.INSTANCE.sendToClient(player, new BackpackContentsMessage(uuid, backpackContent));
+        container.getStorageWrapper().getContentsUuid().ifPresent(uuid -> {
+            CompoundTag backpackContent = BackpackStorage.get().getOrCreateBackpackContents(uuid);
+            SBPPacketHandler.INSTANCE.sendToClient(player, new BackpackContentsMessage(uuid, backpackContent));
+        });
     }
 
     public static ArrayList<ItemStack> getAllInventoryBackpack(Player player) {
@@ -118,7 +127,13 @@ public class SophisticatedBackpacksCompatInner {
     public static ArrayList<ItemStack> getItemsFromBackpackContext(Player player, BackpackContext backpackContext) {
         ArrayList<ItemStack> items = new ArrayList<>();
         BackpackContainer container = new BackpackContainer(player.containerMenu.containerId + 1, player, backpackContext);
-        int size = container.getStorageWrapper().getBackpack().getTag().getInt("inventorySlots");
+        ItemStack backpack = container.getStorageWrapper().getBackpack();
+        CompoundTag backpackTag = backpack.getTag();
+        if (backpack.isEmpty() || backpackTag == null) {
+            return items;
+        }
+
+        int size = backpackTag.getInt("inventorySlots");
         for (int i = 0; i < size; i++) {
             items.add(container.realInventorySlots.get(i).getItem());
         }

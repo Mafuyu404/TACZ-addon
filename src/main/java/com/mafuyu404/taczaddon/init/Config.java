@@ -1,6 +1,7 @@
 package com.mafuyu404.taczaddon.init;
 
 import com.mafuyu404.taczaddon.TACZaddon;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.common.ForgeConfigSpec;
@@ -78,8 +79,16 @@ public class Config {
 
     private static void updateItemBlacklist() {
         ITEM_BLACKLIST.clear();
-        for (String itemId : MELEE_WEAPON_LIST.get()) {
-            ITEM_BLACKLIST.add(new ResourceLocation(itemId).toString());
+        List<? extends String> configuredItems = MELEE_WEAPON_LIST.get();
+        if (configuredItems == null) {
+            return;
+        }
+
+        for (String itemId : configuredItems) {
+            ResourceLocation id = ResourceLocation.tryParse(itemId);
+            if (id != null) {
+                ITEM_BLACKLIST.add(id.toString());
+            }
         }
     }
     @SubscribeEvent
@@ -96,7 +105,11 @@ public class Config {
     }
 
     public static boolean isItemInBlacklist(ItemStack itemStack) {
-        return ITEM_BLACKLIST.contains(itemStack.getTag().getString("GunId"));
+        CompoundTag tag = itemStack.getTag();
+        if (itemStack.isEmpty() || tag == null) {
+            return false;
+        }
+        return ITEM_BLACKLIST.contains(tag.getString("GunId"));
     }
     public static boolean enableBetterAimCamera() {
         return BETTER_AIM_CAMERA.get();

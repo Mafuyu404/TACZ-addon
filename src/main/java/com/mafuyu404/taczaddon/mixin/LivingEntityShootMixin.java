@@ -20,13 +20,11 @@ public class LivingEntityShootMixin {
 
     @Shadow @Final private LivingEntity shooter;
 
-    //    @Inject(method = "getShootCoolDown(J)J",at = @At("RETURN"),cancellable = true,remap = false)
-//    public void cooldown(long timestamp, CallbackInfoReturnable<Long> cir){
-//        if(Config.ENABLED.get()){
-//            cir.setReturnValue((long) (((double)cir.getReturnValue()) / Config.TIMES.get()));
-//        }
-//    }
-    @Inject(method = "shoot", at = @At("HEAD"))
+    @Inject(
+            method = "shoot(Ljava/util/function/Supplier;Ljava/util/function/Supplier;J)Lcom/tacz/guns/api/entity/ShootResult;",
+            at = @At("HEAD"),
+            remap = false
+    )
     private void slideShoot(Supplier<Float> pitch, Supplier<Float> yaw, long timestamp, CallbackInfoReturnable<ShootResult> cir) {
         if (this.shooter.getTags().contains("slide")) this.data.sprintTimeS = 0.0F;
     }

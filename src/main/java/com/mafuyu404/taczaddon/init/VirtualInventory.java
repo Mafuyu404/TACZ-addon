@@ -9,7 +9,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.*;
+import java.util.Objects;
 
 public class VirtualInventory extends Inventory {
     public  int size;
@@ -47,56 +47,44 @@ public class VirtualInventory extends Inventory {
 
         @Override
         public @NotNull ItemStack getStackInSlot(int slot) {
+            if (slot < 0 || slot >= virtualInventory.size) {
+                return ItemStack.EMPTY;
+            }
             return virtualInventory.getItem(slot);
         }
 
         @Override
         public @NotNull ItemStack insertItem(int slot, @NotNull ItemStack stack, boolean simulate) {
-            return null;
+            return stack;
         }
 
         @Override
         public @NotNull ItemStack extractItem(int slot, int amount, boolean simulate) {
+            if (slot < 0 || slot >= virtualInventory.size || amount <= 0) {
+                return ItemStack.EMPTY;
+            }
+
             ItemStack itemStack = virtualInventory.getItem(slot);
-            ItemStack result = itemStack.copy();
-            itemStack.setCount(itemStack.getCount() - amount);
-            result.setCount(amount);
+            if (itemStack.isEmpty()) {
+                return ItemStack.EMPTY;
+            }
+
+            int extracted = Math.min(amount, itemStack.getCount());
+            ItemStack result = itemStack.copyWithCount(extracted);
+            if (!simulate) {
+                itemStack.shrink(extracted);
+            }
             return result;
         }
 
         @Override
         public int getSlotLimit(int slot) {
-            return virtualInventory.size;
+            return virtualInventory.getMaxStackSize();
         }
 
         @Override
         public boolean isItemValid(int slot, @NotNull ItemStack stack) {
             return false;
         }
-
-        // 其他方法类似，按需覆盖...
     }
-//    @Override
-//    public void setItem(int p_35999_, @NotNull ItemStack p_36000_) {
-//        ItemStack originItem = this.getItem(p_35999_);
-//        NonNullList<ItemStack> nonnulllist = null;
-//        for(NonNullList<ItemStack> nonnulllist1 : ((InventoryAccessor) this).getCompartments()) {
-//            if (p_35999_ < nonnulllist1.size()) {
-//                nonnulllist = nonnulllist1;
-//                break;
-//            }
-//            p_35999_ -= nonnulllist1.size();
-//        }
-//        if (nonnulllist != null) {
-//            nonnulllist.set(p_35999_, p_36000_);
-//        }
-//        VirtualInventoryChangeEvent.SetItemEvent event = new VirtualInventoryChangeEvent.SetItemEvent(p_36000_, this, p_35999_, originItem);
-//        MinecraftForge.EVENT_BUS.post(event);
-//    }
-//    @Override
-//    public boolean add(ItemStack p_36055_) {
-//        VirtualInventoryChangeEvent.AddEvent event = new VirtualInventoryChangeEvent.AddEvent(p_36055_, this);
-//        MinecraftForge.EVENT_BUS.post(event);
-//        return this.add(-1, p_36055_);
-//    }
 }

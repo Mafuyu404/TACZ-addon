@@ -1,7 +1,6 @@
 package com.mafuyu404.taczaddon.event;
 
 import com.mafuyu404.taczaddon.TACZaddon;
-import com.mafuyu404.taczaddon.common.BetterGunSmithTable;
 import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
 import com.mafuyu404.taczaddon.init.DataStorage;
 import com.mafuyu404.taczaddon.init.KeyBindings;
@@ -9,24 +8,23 @@ import com.mafuyu404.taczaddon.init.NetworkHandler;
 import com.mafuyu404.taczaddon.init.VirtualInventory;
 import com.mafuyu404.taczaddon.network.SwitchGunPacket;
 import com.tacz.guns.api.item.IGun;
-import com.tacz.guns.item.AmmoBoxItem;
-import com.tacz.guns.item.AttachmentItem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.network.chat.Component;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.InputEvent;
 import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 @Mod.EventBusSubscriber(modid = TACZaddon.MODID, value = Dist.CLIENT)
 public class ClientEvent {
@@ -36,20 +34,7 @@ public class ClientEvent {
     }
     @SubscribeEvent
     public static void onGame(TickEvent.RenderTickEvent event) {
-//        LuaAnimationStateMachine<GunAnimationStateContext> animationStateMachine = (LuaAnimationStateMachine<GunAnimationStateContext>) DataStorage.get("animationStateMachine");
-//        if (animationStateMachine != null) {
-//            ObjectAnimation animation = animationStateMachine.getAnimationController().getAnimation(4).getAnimation();
-//            if (animation.name.contains("reload")) {
-//                float maxEndTimeS = animationStateMachine.getAnimationController().getAnimation(4).getAnimation().getMaxEndTimeS();
-//                long processNs = animationStateMachine.getAnimationController().getAnimation(4).getProgressNs();
-//                float process = Math.round(processNs / 1e7) * 0.01f;
-//                float maxEndTime = Math.round(maxEndTimeS * 100) * 0.01f;
-//                if (process != maxEndTime) {
-//                    float reloadSpeedIncrease = 0;
-//                    animationStateMachine.getContext().adjustAnimationProgress(4, 0.016F * reloadSpeedIncrease, false);
-//                }
-//            }
-//        }
+        // Reserved render-tick hook for client-only features.
     }
 
     @SubscribeEvent
@@ -57,12 +42,17 @@ public class ClientEvent {
         Minecraft mc = Minecraft.getInstance();
         if (mc.screen != null) return;
         if (event.getKey() != KeyBindings.SWITCH_GUN_KEY.getKey().getValue() || event.getAction() != GLFW.GLFW_PRESS) return;
+        if (mc.player == null) return;
+
         ItemStack gunItem = mc.player.getMainHandItem();
         if (IGun.getIGunOrNull(gunItem) == null) return;
         ArrayList<String> GunList = new ArrayList<>();
         Inventory inventory = mc.player.getInventory();
         for (int i = 0; i < inventory.getContainerSize(); i++) {
-            if (IGun.getIGunOrNull(inventory.getItem(i)) != null) GunList.add(inventory.getItem(i).getTag().getString("GunId"));
+            ItemStack itemStack = inventory.getItem(i);
+            if (IGun.getIGunOrNull(itemStack) != null) {
+                taczaddon$getGunId(itemStack).ifPresent(GunList::add);
+            }
         }
         if (GunList.size() <= 1) return;
         DataStorage.set("storeGunList", GunList);
@@ -72,42 +62,39 @@ public class ClientEvent {
         if (Minecraft.getInstance().screen != null) return;
         if (!KeyBindings.SWITCH_GUN_KEY.isDown()) return;
         LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null) return;
+
         ItemStack gunItem = player.getMainHandItem();
         if (IGun.getIGunOrNull(gunItem) == null) return;
+        String currentGun = taczaddon$getGunId(gunItem).orElse(null);
+        if (currentGun == null) return;
+
         Object data = DataStorage.get("storeGunList");
-        if (data == null) return;
-        ArrayList<String> GunList = (ArrayList<String>) data;
-        int index = GunList.lastIndexOf(gunItem.getTag().getString("GunId"));
+        if (!(data instanceof List<?> storedList)) return;
+
+        ArrayList<String> GunList = new ArrayList<>();
+        for (Object entry : storedList) {
+            if (entry instanceof String gunId) {
+                GunList.add(gunId);
+            }
+        }
+        if (GunList.size() <= 1) return;
+
+        int index = GunList.lastIndexOf(currentGun);
         if (index == -1) return;
         if (event.getScrollDelta() < 0) index = (index == GunList.size() - 1) ? 0 : index + 1;
         else index = (index == 0) ? GunList.size() - 1 : index - 1;
         int slot = -1;
-        System.out.print(index);
-        System.out.print("\n");
         Inventory inventory = player.getInventory();
         for (int i = 0; i < inventory.getContainerSize(); i++) {
             int _i = (event.getScrollDelta() < 0) ? i : inventory.getContainerSize() - 1 - i;
             ItemStack itemStack = inventory.getItem(_i);
-            if (!itemStack.isEmpty() && inventory.getItem(_i).getTag() != null) {
-                if (inventory.getItem(_i).getTag().getString("GunId").equals(GunList.get(index))) slot = _i;
-            }
+            if (taczaddon$getGunId(itemStack).filter(GunList.get(index)::equals).isPresent()) slot = _i;
         }
         if (slot == -1) return;
         NetworkHandler.CHANNEL.sendToServer(new SwitchGunPacket(slot));
         event.setCanceled(true);
     }
-//
-//    @SubscribeEvent
-//    public static void tooltip(ItemTooltipEvent event) {
-//        if (event.getItemStack().getItem() instanceof AmmoBoxItem) {
-//            event.getToolTip().add(event.getToolTip().size(), Component.translatable("tooltip.taczaddon.ammo_box"));
-//        }
-//
-//        if (event.getItemStack().getItem() instanceof AttachmentItem) {
-//            if (!BetterGunSmithTable.isHoldingGun(Minecraft.getInstance().player)) event.getToolTip().add(event.getToolTip().size(), Component.translatable("tooltip.taczaddon.more_attachment_info"));
-//        }
-//    }
-
     public static VirtualInventory _virtualInventory = null;
 
     @SubscribeEvent
@@ -126,5 +113,15 @@ public class ClientEvent {
             virtualInventory.setItem(i, backpack.get(i));
         }
         _virtualInventory = virtualInventory;
+    }
+
+    private static Optional<String> taczaddon$getGunId(ItemStack itemStack) {
+        CompoundTag tag = itemStack.getTag();
+        if (itemStack.isEmpty() || tag == null) {
+            return Optional.empty();
+        }
+
+        String gunId = tag.getString("GunId");
+        return gunId.isEmpty() ? Optional.empty() : Optional.of(gunId);
     }
 }

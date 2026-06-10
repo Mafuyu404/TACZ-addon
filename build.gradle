@@ -28,8 +28,8 @@ FORMAT.setTimeZone(TimeZone.getTimeZone("UTC"))
 
 apply plugin: 'org.spongepowered.mixin'
 
-version = mapping_version + "-" + mod_version + "-" + FORMAT.format(new Date())
-group = mod_group_id
+//version = mapping_version + "-" + mod_version + "-" + FORMAT.format(new Date())
+//group = mod_group_id
 
 base {
     archivesName = mod_id
@@ -118,20 +118,23 @@ dependencies {
 
     implementation fg.deobf("curse.maven:shoulder-surfing-reloaded-243190:5455954")
 
-    implementation fg.deobf("curse.maven:sophisticated-core-618298:6190554")
-    implementation fg.deobf("curse.maven:sophisticated-backpacks-422301:6178588")
+    implementation fg.deobf("curse.maven:sophisticated-core-618298:8223768")
+    implementation fg.deobf("curse.maven:sophisticated-backpacks-422301:8224070")
 
     implementation fg.deobf("curse.maven:kubejs-238086:5853326")
     implementation fg.deobf("curse.maven:rhino-416294:6186971")
     implementation fg.deobf("curse.maven:architectury-api-419699:5137938")
 
-    compileOnly fg.deobf("mezz.jei:jei-1.20.1-forge-api:15.20.0.104")
-    implementation fg.deobf("mezz.jei:jei-1.20.1-forge:15.20.0.104")
+    implementation fg.deobf("curse.maven:jei-238222:7920915")
 
     implementation fg.deobf("curse.maven:curios-309927:5843594")
 
     implementation fg.deobf("curse.maven:kiwi-303657:6907020")
 
+    runtimeOnly fg.deobf("curse.maven:sophisticated-storage-in-motion-1166930:8224102")
+    runtimeOnly fg.deobf("curse.maven:sophisticated-storage-619320:8224087")
+
+    implementation fg.deobf("curse.maven:accelerated-rendering-1314021:8179092")
 }
 
 tasks.named('processResources', ProcessResources).configure {

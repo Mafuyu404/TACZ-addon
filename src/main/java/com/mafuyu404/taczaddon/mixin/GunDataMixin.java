@@ -1,8 +1,5 @@
 package com.mafuyu404.taczaddon.mixin;
 
-import com.tacz.guns.resource.pojo.data.gun.GunData;
-import org.spongepowered.asm.mixin.Mixin;
-
 //@Mixin(value = GunData.class,remap = false)
 public class GunDataMixin {
 

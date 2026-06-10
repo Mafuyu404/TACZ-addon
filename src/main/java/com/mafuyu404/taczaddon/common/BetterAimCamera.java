@@ -50,7 +50,7 @@ public class BetterAimCamera {
             return;
         }
 
-        if (!IGun.mainhandHoldGun(player)) {
+        if (!IGun.mainHandHoldGun(player)) {
             clearAimCameraState();
             return;
         }
@@ -103,7 +103,7 @@ public class BetterAimCamera {
             return;
         }
 
-        if (!Config.enableBetterAimCamera() || !isInGame() || !IGun.mainhandHoldGun(player)) {
+        if (!Config.enableBetterAimCamera() || !isInGame() || !IGun.mainHandHoldGun(player)) {
             restoreCameraAfterAim();
             return;
         }
