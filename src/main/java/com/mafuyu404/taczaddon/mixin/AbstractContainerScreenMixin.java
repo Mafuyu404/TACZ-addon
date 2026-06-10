@@ -1,12 +1,16 @@
 package com.mafuyu404.taczaddon.mixin;
 
 import com.mafuyu404.taczaddon.init.Config;
+import com.tacz.guns.api.DefaultAssets;
 import com.tacz.guns.api.item.IAmmo;
+import com.tacz.guns.api.item.IAmmoBox;
 import com.tacz.guns.api.item.IGun;
+import com.tacz.guns.api.item.builder.AmmoItemBuilder;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
@@ -95,8 +99,8 @@ public abstract class AbstractContainerScreenMixin extends Screen {
         if (!related) {
             return;
         }
-        
-        AbstractContainerScreenAccessor.taczaddon$renderSlotHighlight(
+
+        AbstractContainerScreen.renderSlotHighlight(
                 guiGraphics,
                 slot.x,
                 slot.y,
@@ -129,6 +133,38 @@ public abstract class AbstractContainerScreenMixin extends Screen {
         IAmmo iAmmo = IAmmo.getIAmmoOrNull(itemStack);
         boolean isAmmo = iAmmo != null && iAmmo.isAmmoOfGun(gunItem, itemStack);
 
-        return isAttachment || isAmmo;
+        boolean isAmmoBox = taczaddon$isAmmoBoxOfGun(gunItem, itemStack);
+
+        return isAttachment || isAmmo || isAmmoBox;
+    }
+
+    @Unique
+    private static boolean taczaddon$isAmmoBoxOfGun(ItemStack gunItem, ItemStack ammoBoxStack) {
+        if (!(ammoBoxStack.getItem() instanceof IAmmoBox ammoBox)) {
+            return false;
+        }
+
+        if (ammoBox.isAllTypeCreative(ammoBoxStack)) {
+            return true;
+        }
+
+        ResourceLocation ammoId = ammoBox.getAmmoId(ammoBoxStack);
+
+        if (ammoId.equals(DefaultAssets.EMPTY_AMMO_ID)) {
+            return false;
+        }
+
+        if (!ammoBox.isCreative(ammoBoxStack) && ammoBox.getAmmoCount(ammoBoxStack) <= 0) {
+            return false;
+        }
+
+        ItemStack virtualAmmoStack = AmmoItemBuilder.create()
+                .setId(ammoId)
+                .setCount(1)
+                .build();
+
+        IAmmo virtualAmmo = IAmmo.getIAmmoOrNull(virtualAmmoStack);
+
+        return virtualAmmo != null && virtualAmmo.isAmmoOfGun(gunItem, virtualAmmoStack);
     }
 }
