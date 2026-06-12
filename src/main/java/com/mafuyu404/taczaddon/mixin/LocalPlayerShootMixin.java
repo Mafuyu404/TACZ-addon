@@ -21,14 +21,6 @@ public class LocalPlayerShootMixin {
         BetterMelee.onShoot(cir);
     }
 
-//    @Inject(method = "shoot", at = @At(value = "INVOKE", target = "Lcom/tacz/guns/api/entity/IGunOperator;getSynReloadState()Lcom/tacz/guns/api/entity/ReloadState;"))
-//    private void onCheckReload(CallbackInfoReturnable<ShootResult> cir) {
-//        LocalPlayer tac$player = Minecraft.getInstance().player;
-//        LocalPlayerDataHolder tac$data = new LocalPlayerDataHolder(tac$player);
-//        LocalPlayerReload tac$reload = new LocalPlayerReload(tac$data, tac$player);
-//        tac$reload.cancelReload();
-//    }
-//
     @Inject(method = "shoot", at = @At("HEAD"))
     private void slideShoot(CallbackInfoReturnable<ShootResult> cir) {
         if (this.player.getTags().contains("slide")) ModSyncedEntityData.SPRINT_TIME_KEY.setValue(player, 0.0F);

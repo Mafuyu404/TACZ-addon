@@ -1,40 +1,69 @@
 package com.mafuyu404.taczaddon.network;
 
+import com.mafuyu404.taczaddon.TACZaddon;
 import com.tacz.guns.item.AmmoBoxItem;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.ClickAction;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.network.NetworkEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import java.util.function.Supplier;
+public class AmmoBoxCollectPacket implements CustomPacketPayload {
+    public static final Type<AmmoBoxCollectPacket> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(TACZaddon.MODID, "ammo_box_collect"));
+    public static final StreamCodec<RegistryFriendlyByteBuf, AmmoBoxCollectPacket> STREAM_CODEC = ByteBufCodecs.INT.<RegistryFriendlyByteBuf>cast().map(AmmoBoxCollectPacket::new, AmmoBoxCollectPacket::index);
+    private static final int PLAYER_MENU_INVENTORY_START = 9;
+    private static final int PLAYER_MENU_INVENTORY_END_EXCLUSIVE = 45;
+    private static final int COOLDOWN_TICKS = 4;
 
-public class AmmoBoxCollectPacket {
     private final int index;
 
     public AmmoBoxCollectPacket(int index) {
         this.index = index;
     }
 
-    public static void encode(AmmoBoxCollectPacket msg, FriendlyByteBuf buffer) {
-        buffer.writeInt(msg.index);
+    private int index() {
+        return index;
     }
 
-    public static AmmoBoxCollectPacket decode(FriendlyByteBuf buffer) {
-        return new AmmoBoxCollectPacket(buffer.readInt());
-    }
+    public static void handle(AmmoBoxCollectPacket msg, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (!(context.player() instanceof ServerPlayer player)) return;
+            if (ServerboundPacketGuard.isRateLimited(player, TYPE.id(), COOLDOWN_TICKS)) return;
+            if (!isPlayerStorageMenuSlot(msg.index)) return;
+            if (msg.index >= player.inventoryMenu.slots.size()) return;
 
-    public static void handle(AmmoBoxCollectPacket msg, Supplier<NetworkEvent.Context> ctx) {
-        ctx.get().enqueueWork(() -> {
-            ServerPlayer player = ctx.get().getSender();
-            if (player == null) return;
-            ItemStack ammoBox = player.inventoryMenu.getSlot(msg.index).getItem();
-            AmmoBoxItem ammoBoxItem = (AmmoBoxItem) ammoBox.getItem();
-            player.inventoryMenu.slots.forEach(slot -> {
-                if (slot.hasItem()) ammoBoxItem.overrideStackedOnOther(ammoBox, slot, ClickAction.SECONDARY, player);
-            });
+            Slot ammoBoxSlot = player.inventoryMenu.getSlot(msg.index);
+            if (!ammoBoxSlot.hasItem()) return;
+            ItemStack ammoBox = ammoBoxSlot.getItem();
+            if (!(ammoBox.getItem() instanceof AmmoBoxItem ammoBoxItem)) return;
+
+            for (int slotIndex = PLAYER_MENU_INVENTORY_START; slotIndex < PLAYER_MENU_INVENTORY_END_EXCLUSIVE; slotIndex++) {
+                if (slotIndex == msg.index || slotIndex >= player.inventoryMenu.slots.size()) {
+                    continue;
+                }
+
+                Slot slot = player.inventoryMenu.getSlot(slotIndex);
+                if (slot.hasItem()) {
+                    ammoBoxItem.overrideStackedOnOther(ammoBox, slot, ClickAction.SECONDARY, player);
+                }
+            }
+
+            ammoBoxSlot.setChanged();
+            player.inventoryMenu.broadcastChanges();
         });
-        ctx.get().setPacketHandled(true);
+    }
+
+    private static boolean isPlayerStorageMenuSlot(int slot) {
+        return slot >= PLAYER_MENU_INVENTORY_START && slot < PLAYER_MENU_INVENTORY_END_EXCLUSIVE;
+    }
+
+    @Override
+    public Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 }

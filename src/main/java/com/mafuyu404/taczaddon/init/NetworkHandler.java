@@ -1,41 +1,41 @@
 package com.mafuyu404.taczaddon.init;
 
-import com.mafuyu404.taczaddon.network.*;
-import net.minecraft.resources.ResourceLocation;
+import com.mafuyu404.taczaddon.TACZaddon;
+import com.mafuyu404.taczaddon.network.AmmoBoxCollectPacket;
+import com.mafuyu404.taczaddon.network.ContainerPositionPacket;
+import com.mafuyu404.taczaddon.network.ContainerReaderPacket;
+import com.mafuyu404.taczaddon.network.RuleSyncPacket;
+import com.mafuyu404.taczaddon.network.SwitchGunPacket;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.network.NetworkRegistry;
-import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.simple.SimpleChannel;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public class NetworkHandler {
     private static final String PROTOCOL = "1.0";
-    public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
-            new ResourceLocation("taczaddon", "sync_data"),
-            () -> PROTOCOL,
-            PROTOCOL::equals,
-            PROTOCOL::equals
-    );
 
-    // 注册数据包
-    public static void register() {
-        int packetId = 0;
-        CHANNEL.registerMessage(packetId++, PrimitivePacket.class, PrimitivePacket::encode, PrimitivePacket::decode, PrimitivePacket::handle);
-        CHANNEL.registerMessage(packetId++, ContainerReaderPacket.class, ContainerReaderPacket::encode, ContainerReaderPacket::decode, ContainerReaderPacket::handle);
-        CHANNEL.registerMessage(packetId++, ContainerPositionPacket.class, ContainerPositionPacket::encode, ContainerPositionPacket::decode, ContainerPositionPacket::handle);
-        CHANNEL.registerMessage(packetId++, SwitchGunPacket.class, SwitchGunPacket::encode, SwitchGunPacket::decode, SwitchGunPacket::handle);
-        CHANNEL.registerMessage(packetId++, AmmoBoxCollectPacket.class, AmmoBoxCollectPacket::encode, AmmoBoxCollectPacket::decode, AmmoBoxCollectPacket::handle);
-//        CHANNEL.registerMessage(
-//                packetId++,
-//                CommonMessagePacket.class,
-//                CommonMessagePacket::encode,
-//                CommonMessagePacket::new,
-//                CommonMessagePacket::handle
-//        );
+    public static void register(IEventBus modBus) {
+        modBus.addListener(NetworkHandler::registerPayloads);
     }
 
-    // 发送数据包到客户端
-    public static void sendToClient(ServerPlayer player, Object packet) {
-//        PrimitivePacket packet = new PrimitivePacket(key, value);
-        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), packet);
+    private static void registerPayloads(RegisterPayloadHandlersEvent event) {
+        // The addon sends server-authoritative inventory and UI state packets, so both
+        // sides must negotiate the same channel instead of treating it as optional.
+        PayloadRegistrar registrar = event.registrar(TACZaddon.MODID).versioned(PROTOCOL);
+        registrar.playToClient(RuleSyncPacket.TYPE, RuleSyncPacket.STREAM_CODEC, RuleSyncPacket::handle);
+        registrar.playToClient(ContainerReaderPacket.TYPE, ContainerReaderPacket.STREAM_CODEC, ContainerReaderPacket::handle);
+        registrar.playToServer(ContainerPositionPacket.TYPE, ContainerPositionPacket.STREAM_CODEC, ContainerPositionPacket::handle);
+        registrar.playToServer(SwitchGunPacket.TYPE, SwitchGunPacket.STREAM_CODEC, SwitchGunPacket::handle);
+        registrar.playToServer(AmmoBoxCollectPacket.TYPE, AmmoBoxCollectPacket.STREAM_CODEC, AmmoBoxCollectPacket::handle);
+    }
+
+    public static void sendToClient(ServerPlayer player, CustomPacketPayload packet) {
+        PacketDistributor.sendToPlayer(player, packet);
+    }
+
+    public static void sendToServer(CustomPacketPayload packet) {
+        PacketDistributor.sendToServer(packet);
     }
 }

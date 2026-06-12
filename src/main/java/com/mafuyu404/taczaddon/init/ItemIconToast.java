@@ -6,20 +6,18 @@ import net.minecraft.client.gui.components.toasts.Toast;
 import net.minecraft.client.gui.components.toasts.ToastComponent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-
-import static net.minecraft.data.models.model.TextureSlot.TEXTURE;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import org.jetbrains.annotations.NotNull;
 
 @OnlyIn(Dist.CLIENT)
 public class ItemIconToast implements Toast {
     private final Component title;
     private final Component description;
-    private final ItemStack icon;  // 要显示的物品图标
+    private final ItemStack icon;  // 瑕佹樉绀虹殑鐗╁搧鍥炬爣
     private long visibleTime;
 
-    // 构造函数
+    // 鏋勯€犲嚱鏁?
     public ItemIconToast(Component title, Component description, ItemStack icon) {
         this.title = title;
         this.description = description;
@@ -27,8 +25,8 @@ public class ItemIconToast implements Toast {
     }
 
     @Override
-    public Toast.Visibility render(GuiGraphics gui, ToastComponent toastComponent, long timer) {
-        gui.blit(TEXTURE, 0, 0, 0, 0, this.width(), this.height());
+    public @NotNull Toast.Visibility render(@NotNull GuiGraphics gui, @NotNull ToastComponent toastComponent, long timer) {
+        gui.fill(0, 0, this.width(), this.height(), 0xF0101010);
 
         gui.renderFakeItem(icon, 8, 8);
 
@@ -38,17 +36,17 @@ public class ItemIconToast implements Toast {
         return timer >= 2000L ? Visibility.HIDE : Visibility.SHOW;
     }
 
-    // 快速显示方法
+    // 蹇€熸樉绀烘柟娉?
     public static void show(Component title, Component description, ItemStack icon) {
         Minecraft.getInstance().getToasts().addToast(new ItemIconToast(title, description, icon));
     }
 
-    // 示例用法：显示一个钻石图标的 Toast
+    // 绀轰緥鐢ㄦ硶锛氭樉绀轰竴涓捇鐭冲浘鏍囩殑 Toast
     public static void create(String title, String desc, ItemStack itemStack) {
         show(
                 Component.translatable(title),
                 Component.translatable(desc),
-                itemStack // 替换为任意物品
+                itemStack // 鏇挎崲涓轰换鎰忕墿鍝?
         );
     }
 }

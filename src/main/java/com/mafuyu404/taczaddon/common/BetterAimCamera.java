@@ -11,17 +11,17 @@ import net.minecraft.client.CameraType;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.InputEvent;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.InputEvent;
 import org.lwjgl.glfw.GLFW;
 
 import static com.tacz.guns.util.InputExtraCheck.isInGame;
 import static net.minecraft.client.CameraType.FIRST_PERSON;
 
-@Mod.EventBusSubscriber(modid = TACZaddon.MODID, value = Dist.CLIENT)
+@EventBusSubscriber(modid = TACZaddon.MODID, value = Dist.CLIENT)
 public class BetterAimCamera {
     private static final long AIM_CAMERA_SWITCH_DELAY_MS = 110L;
 
@@ -50,7 +50,7 @@ public class BetterAimCamera {
             return;
         }
 
-        if (!IGun.mainhandHoldGun(player)) {
+        if (!IGun.mainHandHoldGun(player)) {
             clearAimCameraState();
             return;
         }
@@ -91,8 +91,7 @@ public class BetterAimCamera {
     }
 
     @SubscribeEvent
-    public static void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) return;
+    public static void onClientTick(ClientTickEvent.Post event) {
         if (!pendingFirstPersonSwitch) return;
 
         Minecraft mc = Minecraft.getInstance();
@@ -103,7 +102,7 @@ public class BetterAimCamera {
             return;
         }
 
-        if (!Config.enableBetterAimCamera() || !isInGame() || !IGun.mainhandHoldGun(player)) {
+        if (!Config.enableBetterAimCamera() || !isInGame() || !IGun.mainHandHoldGun(player)) {
             restoreCameraAfterAim();
             return;
         }

@@ -1,7 +1,8 @@
 package com.mafuyu404.taczaddon.mixin;
 
-import com.mafuyu404.taczaddon.init.*;
 import com.mafuyu404.taczaddon.common.BetterGunSmithTable;
+import com.mafuyu404.taczaddon.init.ClientSessionState;
+import com.mafuyu404.taczaddon.init.*;
 import com.mafuyu404.taczaddon.network.ContainerPositionPacket;
 import com.tacz.guns.api.TimelessAPI;
 import com.tacz.guns.client.gui.GunSmithTableScreen;
@@ -20,6 +21,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -33,7 +35,7 @@ import java.util.*;
 
 @Mixin(value = GunSmithTableScreen.class, remap = false)
 public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<GunSmithTableMenu> {
-    @Shadow @Nullable private GunSmithTableRecipe selectedRecipe;
+    @Shadow @Nullable private RecipeHolder<GunSmithTableRecipe> selectedRecipe;
 
     @Shadow private List<ResourceLocation> selectedRecipeList;
     @Shadow private int indexPage;
@@ -55,12 +57,12 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
 
     @Shadow
     @Nullable
-    private GunSmithTableRecipe getSelectedRecipe(ResourceLocation recipeId) {
+    private RecipeHolder<GunSmithTableRecipe> getSelectedRecipe(ResourceLocation recipeId) {
         throw new AssertionError();
     }
 
     @Shadow
-    private void getPlayerIngredientCount(GunSmithTableRecipe recipe) {
+    private void getPlayerIngredientCount(RecipeHolder<GunSmithTableRecipe> recipe) {
         throw new AssertionError();
     }
 
@@ -69,86 +71,113 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
     }
 
     @Unique
-    private boolean tACZ_addon$containerSnapshotRequested = false;
+    private boolean taczaddon$containerSnapshotRequested;
 
     @Unique
     @Nullable
-    private BlockPos tACZ_addon$lastRequestedContainerPos = null;
+    private BlockPos taczaddon$lastRequestedContainerPos;
 
     @Unique
-    private void tACZ_addon$requestNearbyContainerSnapshotIfNeeded() {
+    private void taczaddon$requestNearbyContainerSnapshotIfNeeded() {
         if (!Config.enableGunSmithTableContainerReader()) {
             return;
         }
 
-        Object rawPos = DataStorage.get("BetterGunSmithTable.interactBlockPos");
-        if (!(rawPos instanceof BlockPos blockPos)) {
+        Optional<BlockPos> maybeBlockPos = ClientSessionState.getLastGunSmithInteractPos();
+        if (maybeBlockPos.isEmpty()) {
+            return;
+        }
+        BlockPos blockPos = maybeBlockPos.get();
+
+        if (!blockPos.equals(this.taczaddon$lastRequestedContainerPos)) {
+            this.taczaddon$lastRequestedContainerPos = blockPos;
+            this.taczaddon$containerSnapshotRequested = false;
+        }
+
+        if (this.taczaddon$containerSnapshotRequested) {
             return;
         }
 
-        if (!blockPos.equals(this.tACZ_addon$lastRequestedContainerPos)) {
-            this.tACZ_addon$lastRequestedContainerPos = blockPos;
-            this.tACZ_addon$containerSnapshotRequested = false;
-        }
-
-        if (this.tACZ_addon$containerSnapshotRequested) {
-            return;
-        }
-
-        this.tACZ_addon$containerSnapshotRequested = true;
-        NetworkHandler.CHANNEL.sendToServer(new ContainerPositionPacket(blockPos));
+        this.taczaddon$containerSnapshotRequested = true;
+        NetworkHandler.sendToServer(new ContainerPositionPacket(blockPos));
     }
 
     @Unique
-    private ArrayList<String> tACZ_addon$AttachmentProp = new ArrayList<>();
-    @Unique
-    private int tACZ_addon$selectedAttachmentPropIndex = 0;
-    @Unique DropDown tACZ_addon$dropdown = null;
+    private ArrayList<String> taczaddon$attachmentProp;
 
     @Unique
-    private boolean tACZ_addon$browseStateRestored = false;
+    private int taczaddon$selectedAttachmentPropIndex;
+
+    @Unique
+    private DropDown taczaddon$dropdown;
+
+    @Unique
+    private boolean taczaddon$browseStateRestored;
+
+    @Inject(method = "<init>", at = @At("TAIL"))
+    private void taczaddon$initFields(CallbackInfo ci) {
+        // Mixin merges instance field initializers into the target constructor;
+        // keeping allocations here avoids Apply Initialisers rejecting them.
+        this.taczaddon$attachmentProp = new ArrayList<>();
+        this.taczaddon$selectedAttachmentPropIndex = 0;
+        this.taczaddon$dropdown = null;
+        this.taczaddon$browseStateRestored = false;
+        this.taczaddon$containerSnapshotRequested = false;
+        this.taczaddon$lastRequestedContainerPos = null;
+        this.taczaddon$hover = new HashMap<>();
+        this.taczaddon$massCount = 0;
+        this.taczaddon$mouseX = 0;
+        this.taczaddon$mouseY = 0;
+        this.taczaddon$loadAttachmentProperties();
+    }
 
     @Redirect(method = "classifyRecipes", at = @At(value = "INVOKE", target = "Ljava/util/List;add(Ljava/lang/Object;)Z"))
-    private boolean filter(List<Pair<ResourceLocation, ResourceLocation>> list, Object e) {
-        Pair<ResourceLocation, ResourceLocation> pair = (Pair<ResourceLocation, ResourceLocation>) e;
+    private boolean taczaddon$filterAttachmentProperty(List<Pair<ResourceLocation, ResourceLocation>> list, Object e) {
+        if (!(e instanceof Pair<?, ?> rawPair)
+                || !(rawPair.left() instanceof ResourceLocation group)
+                || !(rawPair.right() instanceof ResourceLocation recipeId)) {
+            return false;
+        }
+
+        Pair<ResourceLocation, ResourceLocation> pair = Pair.of(group, recipeId);
 
         boolean apply = true;
-        ResourceLocation group = pair.left();
-        String id = pair.right().toString();
+        String id = recipeId.toString();
 
         if (id.contains("/")) {
             ResourceLocation itemId = ResourceLocation.tryParse(id.split(":")[0] + ":" + id.split("/")[1]);
 
-            if (tACZ_addon$selectedAttachmentPropIndex != 0) {
-                String propKey = tACZ_addon$AttachmentProp.get(tACZ_addon$selectedAttachmentPropIndex);
+            if (itemId == null) {
+                apply = false;
+            } else if (taczaddon$selectedAttachmentPropIndex > 0
+                    && taczaddon$selectedAttachmentPropIndex < taczaddon$attachmentProp.size()) {
+                String propKey = taczaddon$attachmentProp.get(taczaddon$selectedAttachmentPropIndex);
                 Component selectedOption = Component.translatable(propKey);
-                Object data = DataStorage.get("BetterGunSmithTable.storedAttachmentData");
-                if (data != null) {
-                    HashMap<String, String> AttachmentData = (HashMap<String, String>) data;
-                    if (AttachmentData.get(itemId.toString()) == null) apply = false;
-                    else if (!AttachmentData.get(itemId.toString()).contains(selectedOption.getString())) {
+                Map<String, String> attachmentData = ClientSessionState.getAttachmentData();
+                String text = attachmentData.get(itemId.toString());
+                if (text == null) {
+                    apply = false;
+                } else if (!text.contains(selectedOption.getString())) {
                         apply = false;
-                    }
                 }
             }
         }
 
-        if (apply) list.add(pair);
-        return true;
+        return apply && list.add(pair);
     }
 
     @Inject(method = "init", at = @At("HEAD"), remap = true)
-    private void tACZ_addon$restoreAttachmentFilterBeforeClassify(CallbackInfo ci) {
-        if (this.tACZ_addon$browseStateRestored) {
+    private void taczaddon$restoreAttachmentFilterBeforeClassify(CallbackInfo ci) {
+        if (this.taczaddon$browseStateRestored) {
             return;
         }
 
         ResourceLocation tableId = this.menu.getBlockId();
 
         BetterGunSmithTable.getBrowseState(tableId).ifPresent(state -> {
-            int maxIndex = Math.max(0, this.tACZ_addon$AttachmentProp.size() - 1);
-            this.tACZ_addon$selectedAttachmentPropIndex =
-                    this.tACZ_addon$clamp(state.attachmentPropIndex(), 0, maxIndex);
+            int maxIndex = Math.max(0, this.taczaddon$attachmentProp.size() - 1);
+            this.taczaddon$selectedAttachmentPropIndex =
+                    this.taczaddon$clamp(state.attachmentPropIndex(), 0, maxIndex);
         });
     }
 
@@ -161,24 +190,24 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
             ),
             remap = false
     )
-    private void tACZ_addon$restoreBrowseStateAfterClassify(CallbackInfo ci) {
-        if (this.tACZ_addon$browseStateRestored) {
+    private void taczaddon$restoreBrowseStateAfterClassify(CallbackInfo ci) {
+        if (this.taczaddon$browseStateRestored) {
             return;
         }
 
-        this.tACZ_addon$browseStateRestored = true;
+        this.taczaddon$browseStateRestored = true;
 
         ResourceLocation tableId = this.menu.getBlockId();
 
         BetterGunSmithTable.getBrowseState(tableId)
-                .ifPresent(this::tACZ_addon$applyBrowseState);
+                .ifPresent(this::taczaddon$applyBrowseState);
     }
 
     @Unique
-    private void tACZ_addon$applyBrowseState(BetterGunSmithTable.BrowseState state) {
-        int maxPropIndex = Math.max(0, this.tACZ_addon$AttachmentProp.size() - 1);
-        this.tACZ_addon$selectedAttachmentPropIndex =
-                this.tACZ_addon$clamp(state.attachmentPropIndex(), 0, maxPropIndex);
+    private void taczaddon$applyBrowseState(BetterGunSmithTable.BrowseState state) {
+        int maxPropIndex = Math.max(0, this.taczaddon$attachmentProp.size() - 1);
+        this.taczaddon$selectedAttachmentPropIndex =
+                this.taczaddon$clamp(state.attachmentPropIndex(), 0, maxPropIndex);
 
         ResourceLocation savedType = state.selectedType();
 
@@ -187,7 +216,7 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
             this.selectedRecipeList = this.recipes.get(savedType);
         }
 
-        this.typePage = this.tACZ_addon$typePageFor(this.selectedType, state.typePage());
+        this.typePage = this.taczaddon$typePageFor(this.selectedType, state.typePage());
 
         if (this.selectedRecipeList == null || this.selectedRecipeList.isEmpty()) {
             this.indexPage = 0;
@@ -204,7 +233,7 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
             this.indexPage = recipeIndex / 6;
             this.selectedRecipe = this.getSelectedRecipe(savedRecipeId);
         } else {
-            this.indexPage = this.tACZ_addon$clamp(state.indexPage(), 0, maxRecipePage);
+            this.indexPage = this.taczaddon$clamp(state.indexPage(), 0, maxRecipePage);
 
             int fallbackIndex = Math.min(this.indexPage * 6, this.selectedRecipeList.size() - 1);
             this.selectedRecipe = this.getSelectedRecipe(this.selectedRecipeList.get(fallbackIndex));
@@ -221,11 +250,11 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
     }
 
     @Unique
-    private int tACZ_addon$typePageFor(ResourceLocation selectedType, int fallbackTypePage) {
+    private int taczaddon$typePageFor(ResourceLocation selectedType, int fallbackTypePage) {
         int maxTypePage = this.recipeKeys.isEmpty() ? 0 : (this.recipeKeys.size() - 1) / 7;
 
         if (selectedType == null) {
-            return this.tACZ_addon$clamp(fallbackTypePage, 0, maxTypePage);
+            return this.taczaddon$clamp(fallbackTypePage, 0, maxTypePage);
         }
 
         int index = 0;
@@ -236,22 +265,30 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
             index++;
         }
 
-        return this.tACZ_addon$clamp(fallbackTypePage, 0, maxTypePage);
+        return this.taczaddon$clamp(fallbackTypePage, 0, maxTypePage);
     }
 
     @Unique
-    private void tACZ_addon$saveBrowseState() {
+    @Nullable
+    private ResourceLocation taczaddon$getSelectedRecipeId() {
+        if (this.selectedRecipeList == null || this.selectedRecipeList.isEmpty()) {
+            return null;
+        }
+        int selectedIndex = this.taczaddon$clamp(this.indexPage, 0, this.selectedRecipeList.size() - 1);
+        return this.selectedRecipeList.get(selectedIndex);
+    }
+    @Unique
+    private void taczaddon$saveBrowseState() {
         ResourceLocation tableId = this.menu.getBlockId();
         if (tableId == null) {
             return;
         }
 
-        ResourceLocation selectedRecipeId =
-                this.selectedRecipe == null ? null : this.selectedRecipe.getId();
+        ResourceLocation selectedRecipeId = this.taczaddon$getSelectedRecipeId();
 
-        int propIndex = this.tACZ_addon$dropdown == null
-                ? this.tACZ_addon$selectedAttachmentPropIndex
-                : this.tACZ_addon$dropdown.getSelected();
+        int propIndex = this.taczaddon$dropdown == null
+                ? this.taczaddon$selectedAttachmentPropIndex
+                : this.taczaddon$dropdown.getSelected();
 
         BetterGunSmithTable.saveBrowseState(
                 tableId,
@@ -264,7 +301,7 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
     }
 
     @Unique
-    private int tACZ_addon$clamp(int value, int min, int max) {
+    private int taczaddon$clamp(int value, int min, int max) {
         if (max < min) {
             return min;
         }
@@ -272,40 +309,41 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
     }
 
     @Inject(method = "init", at = @At("TAIL"), remap = true)
-    private void onScreenChanged(CallbackInfo ci) {
-        this.tACZ_addon$requestNearbyContainerSnapshotIfNeeded();
+    private void taczaddon$onScreenChanged(CallbackInfo ci) {
+        this.taczaddon$requestNearbyContainerSnapshotIfNeeded();
 
-        if (tACZ_addon$dropdown != null) {
-            tACZ_addon$selectedAttachmentPropIndex = tACZ_addon$dropdown.getSelected();
+        if (taczaddon$dropdown != null) {
+            taczaddon$selectedAttachmentPropIndex = taczaddon$dropdown.getSelected();
         }
 
-        tACZ_addon$dropdown = new DropDown(leftPos - 64, topPos - 20, 64);
+        taczaddon$dropdown = new DropDown(leftPos - 64, topPos - 20, 64);
 
-        for (String prop : tACZ_addon$AttachmentProp) {
+        for (String prop : taczaddon$attachmentProp) {
             String text = Component.translatable(prop).getString().replace("+ ", "");
-            tACZ_addon$dropdown.addOption(Component.translatable(text));
+            taczaddon$dropdown.addOption(Component.translatable(text));
         }
 
-        int maxIndex = Math.max(0, tACZ_addon$AttachmentProp.size() - 1);
-        tACZ_addon$selectedAttachmentPropIndex =
-                tACZ_addon$clamp(tACZ_addon$selectedAttachmentPropIndex, 0, maxIndex);
+        int maxIndex = Math.max(0, taczaddon$attachmentProp.size() - 1);
+        taczaddon$selectedAttachmentPropIndex =
+                taczaddon$clamp(taczaddon$selectedAttachmentPropIndex, 0, maxIndex);
 
-        tACZ_addon$dropdown.setSelected(tACZ_addon$selectedAttachmentPropIndex);
-        tACZ_addon$dropdown.action = this::refreshRecipes;
+        taczaddon$dropdown.setSelected(taczaddon$selectedAttachmentPropIndex);
+        taczaddon$dropdown.action = this::taczaddon$refreshRecipes;
 
-        this.addRenderableWidget(tACZ_addon$dropdown);
+        this.addRenderableWidget(taczaddon$dropdown);
 
-        this.tACZ_addon$saveBrowseState();
+        this.taczaddon$saveBrowseState();
     }
 
-    private void refreshRecipes(int index) {
-        tACZ_addon$selectedAttachmentPropIndex = index;
-        this.tACZ_addon$saveBrowseState();
+    @Unique
+    private void taczaddon$refreshRecipes(int index) {
+        taczaddon$selectedAttachmentPropIndex = index;
+        this.taczaddon$saveBrowseState();
         this.updateIngredientCount();
     }
 
-    @Inject(method = "<init>", at = @At("RETURN"))
-    private void onScreenLoad(CallbackInfo ci) {
+    @Unique
+    private void taczaddon$loadAttachmentProperties() {
         HashMap<String, String> StoredAttachmentData = new HashMap<>();
         TimelessAPI.getAllClientAttachmentIndex().forEach(entry -> {
             StringBuilder data = new StringBuilder();
@@ -314,32 +352,38 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
             });
             StoredAttachmentData.put(entry.getKey().toString(), data.toString());
         });
-        if (DataStorage.get("BetterGunSmithTable.storedAttachmentData") == null) DataStorage.set("BetterGunSmithTable.storedAttachmentData", StoredAttachmentData);
+        if (ClientSessionState.getAttachmentData().isEmpty()) {
+            ClientSessionState.setAttachmentData(StoredAttachmentData);
+        }
 
-        tACZ_addon$AttachmentProp.add("gui.taczaddon.gun_smith_table.default_prop");
+        taczaddon$attachmentProp.add("gui.taczaddon.gun_smith_table.default_prop");
         AttachmentPropertyManager.getModifiers().forEach((s, iAttachmentModifier) -> {
             String prop = Component.translatable("tooltip.tacz.attachment." + s + ".increase").getString();
             if (s.equals("ignite")) {
-                tACZ_addon$AttachmentProp.add("tooltip.tacz.attachment.ignite.block");
-                tACZ_addon$AttachmentProp.add("tooltip.tacz.attachment.ignite.entity");
+                taczaddon$attachmentProp.add("tooltip.tacz.attachment.ignite.block");
+                taczaddon$attachmentProp.add("tooltip.tacz.attachment.ignite.entity");
                 return;
             }
             if (s.equals("weight_modifier") || s.equals("recoil")) return;
-            if (prop.contains("tooltip")) tACZ_addon$AttachmentProp.add("tooltip.tacz.attachment." + s);
-            else tACZ_addon$AttachmentProp.add("tooltip.tacz.attachment." + s + ".increase");
+            if (prop.contains("tooltip")) taczaddon$attachmentProp.add("tooltip.tacz.attachment." + s);
+            else taczaddon$attachmentProp.add("tooltip.tacz.attachment." + s + ".increase");
         });
     }
 
-    @Inject(method = "lambda$addCraftButton$5", at = @At(value = "INVOKE", target = "Lnet/minecraftforge/network/simple/SimpleChannel;sendToServer(Ljava/lang/Object;)V"))
-    private void onCrafted(Button b, CallbackInfo ci) {
+    @Inject(method = "lambda$addCraftButton$5", at = @At(value = "INVOKE", target = "Lnet/neoforged/neoforge/network/PacketDistributor;sendToServer(Lnet/minecraft/network/protocol/common/custom/CustomPacketPayload;[Lnet/minecraft/network/protocol/common/custom/CustomPacketPayload;)V"))
+    private void taczaddon$onCrafted(Button b, CallbackInfo ci) {
+        if (this.selectedRecipe == null) {
+            return;
+        }
+
         if (Config.enableGunSmithTableCraftToast()) ItemIconToast.create(
-                "已制作",
-                this.selectedRecipe.getOutput().getHoverName().getString() + " x " + this.selectedRecipe.getOutput().getCount(),
-                this.selectedRecipe.getOutput());
+                "Crafted",
+                this.selectedRecipe.value().getOutput().getHoverName().getString() + " x " + this.selectedRecipe.value().getOutput().getCount(),
+                this.selectedRecipe.value().getOutput());
     }
 
     @ModifyArg(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;drawString(Lnet/minecraft/client/gui/Font;Lnet/minecraft/network/chat/Component;IIIZ)I", ordinal = 0), index = 1, remap = true)
-    private Component renderPageInfo(Component p_282131_) {
+    private Component taczaddon$renderPageInfo(Component p_282131_) {
         if (this.selectedType == null || this.selectedRecipeList == null || this.selectedRecipeList.isEmpty()) {
             return Component.literal(String.format(
                     Component.translatable("gui.taczaddon.gun_smith_table.page_index").getString(),
@@ -361,10 +405,11 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
     }
 
     @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true, remap = true)
-    private void tACZ_addon$guardMouseScrolledWhenNoRecipes(
+    private void taczaddon$guardMouseScrolledWhenNoRecipes(
             double mouseX,
             double mouseY,
-            double delta,
+            double scrollX,
+            double scrollY,
             CallbackInfoReturnable<Boolean> cir
     ) {
         boolean insideRecipeList =
@@ -385,29 +430,42 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
     }
 
     @ModifyVariable(method = "getPlayerIngredientCount", at = @At("STORE"), ordinal = 0)
-    private Inventory modifyIngredientShow(Inventory inventory) {
-        ArrayList<ItemStack> items = ((VirtualContainerLoader) this).tACZ_addon$getVirtualContanier();
+    private Inventory taczaddon$modifyIngredientShow(Inventory inventory) {
+        if (!Config.enableGunSmithTableContainerReader()) {
+            return inventory;
+        }
+
+        Object self = this;
+        if (!(self instanceof VirtualContainerLoader loader)) {
+            return inventory;
+        }
+
+        ArrayList<ItemStack> items = loader.taczaddon$getVirtualContainer();
+        if (items == null || items.isEmpty()) {
+            return inventory;
+        }
+
         VirtualInventory virtualInventory = new VirtualInventory(inventory.getContainerSize() + items.size(), inventory.player);
         virtualInventory.extend();
         for (int i = 0; i < items.size(); i++) {
-            virtualInventory.setItem(virtualInventory.playerInventorySize + i, items.get(i));
+            virtualInventory.setItem(virtualInventory.getPlayerInventorySize() + i, items.get(i));
         }
         return virtualInventory;
     }
 
     @Unique
-    private int tACZ_addon$mouseX = 0;
+    private int taczaddon$mouseX;
 
     @Unique
-    private int tACZ_addon$mouseY = 0;
+    private int taczaddon$mouseY;
 
     @Unique
-    private HashMap<String, Boolean> tACZ_addon$hover = new HashMap<>();
+    private HashMap<String, Boolean> taczaddon$hover;
 
     @Inject(method = "render", at = @At("HEAD"), remap = true)
-    private void storedMousePos(GuiGraphics graphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
-        this.tACZ_addon$mouseX = mouseX;
-        this.tACZ_addon$mouseY = mouseY;
+    private void taczaddon$storedMousePos(GuiGraphics graphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+        this.taczaddon$mouseX = mouseX;
+        this.taczaddon$mouseY = mouseY;
     }
 
     @Redirect(
@@ -418,60 +476,62 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
             ),
             remap = true
     )
-    private void renderBetterIngredient(GuiGraphics graphics, ItemStack itemStack, int x, int y) {
+    private void taczaddon$renderBetterIngredient(GuiGraphics graphics, ItemStack itemStack, int x, int y) {
         graphics.renderItem(itemStack, x, y);
 
         String hoverKey = x + ":" + y;
 
-        if (tACZ_addon$isHovering(x, y)) {
+        if (taczaddon$isHovering(x, y)) {
             graphics.renderTooltip(
                     Minecraft.getInstance().font,
                     itemStack,
-                    this.tACZ_addon$mouseX,
-                    this.tACZ_addon$mouseY
+                    this.taczaddon$mouseX,
+                    this.taczaddon$mouseY
             );
 
-            DataStorage.set("GunSmithTableJEI", itemStack);
-            this.tACZ_addon$hover.put(hoverKey, true);
+            ClientSessionState.setGunSmithJeiStack(itemStack);
+            this.taczaddon$hover.put(hoverKey, true);
         } else {
-            this.tACZ_addon$hover.put(hoverKey, false);
+            this.taczaddon$hover.put(hoverKey, false);
 
-            boolean anyHovering = this.tACZ_addon$hover.values()
+            boolean anyHovering = this.taczaddon$hover.values()
                     .stream()
                     .anyMatch(Boolean::booleanValue);
 
             if (!anyHovering) {
-                DataStorage.set("GunSmithTableJEI", ItemStack.EMPTY);
+                ClientSessionState.setGunSmithJeiStack(ItemStack.EMPTY);
             }
         }
     }
 
     @Unique
-    private boolean tACZ_addon$isHovering(int x, int y) {
-        int mouseX = this.tACZ_addon$mouseX;
-        int mouseY = this.tACZ_addon$mouseY;
+    private boolean taczaddon$isHovering(int x, int y) {
+        int mouseX = this.taczaddon$mouseX;
+        int mouseY = this.taczaddon$mouseY;
 
         return mouseX >= x && mouseX <= x + 16
                 && mouseY >= y && mouseY <= y + 16;
     }
 
     @Unique
-    private int tACZ_addon$massCount = 0;
+    private int taczaddon$massCount;
     @Unique
-    private Button.OnPress tACZ_addon$onCraft;
+    private Button.OnPress taczaddon$onCraft;
     @ModifyArg(method = "addCraftButton", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/ImageButton;<init>(IIIIIIILnet/minecraft/resources/ResourceLocation;Lnet/minecraft/client/gui/components/Button$OnPress;)V", ordinal = 0), remap = true)
-    private Button.OnPress eeeee(Button.OnPress p_94276_) {
-        tACZ_addon$onCraft = p_94276_;
+    private Button.OnPress taczaddon$captureCraftButton(Button.OnPress p_94276_) {
+        taczaddon$onCraft = p_94276_;
         return p_94276_;
     }
-    @Inject(method = "lambda$addCraftButton$5", at = @At(value = "INVOKE", target = "Lnet/minecraftforge/network/simple/SimpleChannel;sendToServer(Ljava/lang/Object;)V"))
-    private void massCraft(Button b, CallbackInfo ci) {
+    @Inject(method = "lambda$addCraftButton$5", at = @At(value = "INVOKE", target = "Lnet/neoforged/neoforge/network/PacketDistributor;sendToServer(Lnet/minecraft/network/protocol/common/custom/CustomPacketPayload;[Lnet/minecraft/network/protocol/common/custom/CustomPacketPayload;)V"))
+    private void taczaddon$massCraft(Button b, CallbackInfo ci) {
         if (!Screen.hasShiftDown()) return;
-        tACZ_addon$massCount++;
-        if (tACZ_addon$massCount >= Config.getMassCraftTime()) {
-            tACZ_addon$massCount = 0;
+        taczaddon$massCount++;
+        if (taczaddon$massCount >= Config.getMassCraftTime()) {
+            taczaddon$massCount = 0;
             return;
         }
-        tACZ_addon$onCraft.onPress(b);
+        if (taczaddon$onCraft == null) return;
+        taczaddon$onCraft.onPress(b);
     }
 }
+

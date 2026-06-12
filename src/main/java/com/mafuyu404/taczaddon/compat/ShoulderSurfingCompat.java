@@ -1,25 +1,28 @@
 package com.mafuyu404.taczaddon.compat;
 
-import net.minecraftforge.fml.ModList;
+import net.neoforged.fml.ModList;
 
 public final class ShoulderSurfingCompat {
     private static final String MOD_ID = "shouldersurfing";
-    private static boolean INSTALLED = false;
+
+    private ShoulderSurfingCompat() {
+    }
 
     public static void init() {
-        INSTALLED = ModList.get().isLoaded(MOD_ID);
+        // Kept for existing setup calls; mod-loaded state is checked lazily.
+    }
+
+    public static boolean isInstalled() {
+        return ModList.get().isLoaded(MOD_ID);
     }
 
     public static boolean isShoulderSurfing() {
-        if (INSTALLED) {
-            return ShoulderSurfingCompatInner.isShoulderSurfing();
-        }
-        return false;
+        if (!isInstalled()) return false;
+        return ShoulderSurfingCompatInner.isShoulderSurfing();
     }
 
     public static void enableShoulderSurfing() {
-        if (INSTALLED) {
-            ShoulderSurfingCompatInner.enableShoulderSurfing();
-        }
+        if (!isInstalled()) return;
+        ShoulderSurfingCompatInner.enableShoulderSurfing();
     }
 }

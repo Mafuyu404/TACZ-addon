@@ -2,10 +2,10 @@ package com.mafuyu404.taczaddon.init;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -19,12 +19,12 @@ public class GunSmithingManager {
     }
 
     public static List<String> getResult(ItemStack itemStack) {
-        CompoundTag nbt = itemStack.getOrCreateTag();
+        CompoundTag nbt = ItemStackData.getCustomDataCopy(itemStack);
         ListTag itemList;
         List<String> result = new ArrayList<>();
 
-        if (nbt.contains("CombinedItems", 9)) { // 9是ListTag的ID
-            itemList = nbt.getList("CombinedItems", 8); // 8是StringTag的ID
+        if (nbt.contains("CombinedItems", 9)) {
+            itemList = nbt.getList("CombinedItems", 8);
         } else {
             itemList = new ListTag();
         }
@@ -42,7 +42,7 @@ public class GunSmithingManager {
             return null;
         }
 
-        ResourceLocation registryName = ForgeRegistries.ITEMS.getKey(item);
+        ResourceLocation registryName = BuiltInRegistries.ITEM.getKey(item);
         if (registryName == null) {
             return null;
         }
