@@ -11,7 +11,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import org.lwjgl.glfw.GLFW;
 
-@EventBusSubscriber(bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT, modid = TACZaddon.MODID)
+@EventBusSubscriber(value = Dist.CLIENT, modid = TACZaddon.MODID)
 public class KeyBindings {
     public static final KeyMapping SWITCH_GUN_KEY = new KeyMapping("key.taczaddon.switch_gun.desc",
             KeyConflictContext.IN_GAME,

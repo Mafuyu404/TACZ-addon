@@ -12,7 +12,6 @@ public final class ClientSessionState {
     private static ItemStack gunSmithJeiStack = ItemStack.EMPTY;
     private static List<String> gunSwitchList = List.of();
     private static Map<String, String> attachmentData = Map.of();
-    private static boolean backpackDataSynced;
     private static boolean liberateAttachment;
     private static boolean showAttachmentDetail;
 
@@ -24,7 +23,6 @@ public final class ClientSessionState {
         gunSmithJeiStack = ItemStack.EMPTY;
         gunSwitchList = List.of();
         attachmentData = Map.of();
-        backpackDataSynced = false;
         liberateAttachment = false;
         showAttachmentDetail = false;
     }
@@ -59,14 +57,6 @@ public final class ClientSessionState {
 
     public static void setAttachmentData(Map<String, String> data) {
         attachmentData = Map.copyOf(data);
-    }
-
-    public static boolean isBackpackDataSynced() {
-        return backpackDataSynced;
-    }
-
-    public static void setBackpackDataSynced(boolean backpackDataSynced) {
-        ClientSessionState.backpackDataSynced = backpackDataSynced;
     }
 
     public static boolean isLiberateAttachment() {

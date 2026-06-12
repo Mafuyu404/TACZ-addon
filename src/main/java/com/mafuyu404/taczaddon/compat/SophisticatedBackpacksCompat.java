@@ -71,6 +71,20 @@ public final class SophisticatedBackpacksCompat {
         return SophisticatedBackpacksCompatInner.isBackpackBlock(level, blockPos);
     }
 
+    public static int countInventoryBackpackAmmo(
+            Player player,
+            ItemStack gunStack
+    ) {
+        if (!isInstalled()
+                || player == null
+                || gunStack.isEmpty()) {
+            return 0;
+        }
+
+        return SophisticatedBackpacksCompatInner
+                .countInventoryBackpackAmmo(player, gunStack);
+    }
+
     public static List<ItemStack> getAllInventoryBackpack(Player player) {
         if (!isInstalled()) return new ArrayList<>();
         return SophisticatedBackpacksCompatInner.getAllInventoryBackpack(player);
