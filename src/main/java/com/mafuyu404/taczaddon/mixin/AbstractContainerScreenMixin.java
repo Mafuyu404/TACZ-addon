@@ -1,16 +1,11 @@
 package com.mafuyu404.taczaddon.mixin;
 
+import com.mafuyu404.taczaddon.client.ItemRelationService;
 import com.mafuyu404.taczaddon.init.Config;
-import com.tacz.guns.api.DefaultAssets;
-import com.tacz.guns.api.item.IAmmo;
-import com.tacz.guns.api.item.IAmmoBox;
-import com.tacz.guns.api.item.IGun;
-import com.tacz.guns.api.item.builder.AmmoItemBuilder;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
@@ -21,6 +16,8 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+import java.util.Set;
 
 @Mixin(AbstractContainerScreen.class)
 public abstract class AbstractContainerScreenMixin extends Screen {
@@ -34,6 +31,15 @@ public abstract class AbstractContainerScreenMixin extends Screen {
 
     @Unique
     private ItemStack taczaddon$relationHoveredStack = ItemStack.EMPTY;
+
+    @Unique
+    private ItemStack taczaddon$relationCachedHoverStack = ItemStack.EMPTY;
+
+    @Unique
+    private int taczaddon$relationCachedMenuHash;
+
+    @Unique
+    private Set<Integer> taczaddon$relatedSlotIndices = Set.of();
 
     protected AbstractContainerScreenMixin(Component title) {
         super(title);
@@ -62,9 +68,12 @@ public abstract class AbstractContainerScreenMixin extends Screen {
             if (taczaddon$isMouseOverSlot(slot, mouseX, mouseY)) {
                 this.taczaddon$relationHoveredSlot = slot;
                 this.taczaddon$relationHoveredStack = slot.getItem();
+                this.taczaddon$refreshRelationCache(slot);
                 return;
             }
         }
+
+        this.taczaddon$relatedSlotIndices = Set.of();
     }
 
     @Inject(method = "renderSlot", at = @At("RETURN"))
@@ -81,22 +90,7 @@ public abstract class AbstractContainerScreenMixin extends Screen {
             return;
         }
 
-        ItemStack hoverItem = this.taczaddon$relationHoveredStack;
-        ItemStack currentItem = slot.getItem();
-
-        if (hoverItem.isEmpty() || currentItem.isEmpty()) {
-            return;
-        }
-
-        boolean related;
-        try {
-            related = taczaddon$checkRelation(hoverItem, currentItem)
-                    || taczaddon$checkRelation(currentItem, hoverItem);
-        } catch (RuntimeException ignored) {
-            return;
-        }
-
-        if (!related) {
+        if (!this.taczaddon$relatedSlotIndices.contains(slot.index)) {
             return;
         }
 
@@ -118,53 +112,30 @@ public abstract class AbstractContainerScreenMixin extends Screen {
     }
 
     @Unique
-    private static boolean taczaddon$checkRelation(ItemStack gunItem, ItemStack itemStack) {
-        if (gunItem.isEmpty() || itemStack.isEmpty()) {
-            return false;
+    private void taczaddon$refreshRelationCache(Slot hoveredSlot) {
+        int menuHash = this.taczaddon$menuContentHash();
+        if (ItemStack.isSameItemSameComponents(this.taczaddon$relationCachedHoverStack, this.taczaddon$relationHoveredStack)
+                && this.taczaddon$relationCachedMenuHash == menuHash) {
+            return;
         }
 
-        IGun iGun = IGun.getIGunOrNull(gunItem);
-        if (iGun == null) {
-            return false;
-        }
-
-        boolean isAttachment = iGun.allowAttachment(gunItem, itemStack);
-
-        IAmmo iAmmo = IAmmo.getIAmmoOrNull(itemStack);
-        boolean isAmmo = iAmmo != null && iAmmo.isAmmoOfGun(gunItem, itemStack);
-
-        boolean isAmmoBox = taczaddon$isAmmoBoxOfGun(gunItem, itemStack);
-
-        return isAttachment || isAmmo || isAmmoBox;
+        this.taczaddon$relationCachedHoverStack = this.taczaddon$relationHoveredStack.copy();
+        this.taczaddon$relationCachedMenuHash = menuHash;
+        this.taczaddon$relatedSlotIndices = ItemRelationService.findRelatedSlots(
+                this.menu,
+                hoveredSlot,
+                this.taczaddon$relationHoveredStack
+        );
     }
 
     @Unique
-    private static boolean taczaddon$isAmmoBoxOfGun(ItemStack gunItem, ItemStack ammoBoxStack) {
-        if (!(ammoBoxStack.getItem() instanceof IAmmoBox ammoBox)) {
-            return false;
+    private int taczaddon$menuContentHash() {
+        int hash = 1;
+        for (Slot slot : this.menu.slots) {
+            ItemStack stack = slot.getItem();
+            hash = 31 * hash + (stack.isEmpty() ? 0 : stack.getItem().hashCode());
+            hash = 31 * hash + (stack.isEmpty() ? 0 : stack.getComponents().hashCode());
         }
-
-        if (ammoBox.isAllTypeCreative(ammoBoxStack)) {
-            return true;
-        }
-
-        ResourceLocation ammoId = ammoBox.getAmmoId(ammoBoxStack);
-
-        if (ammoId.equals(DefaultAssets.EMPTY_AMMO_ID)) {
-            return false;
-        }
-
-        if (!ammoBox.isCreative(ammoBoxStack) && ammoBox.getAmmoCount(ammoBoxStack) <= 0) {
-            return false;
-        }
-
-        ItemStack virtualAmmoStack = AmmoItemBuilder.create()
-                .setId(ammoId)
-                .setCount(1)
-                .build();
-
-        IAmmo virtualAmmo = IAmmo.getIAmmoOrNull(virtualAmmoStack);
-
-        return virtualAmmo != null && virtualAmmo.isAmmoOfGun(gunItem, virtualAmmoStack);
+        return hash;
     }
 }

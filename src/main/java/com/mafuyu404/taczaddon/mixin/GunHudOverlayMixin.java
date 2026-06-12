@@ -11,7 +11,6 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 public class GunHudOverlayMixin {
     @ModifyArg(method = "handleCacheCount", at = @At(value = "INVOKE", target = "Lcom/tacz/guns/client/gui/overlay/GunHudOverlay;handleInventoryAmmo(Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/entity/player/Inventory;)V"))
     private static Inventory useBackpackAmmo(Inventory inventory) {
-        if (ClientEvent._virtualInventory != null) return ClientEvent._virtualInventory;
-        return inventory;
+        return ClientEvent.getVirtualInventory().orElse(inventory);
     }
 }

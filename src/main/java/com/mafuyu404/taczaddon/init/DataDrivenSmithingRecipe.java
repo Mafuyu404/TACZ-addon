@@ -1,37 +1,34 @@
 package com.mafuyu404.taczaddon.init;
 
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
-import net.minecraft.core.RegistryAccess;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.SmithingRecipe;
+import net.minecraft.world.item.crafting.SmithingRecipeInput;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class DataDrivenSmithingRecipe implements SmithingRecipe {
-    private final ResourceLocation id;
     private final Ingredient template;
     private final Ingredient base;
     private final Ingredient addition;
     private final List<ResourceLocation> additionalItems;
 
-    public DataDrivenSmithingRecipe(ResourceLocation id, Ingredient template, Ingredient base, Ingredient addition, List<ResourceLocation> additionalItems) {
-        this.id = id;
+    public DataDrivenSmithingRecipe(Ingredient template, Ingredient base, Ingredient addition, List<ResourceLocation> additionalItems) {
         this.template = template;
         this.base = base;
         this.addition = addition;
-        this.additionalItems = additionalItems;
+        this.additionalItems = List.copyOf(additionalItems);
 
         List<String> keyList = new ArrayList<>();
         for (ResourceLocation additionalItem : additionalItems) {
@@ -44,44 +41,23 @@ public class DataDrivenSmithingRecipe implements SmithingRecipe {
     }
 
     @Override
-    public boolean matches(@NotNull Container container, @NotNull Level level) {
-        return template.test(container.getItem(0)) &&
-                base.test(container.getItem(1)) &&
-                addition.test(container.getItem(2));
+    public boolean matches(@NotNull SmithingRecipeInput input, @NotNull Level level) {
+        return template.test(input.template()) && base.test(input.base()) && addition.test(input.addition());
     }
 
     @Override
-    public @NotNull ItemStack assemble(@NotNull Container container, @NotNull RegistryAccess registryAccess) {
-        ItemStack baseItem = container.getItem(1).copy();
-        ItemStack additionItem = container.getItem(2);
+    public @NotNull ItemStack assemble(@NotNull SmithingRecipeInput input, @NotNull HolderLookup.Provider registries) {
+        ItemStack baseItem = input.base().copy();
+        ItemStack additionItem = input.addition();
 
-        // 获取或创建NBT标签
-        CompoundTag nbt = baseItem.getOrCreateTag();
-        ListTag itemList;
-
-        if (nbt.contains("CombinedItems", 9)) { // 9是ListTag的ID
-            itemList = nbt.getList("CombinedItems", 8); // 8是StringTag的ID
-        } else {
-            itemList = new ListTag();
-        }
-
-        // 添加addition物品的ID到列表
-        ResourceLocation additionItemId = ForgeRegistries.ITEMS.getKey(additionItem.getItem());
-        if (additionItemId == null) {
-            return baseItem;
-        }
-
-        if (!itemList.contains(StringTag.valueOf(additionItemId.toString()))) {
-            itemList.add(StringTag.valueOf(additionItemId.toString()));
-        }
-
-        // 添加配方中定义的额外物品ID到列表
-//        for (ResourceLocation itemId : additionalItems) {
-//            itemList.add(StringTag.valueOf(itemId.toString()));
-//        }
-
-        // 保存回NBT
-        nbt.put("CombinedItems", itemList);
+        ItemStackData.updateCustomData(baseItem, nbt -> {
+            ListTag itemList = nbt.contains("CombinedItems", 9) ? nbt.getList("CombinedItems", 8) : new ListTag();
+            ResourceLocation additionItemId = BuiltInRegistries.ITEM.getKey(additionItem.getItem());
+            if (!itemList.contains(StringTag.valueOf(additionItemId.toString()))) {
+                itemList.add(StringTag.valueOf(additionItemId.toString()));
+            }
+            nbt.put("CombinedItems", itemList);
+        });
 
         return baseItem;
     }
@@ -102,11 +78,6 @@ public class DataDrivenSmithingRecipe implements SmithingRecipe {
     }
 
     @Override
-    public @NotNull ResourceLocation getId() {
-        return id;
-    }
-
-    @Override
     public @NotNull RecipeSerializer<?> getSerializer() {
         return ModRecipeSerializers.DATA_DRIVEN_SMITHING.get();
     }
@@ -122,7 +93,7 @@ public class DataDrivenSmithingRecipe implements SmithingRecipe {
     }
 
     @Override
-    public @NotNull ItemStack getResultItem(@NotNull RegistryAccess registryAccess) {
+    public @NotNull ItemStack getResultItem(@NotNull HolderLookup.Provider registries) {
         return ItemStack.EMPTY;
     }
 
@@ -131,7 +102,6 @@ public class DataDrivenSmithingRecipe implements SmithingRecipe {
         return NonNullList.of(Ingredient.EMPTY, template, base, addition);
     }
 
-    // Getter方法，用于序列化
     public Ingredient getTemplate() {
         return template;
     }

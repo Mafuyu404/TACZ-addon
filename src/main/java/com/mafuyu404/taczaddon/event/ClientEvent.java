@@ -2,39 +2,48 @@ package com.mafuyu404.taczaddon.event;
 
 import com.mafuyu404.taczaddon.TACZaddon;
 import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
-import com.mafuyu404.taczaddon.init.DataStorage;
+import com.mafuyu404.taczaddon.init.ClientSessionState;
 import com.mafuyu404.taczaddon.init.KeyBindings;
 import com.mafuyu404.taczaddon.init.NetworkHandler;
 import com.mafuyu404.taczaddon.init.VirtualInventory;
+import com.mafuyu404.taczaddon.init.ItemStackData;
 import com.mafuyu404.taczaddon.network.SwitchGunPacket;
 import com.tacz.guns.api.item.IGun;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.InputEvent;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.InputEvent;
+import net.neoforged.neoforge.client.event.RenderFrameEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
-@Mod.EventBusSubscriber(modid = TACZaddon.MODID, value = Dist.CLIENT)
+@EventBusSubscriber(modid = TACZaddon.MODID, value = Dist.CLIENT)
 public class ClientEvent {
+    private static final int BACKPACK_CACHE_REFRESH_TICKS = 20;
+    private static VirtualInventory virtualInventory;
+    private static long nextBackpackRefreshTick;
+    private static UUID cachedPlayerId;
+
     @SubscribeEvent
     public static void onVirtualInventoryAdd(PlayerInteractEvent.RightClickBlock event) {
-        DataStorage.set("BetterGunSmithTable.interactBlockPos", event.getHitVec().getBlockPos());
+        ClientSessionState.setLastGunSmithInteractPos(event.getHitVec().getBlockPos());
     }
+
     @SubscribeEvent
-    public static void onGame(TickEvent.RenderTickEvent event) {
-        // Reserved render-tick hook for client-only features.
+    public static void onGame(RenderFrameEvent.Post event) {
+        // Reserved render-frame hook for client-only features.
     }
 
     @SubscribeEvent
@@ -46,17 +55,18 @@ public class ClientEvent {
 
         ItemStack gunItem = mc.player.getMainHandItem();
         if (IGun.getIGunOrNull(gunItem) == null) return;
-        ArrayList<String> GunList = new ArrayList<>();
+        ArrayList<String> gunList = new ArrayList<>();
         Inventory inventory = mc.player.getInventory();
         for (int i = 0; i < inventory.getContainerSize(); i++) {
             ItemStack itemStack = inventory.getItem(i);
             if (IGun.getIGunOrNull(itemStack) != null) {
-                taczaddon$getGunId(itemStack).ifPresent(GunList::add);
+                taczaddon$getGunId(itemStack).ifPresent(gunList::add);
             }
         }
-        if (GunList.size() <= 1) return;
-        DataStorage.set("storeGunList", GunList);
+        if (gunList.size() <= 1) return;
+        ClientSessionState.setGunSwitchList(gunList);
     }
+
     @SubscribeEvent
     public static void switchGun(InputEvent.MouseScrollingEvent event) {
         if (Minecraft.getInstance().screen != null) return;
@@ -69,59 +79,88 @@ public class ClientEvent {
         String currentGun = taczaddon$getGunId(gunItem).orElse(null);
         if (currentGun == null) return;
 
-        Object data = DataStorage.get("storeGunList");
-        if (!(data instanceof List<?> storedList)) return;
+        List<String> gunList = ClientSessionState.getGunSwitchList();
+        if (gunList.size() <= 1) return;
 
-        ArrayList<String> GunList = new ArrayList<>();
-        for (Object entry : storedList) {
-            if (entry instanceof String gunId) {
-                GunList.add(gunId);
-            }
-        }
-        if (GunList.size() <= 1) return;
-
-        int index = GunList.lastIndexOf(currentGun);
+        double scrollDelta = event.getScrollDeltaY();
+        int index = gunList.lastIndexOf(currentGun);
         if (index == -1) return;
-        if (event.getScrollDelta() < 0) index = (index == GunList.size() - 1) ? 0 : index + 1;
-        else index = (index == 0) ? GunList.size() - 1 : index - 1;
+        if (scrollDelta < 0) index = (index == gunList.size() - 1) ? 0 : index + 1;
+        else index = (index == 0) ? gunList.size() - 1 : index - 1;
         int slot = -1;
         Inventory inventory = player.getInventory();
         for (int i = 0; i < inventory.getContainerSize(); i++) {
-            int _i = (event.getScrollDelta() < 0) ? i : inventory.getContainerSize() - 1 - i;
-            ItemStack itemStack = inventory.getItem(_i);
-            if (taczaddon$getGunId(itemStack).filter(GunList.get(index)::equals).isPresent()) slot = _i;
+            int targetIndex = (scrollDelta < 0) ? i : inventory.getContainerSize() - 1 - i;
+            ItemStack itemStack = inventory.getItem(targetIndex);
+            if (taczaddon$getGunId(itemStack).filter(gunList.get(index)::equals).isPresent()) slot = targetIndex;
         }
         if (slot == -1) return;
-        NetworkHandler.CHANNEL.sendToServer(new SwitchGunPacket(slot));
+        NetworkHandler.sendToServer(new SwitchGunPacket(slot));
         event.setCanceled(true);
     }
-    public static VirtualInventory _virtualInventory = null;
 
     @SubscribeEvent
-    public static void storageBackpack(TickEvent.ClientTickEvent event) {
-        if (event.phase == TickEvent.Phase.END) return;
+    public static void storageBackpack(ClientTickEvent.Pre event) {
         Player player = Minecraft.getInstance().player;
-        if (player == null) return;
-        if (DataStorage.get("backpackData") == null) {
+        if (player == null) {
+            clearClientCaches();
+            return;
+        }
+
+        UUID playerId = player.getUUID();
+        if (!playerId.equals(cachedPlayerId)) {
+            cachedPlayerId = playerId;
+            virtualInventory = null;
+            nextBackpackRefreshTick = 0L;
+            ClientSessionState.setBackpackDataSynced(false);
+        }
+
+        if (!ClientSessionState.isBackpackDataSynced()) {
             SophisticatedBackpacksCompat.syncAllBackpack(player);
-            DataStorage.set("backpackData", true);
+            ClientSessionState.setBackpackDataSynced(true);
         }
-        ArrayList<ItemStack> backpack = SophisticatedBackpacksCompat.getItemsFromInventoryBackpack(player);
+
+        long gameTime = player.level().getGameTime();
+        if (virtualInventory != null && gameTime < nextBackpackRefreshTick) {
+            return;
+        }
+
+        refreshBackpackCache(player);
+        nextBackpackRefreshTick = gameTime + BACKPACK_CACHE_REFRESH_TICKS;
+    }
+
+    @SubscribeEvent
+    public static void onClientLogout(ClientPlayerNetworkEvent.LoggingOut event) {
+        clearClientCaches();
+        ClientSessionState.clear();
+    }
+
+    public static Optional<Inventory> getVirtualInventory() {
+        return Optional.ofNullable(virtualInventory);
+    }
+
+    private static void refreshBackpackCache(Player player) {
+        List<ItemStack> backpack = new ArrayList<>(SophisticatedBackpacksCompat.getItemsFromInventoryBackpack(player));
         backpack.addAll(player.getInventory().items);
-        VirtualInventory virtualInventory = new VirtualInventory(backpack.size(), player);
+        VirtualInventory updatedInventory = new VirtualInventory(backpack.size(), player);
         for (int i = 0; i < backpack.size(); i++) {
-            virtualInventory.setItem(i, backpack.get(i));
+            updatedInventory.setItem(i, backpack.get(i));
         }
-        _virtualInventory = virtualInventory;
+        virtualInventory = updatedInventory;
+    }
+
+    private static void clearClientCaches() {
+        virtualInventory = null;
+        nextBackpackRefreshTick = 0L;
+        cachedPlayerId = null;
+        ClientSessionState.setBackpackDataSynced(false);
     }
 
     private static Optional<String> taczaddon$getGunId(ItemStack itemStack) {
-        CompoundTag tag = itemStack.getTag();
-        if (itemStack.isEmpty() || tag == null) {
+        if (itemStack.isEmpty()) {
             return Optional.empty();
         }
-
-        String gunId = tag.getString("GunId");
+        String gunId = ItemStackData.getCustomDataCopy(itemStack).getString("GunId");
         return gunId.isEmpty() ? Optional.empty() : Optional.of(gunId);
     }
 }

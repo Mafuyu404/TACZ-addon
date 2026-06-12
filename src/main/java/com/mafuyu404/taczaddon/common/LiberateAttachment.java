@@ -1,7 +1,7 @@
 package com.mafuyu404.taczaddon.common;
 
 import com.mafuyu404.taczaddon.init.*;
-import com.mafuyu404.taczaddon.network.PrimitivePacket;
+import com.mafuyu404.taczaddon.network.RuleSyncPacket;
 import com.tacz.guns.api.item.IAttachment;
 import com.tacz.guns.api.item.attachment.AttachmentType;
 import com.tacz.guns.item.AttachmentItem;
@@ -50,23 +50,22 @@ public class LiberateAttachment {
 
     public static void onRuleChange(MinecraftServer server, GameRules.BooleanValue value) {
         server.getPlayerList().getPlayers().forEach(player -> {
-            boolean liberateAttachment = player.level().getGameRules().getBoolean(RuleRegistry.LIBERATE_ATTACHMENT);
-            NetworkHandler.sendToClient(player, new PrimitivePacket("gamerule.liberateAttachment", liberateAttachment));
-            boolean showAttachmentDetail = player.level().getGameRules().getBoolean(RuleRegistry.SHOW_ATTACHMENT_DETAIL);
-            NetworkHandler.sendToClient(player, new PrimitivePacket("gamerule.showAttachmentDetail", showAttachmentDetail));
+            NetworkHandler.sendToClient(player, createRuleSyncPacket(player));
         });
     }
     public static void syncRuleWhenLogin(ServerPlayer serverPlayer) {
-        boolean liberateAttachment = serverPlayer.level().getGameRules().getBoolean(RuleRegistry.LIBERATE_ATTACHMENT);
-        NetworkHandler.sendToClient(serverPlayer, new PrimitivePacket("gamerule.liberateAttachment", liberateAttachment));
-        boolean showAttachmentDetail = serverPlayer.level().getGameRules().getBoolean(RuleRegistry.SHOW_ATTACHMENT_DETAIL);
-        NetworkHandler.sendToClient(serverPlayer, new PrimitivePacket("gamerule.showAttachmentDetail", showAttachmentDetail));
+        NetworkHandler.sendToClient(serverPlayer, createRuleSyncPacket(serverPlayer));
     }
 
     public static boolean isLiberated(Player player) {
-        Object liberateAttachment = DataStorage.get("gamerule.liberateAttachment");
-        boolean gamerule = liberateAttachment != null && (boolean) liberateAttachment;
-        return gamerule || player.level().getGameRules().getBoolean(RuleRegistry.LIBERATE_ATTACHMENT);
+        return ClientSessionState.isLiberateAttachment()
+                || player.level().getGameRules().getBoolean(RuleRegistry.LIBERATE_ATTACHMENT);
+    }
+
+    private static RuleSyncPacket createRuleSyncPacket(Player player) {
+        boolean liberateAttachment = player.level().getGameRules().getBoolean(RuleRegistry.LIBERATE_ATTACHMENT);
+        boolean showAttachmentDetail = player.level().getGameRules().getBoolean(RuleRegistry.SHOW_ATTACHMENT_DETAIL);
+        return new RuleSyncPacket(liberateAttachment, showAttachmentDetail);
     }
 
     public static List<ItemStack> filterAttachmentItem(List<ItemStack> all, List<String> list) {

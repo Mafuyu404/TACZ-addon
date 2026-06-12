@@ -1,179 +1,145 @@
-buildscript {
-    repositories {
-        maven {
-            name = "Curse Maven"
-            url = "https://cursemaven.com"
-            content {
-                includeGroup "curse.maven"
-            }
-        }
-        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'org.spongepowered:mixingradle:0.7-SNAPSHOT'
-    }
-}
-
 plugins {
-    id 'eclipse'
+    id 'java-library'
+    id 'maven-publish'
+    id 'net.neoforged.moddev' version '2.0.141'
     id 'idea'
-    id 'net.minecraftforge.gradle' version '[6.0.16,6.2)'
 }
 
-import java.text.SimpleDateFormat
-
-SimpleDateFormat FORMAT = new SimpleDateFormat("MMdd-HHmmss")
-FORMAT.setTimeZone(TimeZone.getTimeZone("UTC"))
-
-apply plugin: 'org.spongepowered.mixin'
-
-//version = mapping_version + "-" + mod_version + "-" + FORMAT.format(new Date())
-//group = mod_group_id
+version = mod_version
+group = mod_group_id
 
 base {
     archivesName = mod_id
 }
 
-java {
-    toolchain.languageVersion = JavaLanguageVersion.of(17)
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+sourceSets.main.resources {
+    srcDir('src/generated/resources')
+    exclude("**/*.bbmodel")
+    exclude("src/generated/**/.cache")
 }
-
-minecraft {
-
-    mappings channel: mapping_channel, version: mapping_version
-
-    copyIdeResources = true
-
-    runs {
-        configureEach {
-            workingDirectory project.file('run')
-
-            property 'forge.logging.markers', 'REGISTRIES'
-
-
-            property 'forge.logging.console.level', 'debug'
-        }
-
-        client {
-            workingDirectory project.file('run/client')
-            property 'forge.enabledGameTestNamespaces', mod_id
-        }
-
-        server {
-            workingDirectory project.file('run/server')
-            property 'forge.enabledGameTestNamespaces', mod_id
-            args '--nogui'
-        }
-
-        gameTestServer {
-            property 'forge.enabledGameTestNamespaces', mod_id
-        }
-
-        data {
-            workingDirectory project.file('run-data')
-
-            args '--mod', mod_id, '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
-        }
-    }
-}
-
-mixin {
-    add sourceSets.main, "${mod_id}.refmap.json"
-
-    config "${mod_id}.mixins.json"
-}
-
-sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 repositories {
-    maven {
-        name = "Curse Maven"
-        url = "https://cursemaven.com"
-        content {
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "Cleanroom CurseMaven"
+                url = uri("https://curse.cleanroommc.com")
+            }
+        }
+        filter {
             includeGroup "curse.maven"
         }
     }
-    maven {
-        name = "Jared's maven"
-        url = "https://maven.blamejared.com/"
-        content {
-            includeGroup "mezz.jei"
+
+    mavenCentral()
+}
+
+neoForge {
+    version = project.neo_version
+
+    parchment {
+        mappingsVersion = project.parchment_mappings_version
+        minecraftVersion = project.parchment_minecraft_version
+    }
+
+    runs {
+        client {
+            client()
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+
+        server {
+            server()
+            programArgument '--nogui'
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+
+        gameTestServer {
+            type = "gameTestServer"
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+
+        data {
+            data()
+            programArguments.addAll(
+                    '--mod', project.mod_id,
+                    '--all',
+                    '--output', file('src/generated/resources/').getAbsolutePath(),
+                    '--existing', file('src/main/resources/').getAbsolutePath()
+            )
+        }
+
+        configureEach {
+            systemProperty 'forge.logging.markers', 'REGISTRIES'
+            logLevel = org.slf4j.event.Level.DEBUG
         }
     }
-    mavenCentral()
-    mavenLocal()
-    flatDir {
-        dirs 'libs'
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
     }
+}
+
+configurations {
+    runtimeClasspath.extendsFrom localRuntime
 }
 
 dependencies {
+    implementation "curse.maven:tacz-1-21-1-1353462:8167430"
 
-    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+    implementation "curse.maven:shoulder-surfing-reloaded-243190:8151282"
 
-    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
-
-    implementation fg.deobf("curse.maven:timeless-and-classics-zero-1028108:8141310")
-
-    implementation fg.deobf("curse.maven:shoulder-surfing-reloaded-243190:5455954")
-
-    implementation fg.deobf("curse.maven:sophisticated-core-618298:8223768")
-    implementation fg.deobf("curse.maven:sophisticated-backpacks-422301:8224070")
-
-    implementation fg.deobf("curse.maven:kubejs-238086:5853326")
-    implementation fg.deobf("curse.maven:rhino-416294:6186971")
-    implementation fg.deobf("curse.maven:architectury-api-419699:5137938")
-
-    implementation fg.deobf("curse.maven:jei-238222:7920915")
-
-    implementation fg.deobf("curse.maven:curios-309927:5843594")
-
-    implementation fg.deobf("curse.maven:kiwi-303657:6907020")
-
-    runtimeOnly fg.deobf("curse.maven:sophisticated-storage-in-motion-1166930:8224102")
-    runtimeOnly fg.deobf("curse.maven:sophisticated-storage-619320:8224087")
-
-    implementation fg.deobf("curse.maven:accelerated-rendering-1314021:8179092")
+    implementation "curse.maven:sophisticated-core-618298:8231043"
+    implementation "curse.maven:sophisticated-backpacks-422301:8231066"
+    implementation "curse.maven:jei-238222:7420587"
+    implementation "curse.maven:curios-309927:6529130"
 }
 
-tasks.named('processResources', ProcessResources).configure {
+var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
     var replaceProperties = [
-            minecraft_version: minecraft_version, minecraft_version_range: minecraft_version_range,
-            forge_version: forge_version, forge_version_range: forge_version_range,
-            loader_version_range: loader_version_range,
-            mod_id: mod_id, mod_name: mod_name, mod_license: mod_license, mod_version: mod_version,
-            mod_authors: mod_authors, mod_description: mod_description,
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version            : neo_version,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
     ]
 
     inputs.properties replaceProperties
+    expand replaceProperties
+    from "src/main/templates"
+    into "build/generated/sources/modMetadata"
+}
 
-    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
-        expand replaceProperties + [project: project]
-    }}
+sourceSets.main.resources.srcDir generateModMetadata
+neoForge.ideSyncTask generateModMetadata
 
-tasks.named('jar', Jar).configure {
-    manifest {
-        attributes([
-                "Specification-Title": mod_id,
-                "Specification-Vendor": mod_authors,
-                "Specification-Version": "1",
-                "Implementation-Title": project.name,
-                "Implementation-Version": project.jar.archiveVersion,
-                "Implementation-Vendor": mod_authors,
-                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
-        ])
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            from components.java
+        }
     }
-
-    finalizedBy 'reobfJar'
+    repositories {
+        maven {
+            url "file://${project.projectDir}/repo"
+        }
+    }
 }
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
-sourceSets.each {
-    def dir = layout.buildDirectory.dir("sourcesSets/$it.name")
-    it.output.resourcesDir = dir
-    it.java.destinationDirectory = dir
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
 }

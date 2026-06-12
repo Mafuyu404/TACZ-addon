@@ -1,46 +1,38 @@
 package com.mafuyu404.taczaddon.network;
 
-import com.mafuyu404.taczaddon.init.VirtualContainerLoader;
-import com.tacz.guns.client.gui.GunSmithTableScreen;
-import net.minecraft.client.Minecraft;
-import net.minecraft.network.FriendlyByteBuf;
+import com.mafuyu404.taczaddon.TACZaddon;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.network.NetworkEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import java.util.ArrayList;
-import java.util.function.Supplier;
+import java.util.List;
 
-public class ContainerReaderPacket {
-    private final ArrayList<ItemStack> items;
-    private final int size;
+public class ContainerReaderPacket implements CustomPacketPayload {
+    public static final Type<ContainerReaderPacket> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(TACZaddon.MODID, "container_reader"));
+    public static final StreamCodec<RegistryFriendlyByteBuf, ContainerReaderPacket> STREAM_CODEC = ItemStack.OPTIONAL_LIST_STREAM_CODEC.map(ContainerReaderPacket::new, ContainerReaderPacket::items);
 
-    public ContainerReaderPacket(ArrayList<ItemStack> items) {
-        this.items = items;
-        this.size = items.size();
+    private final List<ItemStack> items;
+
+    public ContainerReaderPacket(List<ItemStack> items) {
+        this.items = List.copyOf(items);
     }
 
-    public static void encode(ContainerReaderPacket msg, FriendlyByteBuf buffer) {
-        buffer.writeInt(msg.size);
-        msg.items.forEach(itemStack -> buffer.writeItemStack(itemStack, true));
+    public List<ItemStack> items() {
+        return items;
     }
 
-    public static ContainerReaderPacket decode(FriendlyByteBuf buffer) {
-        ArrayList<ItemStack> items = new ArrayList<>();
-        int size = buffer.readInt();
-        for (int i = 0; i < size; i++) {
-            items.add(buffer.readItem());
-        }
-        return new ContainerReaderPacket(items);
-    }
-
-    public static void handle(ContainerReaderPacket msg, Supplier<NetworkEvent.Context> ctx) {
-        ctx.get().enqueueWork(() -> {
-            if (Minecraft.getInstance().screen instanceof GunSmithTableScreen screen
-                    && screen instanceof VirtualContainerLoader loader) {
-                loader.taczaddon$setVirtualContainer(msg.items);
-                screen.updateIngredientCount();
-            }
+    public static void handle(ContainerReaderPacket msg, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            com.mafuyu404.taczaddon.client.ClientPayloadHandler.handleContainerReader(new ArrayList<>(msg.items));
         });
-        ctx.get().setPacketHandled(true);
+    }
+
+    @Override
+    public Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 }

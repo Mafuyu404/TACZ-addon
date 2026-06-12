@@ -24,7 +24,8 @@ public class InventoryScreenMixin extends Screen {
         if (!hasShiftDown() || key != 1) return;
         if (slot == null) return;
         if (!(slot.getItem().getItem() instanceof AmmoBoxItem)) return;
-        NetworkHandler.CHANNEL.sendToServer(new AmmoBoxCollectPacket(index));
+        NetworkHandler.sendToServer(new AmmoBoxCollectPacket(index));
         ci.cancel();
     }
 }
+

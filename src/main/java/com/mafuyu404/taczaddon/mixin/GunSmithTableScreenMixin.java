@@ -1,6 +1,7 @@
 package com.mafuyu404.taczaddon.mixin;
 
 import com.mafuyu404.taczaddon.common.BetterGunSmithTable;
+import com.mafuyu404.taczaddon.init.ClientSessionState;
 import com.mafuyu404.taczaddon.init.*;
 import com.mafuyu404.taczaddon.network.ContainerPositionPacket;
 import com.tacz.guns.api.TimelessAPI;
@@ -20,6 +21,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -33,7 +35,7 @@ import java.util.*;
 
 @Mixin(value = GunSmithTableScreen.class, remap = false)
 public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<GunSmithTableMenu> {
-    @Shadow @Nullable private GunSmithTableRecipe selectedRecipe;
+    @Shadow @Nullable private RecipeHolder<GunSmithTableRecipe> selectedRecipe;
 
     @Shadow private List<ResourceLocation> selectedRecipeList;
     @Shadow private int indexPage;
@@ -55,12 +57,12 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
 
     @Shadow
     @Nullable
-    private GunSmithTableRecipe getSelectedRecipe(ResourceLocation recipeId) {
+    private RecipeHolder<GunSmithTableRecipe> getSelectedRecipe(ResourceLocation recipeId) {
         throw new AssertionError();
     }
 
     @Shadow
-    private void getPlayerIngredientCount(GunSmithTableRecipe recipe) {
+    private void getPlayerIngredientCount(RecipeHolder<GunSmithTableRecipe> recipe) {
         throw new AssertionError();
     }
 
@@ -81,10 +83,11 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
             return;
         }
 
-        Object rawPos = DataStorage.get("BetterGunSmithTable.interactBlockPos");
-        if (!(rawPos instanceof BlockPos blockPos)) {
+        Optional<BlockPos> maybeBlockPos = ClientSessionState.getLastGunSmithInteractPos();
+        if (maybeBlockPos.isEmpty()) {
             return;
         }
+        BlockPos blockPos = maybeBlockPos.get();
 
         if (!blockPos.equals(this.taczaddon$lastRequestedContainerPos)) {
             this.taczaddon$lastRequestedContainerPos = blockPos;
@@ -96,7 +99,7 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
         }
 
         this.taczaddon$containerSnapshotRequested = true;
-        NetworkHandler.CHANNEL.sendToServer(new ContainerPositionPacket(blockPos));
+        NetworkHandler.sendToServer(new ContainerPositionPacket(blockPos));
     }
 
     @Unique
@@ -150,13 +153,12 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
                     && taczaddon$selectedAttachmentPropIndex < taczaddon$attachmentProp.size()) {
                 String propKey = taczaddon$attachmentProp.get(taczaddon$selectedAttachmentPropIndex);
                 Component selectedOption = Component.translatable(propKey);
-                Object data = DataStorage.get("BetterGunSmithTable.storedAttachmentData");
-                if (data instanceof Map<?, ?> attachmentData) {
-                    Object storedText = attachmentData.get(itemId.toString());
-                    if (!(storedText instanceof String text)) apply = false;
-                    else if (!text.contains(selectedOption.getString())) {
+                Map<String, String> attachmentData = ClientSessionState.getAttachmentData();
+                String text = attachmentData.get(itemId.toString());
+                if (text == null) {
+                    apply = false;
+                } else if (!text.contains(selectedOption.getString())) {
                         apply = false;
-                    }
                 }
             }
         }
@@ -267,14 +269,22 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
     }
 
     @Unique
+    @Nullable
+    private ResourceLocation taczaddon$getSelectedRecipeId() {
+        if (this.selectedRecipeList == null || this.selectedRecipeList.isEmpty()) {
+            return null;
+        }
+        int selectedIndex = this.taczaddon$clamp(this.indexPage, 0, this.selectedRecipeList.size() - 1);
+        return this.selectedRecipeList.get(selectedIndex);
+    }
+    @Unique
     private void taczaddon$saveBrowseState() {
         ResourceLocation tableId = this.menu.getBlockId();
         if (tableId == null) {
             return;
         }
 
-        ResourceLocation selectedRecipeId =
-                this.selectedRecipe == null ? null : this.selectedRecipe.getId();
+        ResourceLocation selectedRecipeId = this.taczaddon$getSelectedRecipeId();
 
         int propIndex = this.taczaddon$dropdown == null
                 ? this.taczaddon$selectedAttachmentPropIndex
@@ -342,7 +352,9 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
             });
             StoredAttachmentData.put(entry.getKey().toString(), data.toString());
         });
-        if (DataStorage.get("BetterGunSmithTable.storedAttachmentData") == null) DataStorage.set("BetterGunSmithTable.storedAttachmentData", StoredAttachmentData);
+        if (ClientSessionState.getAttachmentData().isEmpty()) {
+            ClientSessionState.setAttachmentData(StoredAttachmentData);
+        }
 
         taczaddon$attachmentProp.add("gui.taczaddon.gun_smith_table.default_prop");
         AttachmentPropertyManager.getModifiers().forEach((s, iAttachmentModifier) -> {
@@ -358,16 +370,16 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
         });
     }
 
-    @Inject(method = "lambda$addCraftButton$5", at = @At(value = "INVOKE", target = "Lnet/minecraftforge/network/simple/SimpleChannel;sendToServer(Ljava/lang/Object;)V"))
+    @Inject(method = "lambda$addCraftButton$5", at = @At(value = "INVOKE", target = "Lnet/neoforged/neoforge/network/PacketDistributor;sendToServer(Lnet/minecraft/network/protocol/common/custom/CustomPacketPayload;[Lnet/minecraft/network/protocol/common/custom/CustomPacketPayload;)V"))
     private void taczaddon$onCrafted(Button b, CallbackInfo ci) {
         if (this.selectedRecipe == null) {
             return;
         }
 
         if (Config.enableGunSmithTableCraftToast()) ItemIconToast.create(
-                "已制作",
-                this.selectedRecipe.getOutput().getHoverName().getString() + " x " + this.selectedRecipe.getOutput().getCount(),
-                this.selectedRecipe.getOutput());
+                "Crafted",
+                this.selectedRecipe.value().getOutput().getHoverName().getString() + " x " + this.selectedRecipe.value().getOutput().getCount(),
+                this.selectedRecipe.value().getOutput());
     }
 
     @ModifyArg(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;drawString(Lnet/minecraft/client/gui/Font;Lnet/minecraft/network/chat/Component;IIIZ)I", ordinal = 0), index = 1, remap = true)
@@ -396,7 +408,8 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
     private void taczaddon$guardMouseScrolledWhenNoRecipes(
             double mouseX,
             double mouseY,
-            double delta,
+            double scrollX,
+            double scrollY,
             CallbackInfoReturnable<Boolean> cir
     ) {
         boolean insideRecipeList =
@@ -435,7 +448,7 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
         VirtualInventory virtualInventory = new VirtualInventory(inventory.getContainerSize() + items.size(), inventory.player);
         virtualInventory.extend();
         for (int i = 0; i < items.size(); i++) {
-            virtualInventory.setItem(virtualInventory.playerInventorySize + i, items.get(i));
+            virtualInventory.setItem(virtualInventory.getPlayerInventorySize() + i, items.get(i));
         }
         return virtualInventory;
     }
@@ -476,7 +489,7 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
                     this.taczaddon$mouseY
             );
 
-            DataStorage.set("GunSmithTableJEI", itemStack);
+            ClientSessionState.setGunSmithJeiStack(itemStack);
             this.taczaddon$hover.put(hoverKey, true);
         } else {
             this.taczaddon$hover.put(hoverKey, false);
@@ -486,7 +499,7 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
                     .anyMatch(Boolean::booleanValue);
 
             if (!anyHovering) {
-                DataStorage.set("GunSmithTableJEI", ItemStack.EMPTY);
+                ClientSessionState.setGunSmithJeiStack(ItemStack.EMPTY);
             }
         }
     }
@@ -509,7 +522,7 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
         taczaddon$onCraft = p_94276_;
         return p_94276_;
     }
-    @Inject(method = "lambda$addCraftButton$5", at = @At(value = "INVOKE", target = "Lnet/minecraftforge/network/simple/SimpleChannel;sendToServer(Ljava/lang/Object;)V"))
+    @Inject(method = "lambda$addCraftButton$5", at = @At(value = "INVOKE", target = "Lnet/neoforged/neoforge/network/PacketDistributor;sendToServer(Lnet/minecraft/network/protocol/common/custom/CustomPacketPayload;[Lnet/minecraft/network/protocol/common/custom/CustomPacketPayload;)V"))
     private void taczaddon$massCraft(Button b, CallbackInfo ci) {
         if (!Screen.hasShiftDown()) return;
         taczaddon$massCount++;
@@ -521,3 +534,4 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
         taczaddon$onCraft.onPress(b);
     }
 }
+

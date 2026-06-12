@@ -147,17 +147,17 @@ public class DropDown extends AbstractWidget {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (isExpanded) {
             // 计算新的滚动偏移量（向上滚动为负值，向下滚动为正值）
-            int newScrollOffset = (int) (scrollOffset - Math.signum(delta));
+            int newScrollOffset = (int) (scrollOffset - Math.signum(scrollY));
 
             // 限制滚动范围 [0, maxScroll]
             int maxScroll = Math.max(0, options.size() - maxVisibleItems);
             scrollOffset = clamp(newScrollOffset, 0, maxScroll);
             return true; // 拦截滚动事件
         }
-        return super.mouseScrolled(mouseX, mouseY, delta);
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
     public static int clamp(int value, int min, int max) {
         return Math.min(Math.max(value, min), max);

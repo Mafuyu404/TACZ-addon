@@ -13,6 +13,7 @@ import com.tacz.guns.resource.modifier.AttachmentCacheProperty;
 import com.tacz.guns.resource.modifier.AttachmentPropertyManager;
 import com.tacz.guns.resource.pojo.data.gun.GunData;
 import com.tacz.guns.util.AllowAttachmentTagMatcher;
+import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
@@ -28,6 +29,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.slf4j.Logger;
 
 import java.util.*;
 import java.util.regex.Matcher;
@@ -35,6 +37,11 @@ import java.util.regex.Pattern;
 
 @Mixin(value = ClientAttachmentItemTooltip.class, remap = false)
 public class ClientAttachmentItemTooltipMixin {
+    @Unique
+    private static final Logger TACZADDON_LOGGER = LogUtils.getLogger();
+    @Unique
+    private static boolean taczaddon$loggedTooltipFailure;
+
     @Shadow @Final private ResourceLocation attachmentId;
 
     @Inject(method = "getAllAllowGuns", at = @At("RETURN"), cancellable = true)
@@ -77,10 +84,12 @@ public class ClientAttachmentItemTooltipMixin {
         try {
             TimelessAPI.getCommonGunIndex(gunId).ifPresent(i -> {
                 GunData gunData = i.getGunData();
+                if (Minecraft.getInstance().level == null) return;
+                var registryAccess = Minecraft.getInstance().level.registryAccess();
 
-                ItemStack attachmentTypeItem = iGun.getAttachment(gunItem, attachmentType);
+                ItemStack attachmentTypeItem = iGun.getAttachment(registryAccess, gunItem, attachmentType);
                 if (!attachmentTypeItem.isEmpty()) {
-                    iGun.unloadAttachment(gunItem, attachmentType);
+                    iGun.unloadAttachment(registryAccess, gunItem, attachmentType);
                 }
 
                 AttachmentCacheProperty cacheProperty = new AttachmentCacheProperty();
@@ -90,7 +99,7 @@ public class ClientAttachmentItemTooltipMixin {
                         modifier.getPropertyDiagramsData(gunItem, gunData, cacheProperty)
                                 .forEach(diagramsData -> originAttr.putAll(handleData(diagramsData))));
 
-                iGun.installAttachment(gunItem, attachmentItem);
+                iGun.installAttachment(registryAccess, gunItem, attachmentItem);
 
                 cacheProperty.eval(gunItem, gunData);
 
@@ -104,7 +113,11 @@ public class ClientAttachmentItemTooltipMixin {
                             newAttr.putAll(handleData(diagramsData));
                         }));
             });
-        } catch (RuntimeException ignored) {
+        } catch (IllegalArgumentException | NullPointerException ex) {
+            if (!taczaddon$loggedTooltipFailure) {
+                taczaddon$loggedTooltipFailure = true;
+                TACZADDON_LOGGER.debug("Unable to build enhanced TaCZ attachment tooltip; falling back to original text", ex);
+            }
             return originalComponents;
         }
 

@@ -4,10 +4,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.fml.ModList;
-import net.minecraftforge.items.IItemHandler;
+import net.minecraft.world.level.Level;
+import net.neoforged.fml.ModList;
+import net.neoforged.neoforge.items.IItemHandler;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 public final class SophisticatedBackpacksCompat {
@@ -24,17 +26,17 @@ public final class SophisticatedBackpacksCompat {
         // Do not cache mod-loaded state here.
     }
 
-    public static ArrayList<ItemStack> getItemsFromBackpackBLock(BlockPos blockPos, Player player) {
+    public static List<ItemStack> getItemsFromBackpackBLock(BlockPos blockPos, Player player) {
         if (!isInstalled()) return new ArrayList<>();
         return SophisticatedBackpacksCompatInner.getItemsFromBackpackBLock(blockPos, player);
     }
 
-    public static ArrayList<ItemStack> getItemsFromBackpackItem(ItemStack itemStack) {
+    public static List<ItemStack> getItemsFromBackpackItem(ItemStack itemStack) {
         if (!isInstalled()) return new ArrayList<>();
         return SophisticatedBackpacksCompatInner.getItemsFromBackpackItem(itemStack);
     }
 
-    public static ArrayList<ItemStack> getItemsFromInventoryBackpack(Player player) {
+    public static List<ItemStack> getItemsFromInventoryBackpack(Player player) {
         if (!isInstalled()) return new ArrayList<>();
         return SophisticatedBackpacksCompatInner.getItemsFromInventoryBackpack(player);
     }
@@ -54,7 +56,22 @@ public final class SophisticatedBackpacksCompat {
         SophisticatedBackpacksCompatInner.modifyBlockBackpack(player, blockPos, action);
     }
 
-    public static ArrayList<ItemStack> getAllInventoryBackpack(Player player) {
+    public static void forEachInventoryBackpackHandler(Player player, Consumer<IItemHandler> action) {
+        if (!isInstalled()) return;
+        SophisticatedBackpacksCompatInner.forEachInventoryBackpackHandler(player, action);
+    }
+
+    public static void forEachBlockBackpackHandler(Player player, BlockPos blockPos, Consumer<IItemHandler> action) {
+        if (!isInstalled()) return;
+        SophisticatedBackpacksCompatInner.forEachBlockBackpackHandler(player, blockPos, action);
+    }
+
+    public static boolean isBackpackBlock(Level level, BlockPos blockPos) {
+        if (!isInstalled()) return false;
+        return SophisticatedBackpacksCompatInner.isBackpackBlock(level, blockPos);
+    }
+
+    public static List<ItemStack> getAllInventoryBackpack(Player player) {
         if (!isInstalled()) return new ArrayList<>();
         return SophisticatedBackpacksCompatInner.getAllInventoryBackpack(player);
     }

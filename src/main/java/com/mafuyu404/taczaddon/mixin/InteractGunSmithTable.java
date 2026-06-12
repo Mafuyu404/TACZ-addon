@@ -1,6 +1,6 @@
 package com.mafuyu404.taczaddon.mixin;
 
-import com.mafuyu404.taczaddon.init.DataStorage;
+import com.mafuyu404.taczaddon.init.ClientSessionState;
 import com.tacz.guns.client.input.InteractKey;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -14,6 +14,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class InteractGunSmithTable {
     @Inject(method = "interactBlock", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Minecraft;startUseItem()V"))
     private static void onInteractBlock(BlockHitResult blockHitResult, LocalPlayer player, Minecraft mc, CallbackInfo ci) {
-        DataStorage.set("BetterGunSmithTable.interactBlockPos", blockHitResult.getBlockPos());
+        ClientSessionState.setLastGunSmithInteractPos(blockHitResult.getBlockPos());
     }
 }
