@@ -47,6 +47,6 @@ public class GunAnimationStateContextMixin {
             virtualInventory.setItem(i, allItems.get(i));
         }
 
-        return LazyOptional.of(() -> (T) virtualInventory.getHandler());
+        return ForgeCapabilities.ITEM_HANDLER.orEmpty(capability, LazyOptional.of(virtualInventory::getHandler));
     }
 }

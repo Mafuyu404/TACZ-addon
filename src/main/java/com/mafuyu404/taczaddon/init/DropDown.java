@@ -5,6 +5,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.network.chat.Component;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,7 +41,7 @@ public class DropDown extends AbstractWidget {
     }
 
     @Override
-    public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    public void renderWidget(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         guiGraphics.fill(getX(), getY(), getX() + width, getY() + itemHeight, 0xFF000000);
         guiGraphics.renderOutline(getX(), getY(), width, itemHeight, 0xFFFFFFFF);
         if (!options.isEmpty()) {
@@ -105,7 +106,6 @@ public class DropDown extends AbstractWidget {
                         selectedIndex = i + scrollOffset;
                         isExpanded = false;
                         if (action != null) action.accept(selectedIndex);
-//                        ((VirtualContainerLoader) Minecraft.getInstance().screen).refreshRecipes(options.get(i).getString(), true);
                         return true;
                     }
                 }
@@ -135,7 +135,7 @@ public class DropDown extends AbstractWidget {
     }
 
     @Override
-    protected void updateWidgetNarration(NarrationElementOutput p_259858_) {
+    protected void updateWidgetNarration(@NotNull NarrationElementOutput p_259858_) {
 
     }
 

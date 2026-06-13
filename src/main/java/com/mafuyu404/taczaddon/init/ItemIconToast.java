@@ -6,11 +6,9 @@ import net.minecraft.client.gui.components.toasts.Toast;
 import net.minecraft.client.gui.components.toasts.ToastComponent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
-
-import static net.minecraft.data.models.model.TextureSlot.TEXTURE;
+import org.jetbrains.annotations.NotNull;
 
 @OnlyIn(Dist.CLIENT)
 public class ItemIconToast implements Toast {
@@ -27,7 +25,7 @@ public class ItemIconToast implements Toast {
     }
 
     @Override
-    public Toast.Visibility render(GuiGraphics gui, ToastComponent toastComponent, long timer) {
+    public @NotNull Toast.Visibility render(@NotNull GuiGraphics gui, @NotNull ToastComponent toastComponent, long timer) {
         gui.blit(TEXTURE, 0, 0, 0, 0, this.width(), this.height());
 
         gui.renderFakeItem(icon, 8, 8);

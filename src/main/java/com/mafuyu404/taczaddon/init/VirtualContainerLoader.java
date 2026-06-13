@@ -6,7 +6,7 @@ import java.util.ArrayList;
 
 public interface VirtualContainerLoader {
 
-    void tACZ_addon$setVirtualContanier(ArrayList<ItemStack> items);
+    void taczaddon$setVirtualContainer(ArrayList<ItemStack> items);
 
-    ArrayList<ItemStack> tACZ_addon$getVirtualContanier();
+    ArrayList<ItemStack> taczaddon$getVirtualContainer();
 }

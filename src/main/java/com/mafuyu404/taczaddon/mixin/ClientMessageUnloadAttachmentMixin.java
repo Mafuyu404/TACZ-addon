@@ -2,9 +2,6 @@ package com.mafuyu404.taczaddon.mixin;
 
 import com.mafuyu404.taczaddon.common.LiberateAttachment;
 import com.mafuyu404.taczaddon.init.GunSmithingManager;
-import com.mafuyu404.taczaddon.init.RuleRegistry;
-import com.mafuyu404.taczaddon.init.VirtualInventory;
-import com.tacz.guns.api.item.IAttachment;
 import com.tacz.guns.api.item.IGun;
 import com.tacz.guns.network.message.ClientMessageUnloadAttachment;
 import net.minecraft.server.level.ServerPlayer;

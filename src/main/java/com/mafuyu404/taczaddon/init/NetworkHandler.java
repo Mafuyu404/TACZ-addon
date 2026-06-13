@@ -7,10 +7,12 @@ import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
+import java.util.Objects;
+
 public class NetworkHandler {
     private static final String PROTOCOL = "1.0";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
-            new ResourceLocation("taczaddon", "sync_data"),
+            Objects.requireNonNull(ResourceLocation.tryBuild("taczaddon", "sync_data")),
             () -> PROTOCOL,
             PROTOCOL::equals,
             PROTOCOL::equals
@@ -23,19 +25,11 @@ public class NetworkHandler {
         CHANNEL.registerMessage(packetId++, ContainerReaderPacket.class, ContainerReaderPacket::encode, ContainerReaderPacket::decode, ContainerReaderPacket::handle);
         CHANNEL.registerMessage(packetId++, ContainerPositionPacket.class, ContainerPositionPacket::encode, ContainerPositionPacket::decode, ContainerPositionPacket::handle);
         CHANNEL.registerMessage(packetId++, SwitchGunPacket.class, SwitchGunPacket::encode, SwitchGunPacket::decode, SwitchGunPacket::handle);
-        CHANNEL.registerMessage(packetId++, AmmoBoxCollectPacket.class, AmmoBoxCollectPacket::encode, AmmoBoxCollectPacket::decode, AmmoBoxCollectPacket::handle);
-//        CHANNEL.registerMessage(
-//                packetId++,
-//                CommonMessagePacket.class,
-//                CommonMessagePacket::encode,
-//                CommonMessagePacket::new,
-//                CommonMessagePacket::handle
-//        );
+        CHANNEL.registerMessage(packetId, AmmoBoxCollectPacket.class, AmmoBoxCollectPacket::encode, AmmoBoxCollectPacket::decode, AmmoBoxCollectPacket::handle);
     }
 
     // 发送数据包到客户端
     public static void sendToClient(ServerPlayer player, Object packet) {
-//        PrimitivePacket packet = new PrimitivePacket(key, value);
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), packet);
     }
 }

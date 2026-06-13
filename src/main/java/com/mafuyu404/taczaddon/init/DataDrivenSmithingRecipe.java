@@ -14,6 +14,7 @@ import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.SmithingRecipe;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.registries.ForgeRegistries;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,14 +44,14 @@ public class DataDrivenSmithingRecipe implements SmithingRecipe {
     }
 
     @Override
-    public boolean matches(Container container, Level level) {
+    public boolean matches(@NotNull Container container, @NotNull Level level) {
         return template.test(container.getItem(0)) &&
                 base.test(container.getItem(1)) &&
                 addition.test(container.getItem(2));
     }
 
     @Override
-    public ItemStack assemble(Container container, RegistryAccess registryAccess) {
+    public @NotNull ItemStack assemble(@NotNull Container container, @NotNull RegistryAccess registryAccess) {
         ItemStack baseItem = container.getItem(1).copy();
         ItemStack additionItem = container.getItem(2);
 
@@ -66,6 +67,10 @@ public class DataDrivenSmithingRecipe implements SmithingRecipe {
 
         // 添加addition物品的ID到列表
         ResourceLocation additionItemId = ForgeRegistries.ITEMS.getKey(additionItem.getItem());
+        if (additionItemId == null) {
+            return baseItem;
+        }
+
         if (!itemList.contains(StringTag.valueOf(additionItemId.toString()))) {
             itemList.add(StringTag.valueOf(additionItemId.toString()));
         }
@@ -82,32 +87,32 @@ public class DataDrivenSmithingRecipe implements SmithingRecipe {
     }
 
     @Override
-    public boolean isTemplateIngredient(ItemStack stack) {
+    public boolean isTemplateIngredient(@NotNull ItemStack stack) {
         return template.test(stack);
     }
 
     @Override
-    public boolean isBaseIngredient(ItemStack stack) {
+    public boolean isBaseIngredient(@NotNull ItemStack stack) {
         return base.test(stack);
     }
 
     @Override
-    public boolean isAdditionIngredient(ItemStack stack) {
+    public boolean isAdditionIngredient(@NotNull ItemStack stack) {
         return addition.test(stack);
     }
 
     @Override
-    public ResourceLocation getId() {
+    public @NotNull ResourceLocation getId() {
         return id;
     }
 
     @Override
-    public RecipeSerializer<?> getSerializer() {
+    public @NotNull RecipeSerializer<?> getSerializer() {
         return ModRecipeSerializers.DATA_DRIVEN_SMITHING.get();
     }
 
     @Override
-    public RecipeType<?> getType() {
+    public @NotNull RecipeType<?> getType() {
         return RecipeType.SMITHING;
     }
 
@@ -117,12 +122,12 @@ public class DataDrivenSmithingRecipe implements SmithingRecipe {
     }
 
     @Override
-    public ItemStack getResultItem(RegistryAccess registryAccess) {
+    public @NotNull ItemStack getResultItem(@NotNull RegistryAccess registryAccess) {
         return ItemStack.EMPTY;
     }
 
     @Override
-    public NonNullList<Ingredient> getIngredients() {
+    public @NotNull NonNullList<Ingredient> getIngredients() {
         return NonNullList.of(Ingredient.EMPTY, template, base, addition);
     }
 

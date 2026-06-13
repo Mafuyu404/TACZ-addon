@@ -11,7 +11,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.items.IItemHandler;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -31,7 +30,7 @@ public class GunSmithTableMenuMixin {
             ),
             remap = false
     )
-    private <T> LazyOptional<T> tACZ_addon$redirectGetCapability(
+    private <T> LazyOptional<T> taczaddon$redirectGetCapability(
             Player player,
             Capability<T> capability,
             Direction facing
@@ -43,13 +42,13 @@ public class GunSmithTableMenuMixin {
         ArrayList<ItemStack> containerItems = new ArrayList<>();
 
         String containerPos = player.getPersistentData().getString("BetterGunSmithTable.nearbyContainerPos");
-        this.tACZ_addon$forEachStoredBlockPos(containerPos, blockPos -> {
+        this.taczaddon$forEachStoredBlockPos(containerPos, blockPos -> {
             ArrayList<ItemStack> containerContent = ContainerMaster.readContainerFromPos(player.level(), blockPos);
             containerItems.addAll(containerContent);
         });
 
         String backpackPos = player.getPersistentData().getString("BetterGunSmithTable.nearbyBackpackPos");
-        this.tACZ_addon$forEachStoredBlockPos(backpackPos, blockPos -> {
+        this.taczaddon$forEachStoredBlockPos(backpackPos, blockPos -> {
             ArrayList<ItemStack> backpack = SophisticatedBackpacksCompat.getItemsFromBackpackBLock(blockPos, player);
             containerItems.addAll(backpack);
         });
@@ -61,18 +60,17 @@ public class GunSmithTableMenuMixin {
             virtualInventory.setItem(i, containerItems.get(i));
         }
 
-        LazyOptional<IItemHandler> result = LazyOptional.of(virtualInventory::getHandler);
-        return result.cast();
+        return ForgeCapabilities.ITEM_HANDLER.orEmpty(capability, LazyOptional.of(virtualInventory::getHandler));
     }
 
     @Unique
-    private void tACZ_addon$forEachStoredBlockPos(String raw, Consumer<BlockPos> consumer) {
+    private void taczaddon$forEachStoredBlockPos(String raw, Consumer<BlockPos> consumer) {
         if (raw == null || raw.isBlank()) {
             return;
         }
 
         for (String entry : raw.split(";")) {
-            if (entry == null || entry.isBlank()) {
+            if (entry.isBlank()) {
                 continue;
             }
 

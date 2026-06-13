@@ -1,7 +1,6 @@
 package com.mafuyu404.taczaddon.mixin;
 
 import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
-import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompatInner;
 import com.tacz.guns.api.item.gun.AbstractGunItem;
 import com.tacz.guns.item.ModernKineticGunScriptAPI;
 import net.minecraft.server.level.ServerPlayer;
@@ -13,8 +12,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
-
-import java.util.ArrayList;
 
 @Mixin(value = ModernKineticGunScriptAPI.class, remap = false)
 public class ModernKineticGunScriptAPIMixin {

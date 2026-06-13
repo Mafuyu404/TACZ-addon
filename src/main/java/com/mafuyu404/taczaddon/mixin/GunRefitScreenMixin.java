@@ -1,9 +1,6 @@
 package com.mafuyu404.taczaddon.mixin;
 
 import com.mafuyu404.taczaddon.common.LiberateAttachment;
-import com.mafuyu404.taczaddon.init.DataStorage;
-import com.mafuyu404.taczaddon.init.GunSmithingManager;
-import com.mafuyu404.taczaddon.init.RuleRegistry;
 import com.tacz.guns.client.gui.GunRefitScreen;
 import net.minecraft.world.entity.player.Inventory;
 import org.spongepowered.asm.mixin.Mixin;
