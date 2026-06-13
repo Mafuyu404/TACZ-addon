@@ -9,9 +9,7 @@ import net.minecraftforge.items.IItemHandler;
 import net.p3pp3rf1y.sophisticatedbackpacks.api.CapabilityBackpackWrapper;
 import net.p3pp3rf1y.sophisticatedbackpacks.backpack.BackpackItem;
 import net.p3pp3rf1y.sophisticatedbackpacks.backpack.BackpackStorage;
-import net.p3pp3rf1y.sophisticatedbackpacks.backpack.wrapper.BackpackWrapper;
 import net.p3pp3rf1y.sophisticatedbackpacks.backpack.wrapper.IBackpackWrapper;
-import net.p3pp3rf1y.sophisticatedbackpacks.common.gui.BackpackContainer;
 import net.p3pp3rf1y.sophisticatedbackpacks.common.gui.BackpackContext;
 import net.p3pp3rf1y.sophisticatedbackpacks.network.BackpackContentsMessage;
 import net.p3pp3rf1y.sophisticatedbackpacks.network.RequestBackpackInventoryContentsMessage;
@@ -27,21 +25,7 @@ public class SophisticatedBackpacksCompatInner {
         ArrayList<ItemStack> items = new ArrayList<>();
         BackpackContext.Block context = new BackpackContext.Block(blockPos);
         IBackpackWrapper wrapper = context.getBackpackWrapper(player);
-        if (wrapper == IBackpackWrapper.Noop.INSTANCE) {
-            return items;
-        }
-
-        ItemStack backpackStack = wrapper.getBackpack();
-        CompoundTag backpackTag = backpackStack.getTag();
-        if (backpackStack.isEmpty() || backpackTag == null) {
-            return items;
-        }
-
-        InventoryHandler backpack = wrapper.getInventoryHandler();
-        int size = backpackTag.getInt("inventorySlots");
-        for (int i = 0; i < size; i++) {
-            items.add(backpack.getSlotStack(i));
-        }
+        addBackpackItems(items, wrapper);
         return items;
     }
 
@@ -52,18 +36,12 @@ public class SophisticatedBackpacksCompatInner {
 
     public static ArrayList<ItemStack> getItemsFromBackpackItem(ItemStack itemStack) {
         ArrayList<ItemStack> items = new ArrayList<>();
-        CompoundTag backpackTag = itemStack.getTag();
-        if (itemStack.isEmpty() || !(itemStack.getItem() instanceof BackpackItem) || backpackTag == null) {
+        if (!isBackpackItem(itemStack)) {
             return items;
         }
 
-        BackpackWrapper backpackWrapper = new BackpackWrapper(itemStack);
-        InventoryHandler handler = backpackWrapper.getInventoryHandler();
-        int size = backpackTag.getInt("inventorySlots");
-        for (int i = 0; i < size; i++) {
-            ItemStack item = handler.getStackInSlot(i);
-            items.add(item);
-        }
+        itemStack.getCapability(CapabilityBackpackWrapper.getCapabilityInstance())
+                .ifPresent(wrapper -> addBackpackItems(items, wrapper));
         return items;
     }
 
@@ -86,35 +64,36 @@ public class SophisticatedBackpacksCompatInner {
 
     public static void modifyInventoryBackpack(ServerPlayer player, ItemStack backpackItem, Consumer<IItemHandler> action) {
         PlayerInventoryProvider.get().runOnBackpacks(player, (backpack, inventoryName, identifier, index) -> {
-            if (!backpack.equals(backpackItem)) return false;
+            if (!ItemStack.matches(backpack, backpackItem)) return false;
             BackpackContext.Item backpackContext = new BackpackContext.Item(inventoryName, identifier, index);
             modifyBackpack(player, backpackContext, action);
-            return false;
+            return true;
         });
     }
 
     public static void modifyBackpack(ServerPlayer player, BackpackContext backpackContext, Consumer<IItemHandler> action) {
-        BackpackContainer container = new BackpackContainer(player.containerMenu.containerId + 1, player, backpackContext);
-        int size = container.realInventorySlots.size() - player.getInventory().items.size();
-
-        InventoryHandler inventoryHandler = container.getStorageWrapper().getInventoryHandler();
-
-        action.accept(inventoryHandler);
-
-        for (int i = 0; i < size; i++) {
-            container.realInventorySlots.get(i).set(inventoryHandler.getStackInSlot(i));
+        if (!backpackContext.canInteractWith(player)) {
+            return;
         }
 
-        container.getStorageWrapper().getContentsUuid().ifPresent(uuid -> {
-            CompoundTag backpackContent = BackpackStorage.get().getOrCreateBackpackContents(uuid);
-            SBPPacketHandler.INSTANCE.sendToClient(player, new BackpackContentsMessage(uuid, backpackContent));
-        });
+        IBackpackWrapper wrapper = backpackContext.getBackpackWrapper(player);
+        if (wrapper == IBackpackWrapper.Noop.INSTANCE) {
+            return;
+        }
+
+        InventoryHandler inventoryHandler = wrapper.getInventoryHandler();
+        action.accept(inventoryHandler);
+
+        inventoryHandler.saveInventory();
+        player.getInventory().setChanged();
+        player.containerMenu.broadcastChanges();
+        syncBackpackContents(player, wrapper);
     }
 
     public static ArrayList<ItemStack> getAllInventoryBackpack(Player player) {
         ArrayList<ItemStack> items = new ArrayList<>();
         PlayerInventoryProvider.get().runOnBackpacks(player, (backpack, inventoryName, identifier, index) -> {
-            items.add(backpack);
+            items.add(backpack.copy());
             return false;
         });
         return items;
@@ -126,17 +105,29 @@ public class SophisticatedBackpacksCompatInner {
 
     public static ArrayList<ItemStack> getItemsFromBackpackContext(Player player, BackpackContext backpackContext) {
         ArrayList<ItemStack> items = new ArrayList<>();
-        BackpackContainer container = new BackpackContainer(player.containerMenu.containerId + 1, player, backpackContext);
-        ItemStack backpack = container.getStorageWrapper().getBackpack();
-        CompoundTag backpackTag = backpack.getTag();
-        if (backpack.isEmpty() || backpackTag == null) {
-            return items;
+        IBackpackWrapper wrapper = backpackContext.getBackpackWrapper(player);
+        addBackpackItems(items, wrapper);
+        return items;
+    }
+
+    private static void addBackpackItems(ArrayList<ItemStack> items, IBackpackWrapper wrapper) {
+        if (wrapper == IBackpackWrapper.Noop.INSTANCE) {
+            return;
         }
 
-        int size = backpackTag.getInt("inventorySlots");
-        for (int i = 0; i < size; i++) {
-            items.add(container.realInventorySlots.get(i).getItem());
+        InventoryHandler handler = wrapper.getInventoryHandler();
+        for (int slot = 0; slot < handler.getSlots(); slot++) {
+            ItemStack stack = handler.getStackInSlot(slot);
+            if (!stack.isEmpty()) {
+                items.add(stack.copy());
+            }
         }
-        return items;
+    }
+
+    private static void syncBackpackContents(ServerPlayer player, IBackpackWrapper wrapper) {
+        wrapper.getContentsUuid().ifPresent(uuid -> {
+            CompoundTag backpackContent = BackpackStorage.get().getOrCreateBackpackContents(uuid).copy();
+            SBPPacketHandler.INSTANCE.sendToClient(player, new BackpackContentsMessage(uuid, backpackContent));
+        });
     }
 }
