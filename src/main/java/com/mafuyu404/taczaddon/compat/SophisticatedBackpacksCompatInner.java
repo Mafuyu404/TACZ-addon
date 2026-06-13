@@ -18,6 +18,7 @@ import net.p3pp3rf1y.sophisticatedbackpacks.util.PlayerInventoryProvider;
 import net.p3pp3rf1y.sophisticatedcore.inventory.InventoryHandler;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 public class SophisticatedBackpacksCompatInner {
@@ -71,7 +72,11 @@ public class SophisticatedBackpacksCompatInner {
         });
     }
 
-    public static void modifyBackpack(ServerPlayer player, BackpackContext backpackContext, Consumer<IItemHandler> action) {
+    public static void modifyBackpack(
+            ServerPlayer player,
+            BackpackContext backpackContext,
+            Consumer<IItemHandler> action
+    ) {
         if (!backpackContext.canInteractWith(player)) {
             return;
         }
@@ -82,7 +87,33 @@ public class SophisticatedBackpacksCompatInner {
         }
 
         InventoryHandler inventoryHandler = wrapper.getInventoryHandler();
+
+        /*
+         * Snapshot the stacks before running external inventory logic.
+         *
+         * TaCZ mutates ammo-box ItemStacks in place through IAmmoBox#setAmmoCount.
+         * That mutation does not call InventoryHandler#onContentsChanged, so
+         * SophisticatedCore's cached slot NBT would otherwise remain stale.
+         */
+        List<ItemStack> before = new ArrayList<>(inventoryHandler.getSlots());
+        for (int slot = 0; slot < inventoryHandler.getSlots(); slot++) {
+            before.add(inventoryHandler.getStackInSlot(slot).copy());
+        }
+
         action.accept(inventoryHandler);
+
+        /*
+         * Force changed in-place stacks back through the handler.
+         * This refreshes SophisticatedCore's slot-NBT cache and marks the
+         * affected slot as changed, including slot 0.
+         */
+        for (int slot = 0; slot < inventoryHandler.getSlots(); slot++) {
+            ItemStack current = inventoryHandler.getStackInSlot(slot);
+
+            if (!ItemStack.matches(before.get(slot), current)) {
+                inventoryHandler.setStackInSlot(slot, current.copy());
+            }
+        }
 
         inventoryHandler.saveInventory();
         player.getInventory().setChanged();
