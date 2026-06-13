@@ -19,7 +19,10 @@ public class JeiPlugin implements IModPlugin {
 
     @Override
     public @NotNull ResourceLocation getPluginUid() {
-        return new ResourceLocation(TACZaddon.MODID, "jei_plugin");
+        return ResourceLocation.fromNamespaceAndPath(
+                TACZaddon.MODID,
+                "jei_plugin"
+        );
     }
 
     @Override
