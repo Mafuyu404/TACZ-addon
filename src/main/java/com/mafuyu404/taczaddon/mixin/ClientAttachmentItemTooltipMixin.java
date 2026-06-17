@@ -1,6 +1,8 @@
 package com.mafuyu404.taczaddon.mixin;
 
+import com.mafuyu404.taczaddon.init.ClientSessionState;
 import com.mafuyu404.taczaddon.init.Config;
+import com.mojang.logging.LogUtils;
 import com.tacz.guns.api.TimelessAPI;
 import com.tacz.guns.api.item.IAttachment;
 import com.tacz.guns.api.item.IGun;
@@ -13,7 +15,6 @@ import com.tacz.guns.resource.modifier.AttachmentCacheProperty;
 import com.tacz.guns.resource.modifier.AttachmentPropertyManager;
 import com.tacz.guns.resource.pojo.data.gun.GunData;
 import com.tacz.guns.util.AllowAttachmentTagMatcher;
-import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
@@ -21,6 +22,7 @@ import net.minecraft.network.chat.ComponentContents;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import org.slf4j.Logger;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -29,7 +31,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import org.slf4j.Logger;
 
 import java.util.*;
 import java.util.regex.Matcher;
@@ -57,7 +58,10 @@ public class ClientAttachmentItemTooltipMixin {
     @Redirect(method = "lambda$addText$5", at = @At(value = "INVOKE", target = "Lcom/tacz/guns/api/modifier/JsonProperty;getComponents()Ljava/util/List;"))
     private List<Component> modifyAttachmentDetail(JsonProperty<?> value) {
         List<Component> originalComponents = value.getComponents();
-        if (!Config.SHOW_ATTACHMENT_ATTRIBUTE.get()) return originalComponents;
+        if (!Config.SHOW_ATTACHMENT_ATTRIBUTE.get()
+                || !ClientSessionState.isShowAttachmentDetail()) {
+            return originalComponents;
+        }
 
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) return originalComponents;

@@ -1,21 +1,101 @@
 package com.mafuyu404.taczaddon.init;
 
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.items.IItemHandlerModifiable;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
-public class ExtractingCompositeItemHandler extends ReadOnlyCompositeItemHandler {
-    public ExtractingCompositeItemHandler(Collection<CompositeItemSource> sources) {
+public class ExtractingCompositeItemHandler
+        extends ReadOnlyCompositeItemHandler {
+
+    private final List<ItemStack> originalStacks;
+    private final List<ItemStack> workingStacks;
+
+    public ExtractingCompositeItemHandler(
+            Collection<CompositeItemSource> sources
+    ) {
         super(sources);
+
+        this.originalStacks = new ArrayList<>(this.sources.size());
+        this.workingStacks = new ArrayList<>(this.sources.size());
+
+        for (CompositeItemSource source : this.sources) {
+            ItemStack original = source.handler()
+                    .getStackInSlot(source.slot())
+                    .copy();
+
+            originalStacks.add(original);
+            workingStacks.add(original.copy());
+        }
+    }
+    
+    @Override
+    public @NotNull ItemStack getStackInSlot(int slot) {
+        if (slot < 0 || slot >= workingStacks.size()) {
+            return ItemStack.EMPTY;
+        }
+
+        return workingStacks.get(slot);
     }
 
     @Override
-    public @NotNull ItemStack extractItem(int slot, int amount, boolean simulate) {
+    public @NotNull ItemStack extractItem(
+            int slot,
+            int amount,
+            boolean simulate
+    ) {
         CompositeItemSource source = getSource(slot);
+
         if (source == null || amount <= 0) {
             return ItemStack.EMPTY;
         }
-        return source.handler().extractItem(source.slot(), amount, simulate);
+
+        return source.handler().extractItem(
+                source.slot(),
+                amount,
+                simulate
+        );
+    }
+
+    public void commitChanges() {
+        for (int slot = 0; slot < sources.size(); slot++) {
+            ItemStack original = originalStacks.get(slot);
+            ItemStack working = workingStacks.get(slot);
+
+            boolean countChanged =
+                    original.getCount() != working.getCount();
+
+            boolean componentsChanged =
+                    !ItemStack.isSameItemSameComponents(
+                            original,
+                            working
+                    );
+
+            if (!countChanged && !componentsChanged) {
+                continue;
+            }
+
+            CompositeItemSource source = sources.get(slot);
+
+            if (source.handler()
+                    instanceof IItemHandlerModifiable modifiable) {
+
+                modifiable.setStackInSlot(
+                        source.slot(),
+                        working.copy()
+                );
+            } else {
+                throw new IllegalStateException(
+                        "Cannot write modified ammo box back to "
+                                + source.sourceType()
+                                + " slot "
+                                + source.slot()
+                                + ": handler is not IItemHandlerModifiable"
+                );
+            }
+        }
     }
 }

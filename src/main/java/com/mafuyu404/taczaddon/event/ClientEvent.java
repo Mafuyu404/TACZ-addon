@@ -2,11 +2,7 @@ package com.mafuyu404.taczaddon.event;
 
 import com.mafuyu404.taczaddon.TACZaddon;
 import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
-import com.mafuyu404.taczaddon.init.ClientSessionState;
-import com.mafuyu404.taczaddon.init.ItemStackData;
-import com.mafuyu404.taczaddon.init.KeyBindings;
-import com.mafuyu404.taczaddon.init.NetworkHandler;
-import com.mafuyu404.taczaddon.init.VirtualInventory;
+import com.mafuyu404.taczaddon.init.*;
 import com.mafuyu404.taczaddon.network.SwitchGunPacket;
 import com.tacz.guns.api.item.IGun;
 import net.minecraft.client.Minecraft;

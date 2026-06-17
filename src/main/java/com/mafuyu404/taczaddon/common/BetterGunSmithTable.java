@@ -10,6 +10,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 public class BetterGunSmithTable {
@@ -29,7 +31,8 @@ public class BetterGunSmithTable {
             int attachmentPropIndex
     ) {}
 
-    private static BrowseState browseState = null;
+    private static final Map<ResourceLocation, BrowseState> BROWSE_STATES =
+            new HashMap<>();
 
     public static void saveBrowseState(
             ResourceLocation tableId,
@@ -43,39 +46,31 @@ public class BetterGunSmithTable {
             return;
         }
 
-        browseState = new BrowseState(
+        BROWSE_STATES.put(
                 tableId,
-                selectedType,
-                selectedRecipeId,
-                Math.max(0, typePage),
-                Math.max(0, indexPage),
-                Math.max(0, attachmentPropIndex)
+                new BrowseState(
+                        tableId,
+                        selectedType,
+                        selectedRecipeId,
+                        Math.max(0, typePage),
+                        Math.max(0, indexPage),
+                        Math.max(0, attachmentPropIndex)
+                )
         );
     }
 
-    public static Optional<BrowseState> getBrowseState(ResourceLocation tableId) {
-        if (tableId == null || browseState == null) {
+    public static Optional<BrowseState> getBrowseState(
+            ResourceLocation tableId
+    ) {
+        if (tableId == null) {
             return Optional.empty();
         }
 
-        if (browseState.tableId() != null && !tableId.equals(browseState.tableId())) {
-            return Optional.empty();
-        }
-
-        return Optional.of(browseState);
+        return Optional.ofNullable(BROWSE_STATES.get(tableId));
     }
 
     public static void clearBrowseState() {
-        browseState = null;
-    }
-
-    /**
-     * Keep this as a harmless compatibility no-op if the old mixin hook still exists.
-     * The old implementation was the bug: it wrote ids during classifyRecipes but never restored them.
-     */
-    @Deprecated
-    public static ResourceLocation storeRecipeId(ResourceLocation id) {
-        return id;
+        BROWSE_STATES.clear();
     }
 
     public static boolean allowAttachment(ItemStack gunItem, ResourceLocation attachmentId) {

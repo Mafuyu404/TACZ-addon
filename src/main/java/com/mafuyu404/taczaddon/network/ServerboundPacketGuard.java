@@ -1,7 +1,7 @@
 package com.mafuyu404.taczaddon.network;
 
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 
 import java.util.HashMap;
 import java.util.Map;

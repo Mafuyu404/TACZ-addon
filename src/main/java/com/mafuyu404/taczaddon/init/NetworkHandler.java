@@ -1,11 +1,7 @@
 package com.mafuyu404.taczaddon.init;
 
 import com.mafuyu404.taczaddon.TACZaddon;
-import com.mafuyu404.taczaddon.network.AmmoBoxCollectPacket;
-import com.mafuyu404.taczaddon.network.ContainerPositionPacket;
-import com.mafuyu404.taczaddon.network.ContainerReaderPacket;
-import com.mafuyu404.taczaddon.network.RuleSyncPacket;
-import com.mafuyu404.taczaddon.network.SwitchGunPacket;
+import com.mafuyu404.taczaddon.network.*;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.IEventBus;
@@ -29,6 +25,16 @@ public class NetworkHandler {
         registrar.playToServer(ContainerPositionPacket.TYPE, ContainerPositionPacket.STREAM_CODEC, ContainerPositionPacket::handle);
         registrar.playToServer(SwitchGunPacket.TYPE, SwitchGunPacket.STREAM_CODEC, SwitchGunPacket::handle);
         registrar.playToServer(AmmoBoxCollectPacket.TYPE, AmmoBoxCollectPacket.STREAM_CODEC, AmmoBoxCollectPacket::handle);
+        registrar.playToServer(
+                VirtualAttachmentRefitPacket.TYPE,
+                VirtualAttachmentRefitPacket.STREAM_CODEC,
+                VirtualAttachmentRefitPacket::handle
+        );
+        registrar.playToClient(
+                RefreshRefitScreenPacket.TYPE,
+                RefreshRefitScreenPacket.STREAM_CODEC,
+                RefreshRefitScreenPacket::handle
+        );
     }
 
     public static void sendToClient(ServerPlayer player, CustomPacketPayload packet) {

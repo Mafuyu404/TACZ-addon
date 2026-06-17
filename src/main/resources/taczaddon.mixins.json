@@ -21,8 +21,6 @@
     "AnimateGeoItemRendererMixin",
     "BackpackContentsPayloadMixin",
     "ClientAttachmentItemTooltipMixin",
-    "ClientMessageRefitGunMixin",
-    "ClientMessageUnloadAttachmentMixin",
     "GunAnimationStateContextMixin",
     "GunHudOverlayMixin",
     "GunRefitScreenMixin",

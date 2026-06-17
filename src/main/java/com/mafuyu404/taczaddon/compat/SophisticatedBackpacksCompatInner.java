@@ -18,11 +18,7 @@ import net.p3pp3rf1y.sophisticatedbackpacks.network.RequestBackpackInventoryCont
 import net.p3pp3rf1y.sophisticatedbackpacks.util.PlayerInventoryProvider;
 import net.p3pp3rf1y.sophisticatedcore.init.ModCoreDataComponents;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Consumer;
 
 public final class SophisticatedBackpacksCompatInner {

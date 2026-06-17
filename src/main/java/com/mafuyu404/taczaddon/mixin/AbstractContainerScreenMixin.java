@@ -17,35 +17,58 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import javax.annotation.Nullable;
 import java.util.Set;
 
 @Mixin(AbstractContainerScreen.class)
-public abstract class AbstractContainerScreenMixin extends Screen {
+public abstract class AbstractContainerScreenMixin
+        extends Screen {
 
-    @Shadow @Final protected AbstractContainerMenu menu;
-    @Shadow protected int leftPos;
-    @Shadow protected int topPos;
+    @Shadow
+    @Final
+    protected AbstractContainerMenu menu;
+
+    @Shadow
+    protected int leftPos;
+
+    @Shadow
+    protected int topPos;
 
     @Unique
+    @Nullable
     private Slot taczaddon$relationHoveredSlot;
 
     @Unique
-    private ItemStack taczaddon$relationHoveredStack = ItemStack.EMPTY;
+    private ItemStack taczaddon$relationHoveredStack =
+            ItemStack.EMPTY;
+    
+    @Unique
+    @Nullable
+    private Slot taczaddon$relationCachedHoveredSlot;
 
     @Unique
-    private ItemStack taczaddon$relationCachedHoverStack = ItemStack.EMPTY;
+    private ItemStack taczaddon$relationCachedHoverStack =
+            ItemStack.EMPTY;
 
     @Unique
-    private int taczaddon$relationCachedMenuHash;
+    private int taczaddon$relationCachedMenuHash =
+            Integer.MIN_VALUE;
+
 
     @Unique
-    private Set<Integer> taczaddon$relatedSlotIndices = Set.of();
+    private Set<Slot> taczaddon$relatedSlots =
+            Set.of();
 
-    protected AbstractContainerScreenMixin(Component title) {
+    protected AbstractContainerScreenMixin(
+            Component title
+    ) {
         super(title);
     }
 
-    @Inject(method = "render", at = @At("HEAD"))
+    @Inject(
+            method = "render",
+            at = @At("HEAD")
+    )
     private void taczaddon$captureRelationHoveredSlot(
             GuiGraphics guiGraphics,
             int mouseX,
@@ -54,29 +77,42 @@ public abstract class AbstractContainerScreenMixin extends Screen {
             CallbackInfo ci
     ) {
         this.taczaddon$relationHoveredSlot = null;
-        this.taczaddon$relationHoveredStack = ItemStack.EMPTY;
+        this.taczaddon$relationHoveredStack =
+                ItemStack.EMPTY;
 
         if (!Config.SHOW_ITEM_RELATION.get()) {
+            this.taczaddon$invalidateRelationCache();
             return;
         }
 
-        for (Slot slot : this.menu.slots) {
-            if (!slot.isActive() || !slot.hasItem()) {
-                continue;
-            }
+        Slot hoveredSlot =
+                this.taczaddon$findHoveredSlot(
+                        mouseX,
+                        mouseY
+                );
 
-            if (taczaddon$isMouseOverSlot(slot, mouseX, mouseY)) {
-                this.taczaddon$relationHoveredSlot = slot;
-                this.taczaddon$relationHoveredStack = slot.getItem();
-                this.taczaddon$refreshRelationCache(slot);
-                return;
-            }
+        if (hoveredSlot == null
+                || !hoveredSlot.hasItem()
+                || hoveredSlot.getItem().isEmpty()) {
+            this.taczaddon$invalidateRelationCache();
+            return;
         }
 
-        this.taczaddon$relatedSlotIndices = Set.of();
+        this.taczaddon$relationHoveredSlot =
+                hoveredSlot;
+
+        this.taczaddon$relationHoveredStack =
+                hoveredSlot.getItem();
+
+        this.taczaddon$refreshRelationCache(
+                hoveredSlot
+        );
     }
 
-    @Inject(method = "renderSlot", at = @At("RETURN"))
+    @Inject(
+            method = "renderSlot",
+            at = @At("RETURN")
+    )
     private void taczaddon$renderRelationHighlight(
             GuiGraphics guiGraphics,
             Slot slot,
@@ -90,7 +126,7 @@ public abstract class AbstractContainerScreenMixin extends Screen {
             return;
         }
 
-        if (!this.taczaddon$relatedSlotIndices.contains(slot.index)) {
+        if (!this.taczaddon$relatedSlots.contains(slot)) {
             return;
         }
 
@@ -104,7 +140,34 @@ public abstract class AbstractContainerScreenMixin extends Screen {
     }
 
     @Unique
-    private boolean taczaddon$isMouseOverSlot(Slot slot, double mouseX, double mouseY) {
+    @Nullable
+    private Slot taczaddon$findHoveredSlot(
+            double mouseX,
+            double mouseY
+    ) {
+        for (Slot slot : this.menu.slots) {
+            if (!slot.isActive()) {
+                continue;
+            }
+
+            if (this.taczaddon$isMouseOverSlot(
+                    slot,
+                    mouseX,
+                    mouseY
+            )) {
+                return slot;
+            }
+        }
+
+        return null;
+    }
+
+    @Unique
+    private boolean taczaddon$isMouseOverSlot(
+            Slot slot,
+            double mouseX,
+            double mouseY
+    ) {
         return mouseX >= this.leftPos + slot.x
                 && mouseX < this.leftPos + slot.x + 16
                 && mouseY >= this.topPos + slot.y
@@ -112,30 +175,93 @@ public abstract class AbstractContainerScreenMixin extends Screen {
     }
 
     @Unique
-    private void taczaddon$refreshRelationCache(Slot hoveredSlot) {
-        int menuHash = this.taczaddon$menuContentHash();
-        if (ItemStack.isSameItemSameComponents(this.taczaddon$relationCachedHoverStack, this.taczaddon$relationHoveredStack)
-                && this.taczaddon$relationCachedMenuHash == menuHash) {
+    private void taczaddon$refreshRelationCache(
+            Slot hoveredSlot
+    ) {
+        int menuHash =
+                this.taczaddon$menuContentHash();
+
+        boolean sameHoveredSlot =
+                this.taczaddon$relationCachedHoveredSlot
+                        == hoveredSlot;
+
+        boolean sameHoveredStack =
+                ItemStack.isSameItemSameComponents(
+                        this.taczaddon$relationCachedHoverStack,
+                        this.taczaddon$relationHoveredStack
+                ) && this.taczaddon$relationCachedHoverStack
+                        .getCount()
+                        == this.taczaddon$relationHoveredStack
+                        .getCount();
+
+        if (sameHoveredSlot
+                && sameHoveredStack
+                && this.taczaddon$relationCachedMenuHash
+                == menuHash) {
             return;
         }
 
-        this.taczaddon$relationCachedHoverStack = this.taczaddon$relationHoveredStack.copy();
-        this.taczaddon$relationCachedMenuHash = menuHash;
-        this.taczaddon$relatedSlotIndices = ItemRelationService.findRelatedSlots(
-                this.menu,
-                hoveredSlot,
-                this.taczaddon$relationHoveredStack
-        );
+        this.taczaddon$relationCachedHoveredSlot =
+                hoveredSlot;
+
+        this.taczaddon$relationCachedHoverStack =
+                this.taczaddon$relationHoveredStack.copy();
+
+        this.taczaddon$relationCachedMenuHash =
+                menuHash;
+
+        this.taczaddon$relatedSlots =
+                ItemRelationService.findRelatedSlots(
+                        this.menu,
+                        hoveredSlot,
+                        this.taczaddon$relationHoveredStack
+                );
+    }
+
+    @Unique
+    private void taczaddon$invalidateRelationCache() {
+        this.taczaddon$relationHoveredSlot = null;
+        this.taczaddon$relationHoveredStack =
+                ItemStack.EMPTY;
+
+        this.taczaddon$relationCachedHoveredSlot = null;
+        this.taczaddon$relationCachedHoverStack =
+                ItemStack.EMPTY;
+
+        this.taczaddon$relationCachedMenuHash =
+                Integer.MIN_VALUE;
+
+        this.taczaddon$relatedSlots = Set.of();
     }
 
     @Unique
     private int taczaddon$menuContentHash() {
         int hash = 1;
+
         for (Slot slot : this.menu.slots) {
             ItemStack stack = slot.getItem();
-            hash = 31 * hash + (stack.isEmpty() ? 0 : stack.getItem().hashCode());
-            hash = 31 * hash + (stack.isEmpty() ? 0 : stack.getComponents().hashCode());
+
+            hash = 31 * hash
+                    + System.identityHashCode(slot);
+
+            hash = 31 * hash
+                    + (slot.isActive() ? 1 : 0);
+
+            if (stack.isEmpty()) {
+                hash = 31 * hash;
+                continue;
+            }
+
+            hash = 31 * hash
+                    + stack.getItem().hashCode();
+
+            hash = 31 * hash
+                    + stack.getComponents().hashCode();
+
+            hash = 31 * hash
+                    + stack.getCount();
         }
+
         return hash;
     }
 }

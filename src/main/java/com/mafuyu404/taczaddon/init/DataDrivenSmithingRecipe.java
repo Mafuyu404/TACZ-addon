@@ -5,13 +5,10 @@ import net.minecraft.core.NonNullList;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.item.crafting.SmithingRecipe;
-import net.minecraft.world.item.crafting.SmithingRecipeInput;
+import net.minecraft.world.item.crafting.*;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.NotNull;
 
@@ -46,20 +43,68 @@ public class DataDrivenSmithingRecipe implements SmithingRecipe {
     }
 
     @Override
-    public @NotNull ItemStack assemble(@NotNull SmithingRecipeInput input, @NotNull HolderLookup.Provider registries) {
-        ItemStack baseItem = input.base().copy();
+    public @NotNull ItemStack assemble(
+            @NotNull SmithingRecipeInput input,
+            @NotNull HolderLookup.Provider registries
+    ) {
+        ItemStack result = input.base().copy();
         ItemStack additionItem = input.addition();
 
-        ItemStackData.updateCustomData(baseItem, nbt -> {
-            ListTag itemList = nbt.contains("CombinedItems", 9) ? nbt.getList("CombinedItems", 8) : new ListTag();
-            ResourceLocation additionItemId = BuiltInRegistries.ITEM.getKey(additionItem.getItem());
-            if (!itemList.contains(StringTag.valueOf(additionItemId.toString()))) {
-                itemList.add(StringTag.valueOf(additionItemId.toString()));
+        ItemStackData.updateCustomData(result, customData -> {
+            /*
+             * New authoritative format: write the actual unlocked attachment IDs.
+             */
+            GunSmithingManager.addUnlockedAttachments(
+                    customData,
+                    this.additionalItems
+            );
+
+            /*
+             * Retain the old ingredient-history tag for compatibility with
+             * existing addon behavior and old worlds.
+             */
+            ListTag combinedItems =
+                    customData.contains("CombinedItems", Tag.TAG_LIST)
+                            ? customData.getList(
+                            "CombinedItems",
+                            Tag.TAG_STRING
+                    )
+                            : new ListTag();
+
+            ResourceLocation additionItemId =
+                    BuiltInRegistries.ITEM.getKey(
+                            additionItem.getItem()
+                    );
+
+            String serializedAdditionId =
+                    additionItemId.toString();
+
+            boolean alreadyPresent = false;
+
+            for (Tag tag : combinedItems) {
+                if (serializedAdditionId.equals(
+                        tag.getAsString()
+                )) {
+                    alreadyPresent = true;
+                    break;
+                }
             }
-            nbt.put("CombinedItems", itemList);
+
+            if (!alreadyPresent) {
+                combinedItems.add(
+                        StringTag.valueOf(
+                                serializedAdditionId
+                        )
+                );
+            }
+
+            customData.put(
+                    "CombinedItems",
+                    combinedItems
+            );
         });
 
-        return baseItem;
+        return result;
     }
 
     @Override
