@@ -28,9 +28,6 @@ FORMAT.setTimeZone(TimeZone.getTimeZone("UTC"))
 
 apply plugin: 'org.spongepowered.mixin'
 
-//version = mapping_version + "-" + mod_version + "-" + FORMAT.format(new Date())
-//group = mod_group_id
-
 base {
     archivesName = mod_id
 }
@@ -114,27 +111,32 @@ dependencies {
 
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
+    implementation fg.deobf("curse.maven:sophisticated-core-618298:8389833")
+    implementation fg.deobf("curse.maven:sophisticated-backpacks-422301:8365688")
+
+//    implementation fg.deobf("curse.maven:sophisticated-core-618298:8223768")
+//    implementation fg.deobf("curse.maven:sophisticated-backpacks-422301:8224070")
+
+
     implementation fg.deobf("curse.maven:timeless-and-classics-zero-1028108:8141310")
 
-    implementation fg.deobf("curse.maven:shoulder-surfing-reloaded-243190:5455954")
+    implementation fg.deobf("curse.maven:shoulder-surfing-reloaded-243190:8392390")
+    //implementation fg.deobf("curse.maven:shoulder-surfing-reloaded-243190:5455954")
 
-    implementation fg.deobf("curse.maven:sophisticated-core-618298:8223768")
-    implementation fg.deobf("curse.maven:sophisticated-backpacks-422301:8224070")
-
-    implementation fg.deobf("curse.maven:kubejs-238086:5853326")
+    implementation fg.deobf("curse.maven:kubejs-238086:8020595")
     implementation fg.deobf("curse.maven:rhino-416294:6186971")
     implementation fg.deobf("curse.maven:architectury-api-419699:5137938")
 
-    implementation fg.deobf("curse.maven:jei-238222:7920915")
+    implementation fg.deobf("curse.maven:jei-238222:8367520")
 
-    implementation fg.deobf("curse.maven:curios-309927:5843594")
+    implementation fg.deobf("curse.maven:curios-309927:6418456")
 
-    implementation fg.deobf("curse.maven:kiwi-303657:6907020")
+    implementation fg.deobf("curse.maven:kiwi-303657:8322142")
 
-    runtimeOnly fg.deobf("curse.maven:sophisticated-storage-in-motion-1166930:8224102")
-    runtimeOnly fg.deobf("curse.maven:sophisticated-storage-619320:8224087")
+//    runtimeOnly fg.deobf("curse.maven:sophisticated-storage-in-motion-1166930:8224102")
+//    runtimeOnly fg.deobf("curse.maven:sophisticated-storage-619320:8224087")
 
-    implementation fg.deobf("curse.maven:accelerated-rendering-1314021:8179092")
+    implementation fg.deobf("curse.maven:accelerated-rendering-1314021:8368303")
 }
 
 tasks.named('processResources', ProcessResources).configure {
