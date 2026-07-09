@@ -1,16 +1,12 @@
 package com.mafuyu404.taczaddon.mixin;
 
+import com.mafuyu404.taczaddon.common.ItemRelationHelper;
+import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksClientCompat;
 import com.mafuyu404.taczaddon.init.Config;
-import com.tacz.guns.api.DefaultAssets;
-import com.tacz.guns.api.item.IAmmo;
-import com.tacz.guns.api.item.IAmmoBox;
-import com.tacz.guns.api.item.IGun;
-import com.tacz.guns.api.item.builder.AmmoItemBuilder;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
@@ -47,6 +43,11 @@ public abstract class AbstractContainerScreenMixin extends Screen {
             float partialTick,
             CallbackInfo ci
     ) {
+        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>)(Object)this;
+        if (SophisticatedBackpacksClientCompat.isStorageScreen(screen)) {
+            return;
+        }
+
         this.taczaddon$relationHoveredSlot = null;
         this.taczaddon$relationHoveredStack = ItemStack.EMPTY;
 
@@ -73,6 +74,11 @@ public abstract class AbstractContainerScreenMixin extends Screen {
             Slot slot,
             CallbackInfo ci
     ) {
+        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>)(Object)this;
+        if (SophisticatedBackpacksClientCompat.isStorageScreen(screen)) {
+            return;
+        }
+
         if (!Config.SHOW_ITEM_RELATION.get()) {
             return;
         }
@@ -88,15 +94,7 @@ public abstract class AbstractContainerScreenMixin extends Screen {
             return;
         }
 
-        boolean related;
-        try {
-            related = taczaddon$checkRelation(hoverItem, currentItem)
-                    || taczaddon$checkRelation(currentItem, hoverItem);
-        } catch (RuntimeException ignored) {
-            return;
-        }
-
-        if (!related) {
+        if (!ItemRelationHelper.areRelated(hoverItem, currentItem)) {
             return;
         }
 
@@ -115,56 +113,5 @@ public abstract class AbstractContainerScreenMixin extends Screen {
                 && mouseX < this.leftPos + slot.x + 16
                 && mouseY >= this.topPos + slot.y
                 && mouseY < this.topPos + slot.y + 16;
-    }
-
-    @Unique
-    private static boolean taczaddon$checkRelation(ItemStack gunItem, ItemStack itemStack) {
-        if (gunItem.isEmpty() || itemStack.isEmpty()) {
-            return false;
-        }
-
-        IGun iGun = IGun.getIGunOrNull(gunItem);
-        if (iGun == null) {
-            return false;
-        }
-
-        boolean isAttachment = iGun.allowAttachment(gunItem, itemStack);
-
-        IAmmo iAmmo = IAmmo.getIAmmoOrNull(itemStack);
-        boolean isAmmo = iAmmo != null && iAmmo.isAmmoOfGun(gunItem, itemStack);
-
-        boolean isAmmoBox = taczaddon$isAmmoBoxOfGun(gunItem, itemStack);
-
-        return isAttachment || isAmmo || isAmmoBox;
-    }
-
-    @Unique
-    private static boolean taczaddon$isAmmoBoxOfGun(ItemStack gunItem, ItemStack ammoBoxStack) {
-        if (!(ammoBoxStack.getItem() instanceof IAmmoBox ammoBox)) {
-            return false;
-        }
-
-        if (ammoBox.isAllTypeCreative(ammoBoxStack)) {
-            return true;
-        }
-
-        ResourceLocation ammoId = ammoBox.getAmmoId(ammoBoxStack);
-
-        if (ammoId.equals(DefaultAssets.EMPTY_AMMO_ID)) {
-            return false;
-        }
-
-        if (!ammoBox.isCreative(ammoBoxStack) && ammoBox.getAmmoCount(ammoBoxStack) <= 0) {
-            return false;
-        }
-
-        ItemStack virtualAmmoStack = AmmoItemBuilder.create()
-                .setId(ammoId)
-                .setCount(1)
-                .build();
-
-        IAmmo virtualAmmo = IAmmo.getIAmmoOrNull(virtualAmmoStack);
-
-        return virtualAmmo != null && virtualAmmo.isAmmoOfGun(gunItem, virtualAmmoStack);
     }
 }

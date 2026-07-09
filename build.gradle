@@ -133,10 +133,9 @@ dependencies {
 
     implementation fg.deobf("curse.maven:kiwi-303657:8322142")
 
-//    runtimeOnly fg.deobf("curse.maven:sophisticated-storage-in-motion-1166930:8224102")
-//    runtimeOnly fg.deobf("curse.maven:sophisticated-storage-619320:8224087")
+    compileOnly fg.deobf("curse.maven:accelerated-rendering-1314021:8179092")
 
-    implementation fg.deobf("curse.maven:accelerated-rendering-1314021:8368303")
+    runtimeOnly fg.deobf("curse.maven:just-enough-characters-250702:8117466")
 }
 
 tasks.named('processResources', ProcessResources).configure {

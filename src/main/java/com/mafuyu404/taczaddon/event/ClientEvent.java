@@ -2,6 +2,7 @@ package com.mafuyu404.taczaddon.event;
 
 import com.mafuyu404.taczaddon.TACZaddon;
 import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
+import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksClientCompat;
 import com.mafuyu404.taczaddon.init.DataStorage;
 import com.mafuyu404.taczaddon.init.KeyBindings;
 import com.mafuyu404.taczaddon.init.NetworkHandler;
@@ -15,6 +16,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.ContainerScreenEvent;
 import net.minecraftforge.client.event.InputEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
@@ -35,6 +37,11 @@ public class ClientEvent {
     @SubscribeEvent
     public static void onGame(TickEvent.RenderTickEvent event) {
         // Reserved render-tick hook for client-only features.
+    }
+
+    @SubscribeEvent
+    public static void renderSophisticatedItemRelations(ContainerScreenEvent.Render.Foreground event) {
+        SophisticatedBackpacksClientCompat.renderItemRelations(event);
     }
 
     @SubscribeEvent
