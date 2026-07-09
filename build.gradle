@@ -113,9 +113,8 @@ dependencies {
 
     implementation fg.deobf("curse.maven:sophisticated-core-618298:8389833")
     implementation fg.deobf("curse.maven:sophisticated-backpacks-422301:8365688")
-
-//    implementation fg.deobf("curse.maven:sophisticated-core-618298:8223768")
-//    implementation fg.deobf("curse.maven:sophisticated-backpacks-422301:8224070")
+//    implementation fg.deobf("curse.maven:sophisticated-core-618298:8238725")
+//    implementation fg.deobf("curse.maven:sophisticated-backpacks-422301:8238726")
 
 
     implementation fg.deobf("curse.maven:timeless-and-classics-zero-1028108:8141310")
