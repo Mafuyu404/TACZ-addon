@@ -1,8 +1,8 @@
 package com.mafuyu404.taczaddon.event;
 
 import com.mafuyu404.taczaddon.TACZaddon;
-import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
 import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksClientCompat;
+import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
 import com.mafuyu404.taczaddon.init.DataStorage;
 import com.mafuyu404.taczaddon.init.KeyBindings;
 import com.mafuyu404.taczaddon.init.NetworkHandler;
@@ -19,7 +19,6 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ContainerScreenEvent;
 import net.minecraftforge.client.event.InputEvent;
 import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.lwjgl.glfw.GLFW;
@@ -28,107 +27,200 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-@Mod.EventBusSubscriber(modid = TACZaddon.MODID, value = Dist.CLIENT)
-public class ClientEvent {
-    @SubscribeEvent
-    public static void onVirtualInventoryAdd(PlayerInteractEvent.RightClickBlock event) {
-        DataStorage.set("BetterGunSmithTable.interactBlockPos", event.getHitVec().getBlockPos());
-    }
-    @SubscribeEvent
-    public static void onGame(TickEvent.RenderTickEvent event) {
-        // Reserved render-tick hook for client-only features.
+/**
+ * Client features unrelated to server-authoritative gunsmith positioning.
+ *
+ * The obsolete RightClickBlock workbench-position capture is intentionally
+ * absent. Gunsmith positions come only from the server block entity session.
+ */
+@Mod.EventBusSubscriber(
+        modid = TACZaddon.MODID,
+        value = Dist.CLIENT,
+        bus = Mod.EventBusSubscriber.Bus.FORGE
+)
+public final class ClientEvent {
+    private ClientEvent() {
     }
 
     @SubscribeEvent
-    public static void renderSophisticatedItemRelations(ContainerScreenEvent.Render.Foreground event) {
+    public static void renderSophisticatedItemRelations(
+            ContainerScreenEvent.Render.Foreground event
+    ) {
         SophisticatedBackpacksClientCompat.renderItemRelations(event);
     }
 
     @SubscribeEvent
     public static void storeGunList(InputEvent.Key event) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.screen != null) return;
-        if (event.getKey() != KeyBindings.SWITCH_GUN_KEY.getKey().getValue() || event.getAction() != GLFW.GLFW_PRESS) return;
-        if (mc.player == null) return;
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.screen != null
+                || event.getKey()
+                != KeyBindings.SWITCH_GUN_KEY.getKey().getValue()
+                || event.getAction() != GLFW.GLFW_PRESS
+                || minecraft.player == null) {
+            return;
+        }
 
-        ItemStack gunItem = mc.player.getMainHandItem();
-        if (IGun.getIGunOrNull(gunItem) == null) return;
-        ArrayList<String> GunList = new ArrayList<>();
-        Inventory inventory = mc.player.getInventory();
-        for (int i = 0; i < inventory.getContainerSize(); i++) {
-            ItemStack itemStack = inventory.getItem(i);
-            if (IGun.getIGunOrNull(itemStack) != null) {
-                taczaddon$getGunId(itemStack).ifPresent(GunList::add);
+        ItemStack heldGun =
+                minecraft.player.getMainHandItem();
+        if (IGun.getIGunOrNull(heldGun) == null) {
+            return;
+        }
+
+        ArrayList<String> gunIds = new ArrayList<>();
+        Inventory inventory =
+                minecraft.player.getInventory();
+
+        for (int slot = 0;
+             slot < inventory.getContainerSize();
+             slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (IGun.getIGunOrNull(stack) != null) {
+                taczaddon$getGunId(stack).ifPresent(gunIds::add);
             }
         }
-        if (GunList.size() <= 1) return;
-        DataStorage.set("storeGunList", GunList);
+
+        if (gunIds.size() > 1) {
+            DataStorage.set("storeGunList", gunIds);
+        }
     }
+
     @SubscribeEvent
-    public static void switchGun(InputEvent.MouseScrollingEvent event) {
-        if (Minecraft.getInstance().screen != null) return;
-        if (!KeyBindings.SWITCH_GUN_KEY.isDown()) return;
-        LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null) return;
+    public static void switchGun(
+            InputEvent.MouseScrollingEvent event
+    ) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.screen != null
+                || !KeyBindings.SWITCH_GUN_KEY.isDown()) {
+            return;
+        }
 
-        ItemStack gunItem = player.getMainHandItem();
-        if (IGun.getIGunOrNull(gunItem) == null) return;
-        String currentGun = taczaddon$getGunId(gunItem).orElse(null);
-        if (currentGun == null) return;
+        LocalPlayer player = minecraft.player;
+        if (player == null) {
+            return;
+        }
 
-        Object data = DataStorage.get("storeGunList");
-        if (!(data instanceof List<?> storedList)) return;
+        ItemStack heldGun = player.getMainHandItem();
+        if (IGun.getIGunOrNull(heldGun) == null) {
+            return;
+        }
 
-        ArrayList<String> GunList = new ArrayList<>();
-        for (Object entry : storedList) {
+        String currentGunId =
+                taczaddon$getGunId(heldGun).orElse(null);
+        if (currentGunId == null) {
+            return;
+        }
+
+        Object stored = DataStorage.get("storeGunList");
+        if (!(stored instanceof List<?> rawList)) {
+            return;
+        }
+
+        ArrayList<String> gunIds = new ArrayList<>();
+        for (Object entry : rawList) {
             if (entry instanceof String gunId) {
-                GunList.add(gunId);
+                gunIds.add(gunId);
             }
         }
-        if (GunList.size() <= 1) return;
 
-        int index = GunList.lastIndexOf(currentGun);
-        if (index == -1) return;
-        if (event.getScrollDelta() < 0) index = (index == GunList.size() - 1) ? 0 : index + 1;
-        else index = (index == 0) ? GunList.size() - 1 : index - 1;
-        int slot = -1;
-        Inventory inventory = player.getInventory();
-        for (int i = 0; i < inventory.getContainerSize(); i++) {
-            int _i = (event.getScrollDelta() < 0) ? i : inventory.getContainerSize() - 1 - i;
-            ItemStack itemStack = inventory.getItem(_i);
-            if (taczaddon$getGunId(itemStack).filter(GunList.get(index)::equals).isPresent()) slot = _i;
+        if (gunIds.size() <= 1) {
+            return;
         }
-        if (slot == -1) return;
-        NetworkHandler.CHANNEL.sendToServer(new SwitchGunPacket(slot));
+
+        int targetIndex = gunIds.lastIndexOf(currentGunId);
+        if (targetIndex < 0) {
+            return;
+        }
+
+        boolean forward = event.getScrollDelta() < 0.0D;
+        targetIndex = forward
+                ? (targetIndex + 1) % gunIds.size()
+                : (targetIndex - 1 + gunIds.size()) % gunIds.size();
+
+        int targetSlot = -1;
+        Inventory inventory = player.getInventory();
+
+        for (int index = 0;
+             index < inventory.getContainerSize();
+             index++) {
+            int slot = forward
+                    ? index
+                    : inventory.getContainerSize() - 1 - index;
+
+            if (taczaddon$getGunId(inventory.getItem(slot))
+                    .filter(gunIds.get(targetIndex)::equals)
+                    .isPresent()) {
+                targetSlot = slot;
+                break;
+            }
+        }
+
+        if (targetSlot < 0) {
+            return;
+        }
+
+        NetworkHandler.CHANNEL.sendToServer(
+                new SwitchGunPacket(targetSlot)
+        );
         event.setCanceled(true);
     }
-    public static VirtualInventory _virtualInventory = null;
+
+    /*
+     * This cache belongs to the separate backpack ammo/HUD compatibility
+     * feature. It is intentionally not used by gunsmith-table crafting.
+     */
+    public static VirtualInventory _virtualInventory;
 
     @SubscribeEvent
-    public static void storageBackpack(TickEvent.ClientTickEvent event) {
-        if (event.phase == TickEvent.Phase.END) return;
+    public static void storageBackpack(
+            TickEvent.ClientTickEvent event
+    ) {
+        if (event.phase == TickEvent.Phase.END) {
+            return;
+        }
+
         Player player = Minecraft.getInstance().player;
-        if (player == null) return;
+        if (player == null) {
+            _virtualInventory = null;
+            return;
+        }
+
         if (DataStorage.get("backpackData") == null) {
             SophisticatedBackpacksCompat.syncAllBackpack(player);
             DataStorage.set("backpackData", true);
         }
-        ArrayList<ItemStack> backpack = SophisticatedBackpacksCompat.getItemsFromInventoryBackpack(player);
-        backpack.addAll(player.getInventory().items);
-        VirtualInventory virtualInventory = new VirtualInventory(backpack.size(), player);
-        for (int i = 0; i < backpack.size(); i++) {
-            virtualInventory.setItem(i, backpack.get(i));
+
+        ArrayList<ItemStack> combined =
+                SophisticatedBackpacksCompat
+                        .getItemsFromInventoryBackpack(player);
+        combined.addAll(player.getInventory().items);
+
+        VirtualInventory virtualInventory =
+                new VirtualInventory(combined.size(), player);
+
+        for (int index = 0;
+             index < combined.size();
+             index++) {
+            virtualInventory.setItem(index, combined.get(index));
         }
+
         _virtualInventory = virtualInventory;
     }
 
-    private static Optional<String> taczaddon$getGunId(ItemStack itemStack) {
+    private static Optional<String> taczaddon$getGunId(
+            ItemStack itemStack
+    ) {
+        if (itemStack.isEmpty()) {
+            return Optional.empty();
+        }
+
         CompoundTag tag = itemStack.getTag();
-        if (itemStack.isEmpty() || tag == null) {
+        if (tag == null) {
             return Optional.empty();
         }
 
         String gunId = tag.getString("GunId");
-        return gunId.isEmpty() ? Optional.empty() : Optional.of(gunId);
+        return gunId.isEmpty()
+                ? Optional.empty()
+                : Optional.of(gunId);
     }
 }

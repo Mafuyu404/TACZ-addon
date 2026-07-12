@@ -1,10 +1,9 @@
 package com.mafuyu404.taczaddon;
 
+import com.mafuyu404.taczaddon.init.CommonConfig;
 import com.mafuyu404.taczaddon.init.Config;
 import com.mafuyu404.taczaddon.init.ModRecipeSerializers;
 import com.mafuyu404.taczaddon.init.NetworkHandler;
-import com.mafuyu404.taczaddon.init.RuleRegistry;
-import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
@@ -27,6 +26,10 @@ public class TACZaddon {
                 "taczaddon-client.toml"
         );
 
-        MinecraftForge.EVENT_BUS.register(new RuleRegistry());
+        context.registerConfig(
+                ModConfig.Type.COMMON,
+                CommonConfig.SPEC,
+                "taczaddon-common.toml"
+        );
     }
 }

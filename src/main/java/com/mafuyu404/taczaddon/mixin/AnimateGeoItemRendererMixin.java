@@ -80,12 +80,8 @@ public abstract class AnimateGeoItemRendererMixin {
             });
 
             if (stateMachine.isInitialized()) {
-                // Skip:
-                // stateMachine.trigger("put_away");
-
+                // Exit immediately without triggering the put-away animation.
                 stateMachine.exit();
-
-                // Let re-init / item-switch become available immediately.
                 stateMachine.setExitingTime(0L);
             }
         }

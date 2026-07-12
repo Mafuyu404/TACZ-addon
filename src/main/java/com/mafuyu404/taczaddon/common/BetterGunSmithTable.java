@@ -1,125 +1,89 @@
 package com.mafuyu404.taczaddon.common;
 
-import com.tacz.guns.api.TimelessAPI;
-import com.tacz.guns.api.item.IGun;
-import com.tacz.guns.util.AllowAttachmentTagMatcher;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.ComponentContents;
-import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 
+import javax.annotation.Nullable;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 
-public class BetterGunSmithTable {
+/**
+ * Client-session-only browse memory for TaCZ gunsmith tables.
+ *
+ * State is keyed by the data-driven table definition id. It is not persisted
+ * to disk and never participates in server crafting authorization.
+ */
+public final class BetterGunSmithTable {
+    private static final int MAX_REMEMBERED_TABLES = 64;
 
-    /**
-     * Client-session browse state.
-     *
-     * This is intentionally not saved to config/disk.
-     * It only remembers the last position while the client is running.
-     */
+    private static final Map<ResourceLocation, BrowseState> BROWSE_STATES =
+            new LinkedHashMap<>(16, 0.75F, true) {
+                @Override
+                protected boolean removeEldestEntry(
+                        Map.Entry<ResourceLocation, BrowseState> eldest
+                ) {
+                    return size() > MAX_REMEMBERED_TABLES;
+                }
+            };
+
+    private BetterGunSmithTable() {
+    }
+
     public record BrowseState(
-            ResourceLocation tableId,
-            ResourceLocation selectedType,
-            ResourceLocation selectedRecipeId,
+            @Nullable ResourceLocation selectedType,
+            @Nullable ResourceLocation selectedRecipeId,
             int typePage,
-            int indexPage,
-            int attachmentPropIndex
-    ) {}
-
-    private static BrowseState browseState = null;
-
-    public static void saveBrowseState(
-            ResourceLocation tableId,
-            ResourceLocation selectedType,
-            ResourceLocation selectedRecipeId,
-            int typePage,
-            int indexPage,
-            int attachmentPropIndex
+            int indexPage
     ) {
-        if (tableId == null) {
+        public BrowseState {
+            typePage = Math.max(0, typePage);
+            indexPage = Math.max(0, indexPage);
+        }
+    }
+
+    public static synchronized void saveBrowseState(
+            ResourceLocation tableDefinitionId,
+            @Nullable ResourceLocation selectedType,
+            @Nullable ResourceLocation selectedRecipeId,
+            int typePage,
+            int indexPage
+    ) {
+        if (tableDefinitionId == null) {
             return;
         }
 
-        browseState = new BrowseState(
-                tableId,
-                selectedType,
-                selectedRecipeId,
-                Math.max(0, typePage),
-                Math.max(0, indexPage),
-                Math.max(0, attachmentPropIndex)
+        BROWSE_STATES.put(
+                tableDefinitionId,
+                new BrowseState(
+                        selectedType,
+                        selectedRecipeId,
+                        typePage,
+                        indexPage
+                )
         );
     }
 
-    public static Optional<BrowseState> getBrowseState(ResourceLocation tableId) {
-        if (tableId == null || browseState == null) {
+    public static synchronized Optional<BrowseState> getBrowseState(
+            ResourceLocation tableDefinitionId
+    ) {
+        if (tableDefinitionId == null) {
             return Optional.empty();
         }
 
-        if (browseState.tableId() != null && !tableId.equals(browseState.tableId())) {
-            return Optional.empty();
+        return Optional.ofNullable(
+                BROWSE_STATES.get(tableDefinitionId)
+        );
+    }
+
+    public static synchronized void clearBrowseState(
+            ResourceLocation tableDefinitionId
+    ) {
+        if (tableDefinitionId != null) {
+            BROWSE_STATES.remove(tableDefinitionId);
         }
-
-        return Optional.of(browseState);
     }
 
-    public static void clearBrowseState() {
-        browseState = null;
-    }
-
-    /**
-     * Keep this as a harmless compatibility no-op if the old mixin hook still exists.
-     * The old implementation was the bug: it wrote ids during classifyRecipes but never restored them.
-     */
-    @Deprecated
-    public static ResourceLocation storeRecipeId(ResourceLocation id) {
-        return id;
-    }
-
-    public static boolean allowAttachment(ItemStack gunItem, ResourceLocation attachmentId) {
-        IGun iGun = IGun.getIGunOrNull(gunItem);
-        ResourceLocation gunId = null;
-        if (iGun != null) {
-            gunId = iGun.getGunId(gunItem);
-        }
-        return AllowAttachmentTagMatcher.match(gunId, attachmentId);
-    }
-
-    public static boolean allowAmmo(ItemStack gunItem, ResourceLocation ammoId) {
-        IGun iGun = IGun.getIGunOrNull(gunItem);
-        ResourceLocation gunId = null;
-        if (iGun != null) {
-            gunId = iGun.getGunId(gunItem);
-        }
-        return TimelessAPI.getCommonGunIndex(gunId)
-                .map(gunIndex -> gunIndex.getGunData().getAmmoId().equals(ammoId))
-                .orElse(false);
-    }
-
-    public static boolean isHoldingGun(Player player) {
-        if (IGun.getIGunOrNull(player.getMainHandItem()) != null) return true;
-        return IGun.getIGunOrNull(player.getOffhandItem()) != null;
-    }
-
-    public static ItemStack getHoldingGun(Player player) {
-        IGun main = IGun.getIGunOrNull(player.getMainHandItem());
-        IGun off = IGun.getIGunOrNull(player.getOffhandItem());
-
-        if (main != null) return player.getMainHandItem();
-        if (off != null) return player.getOffhandItem();
-
-        return null;
-    }
-
-    public static String getTranslationKey(Component component) {
-        ComponentContents contents = component.getContents();
-
-        if (contents instanceof TranslatableContents translatable) {
-            return translatable.getKey();
-        }
-
-        return null;
+    public static synchronized void clearAllBrowseStates() {
+        BROWSE_STATES.clear();
     }
 }

@@ -6,10 +6,11 @@
   "refmap": "taczaddon.refmap.json",
   "mixins": [
     "AbstractGunItemMixin",
-    "GunReloadCooldownMixin",
-    "GunSmithTableMenuMixin",
+    "GunSmithTableMenuAccess",
+    "GunSmithTableBlockEntityMixin",
     "InventoryAccessor",
     "LivingEntityShootMixin",
+    "LivingEntityShootReloadInterruptMixin",
     "ModernKineticGunScriptAPIHasAmmoMixin",
     "ModernKineticGunScriptAPIMixin",
     "NoCrawlMixin",
@@ -20,19 +21,16 @@
     "AimKeyMixin",
     "AnimateGeoItemRendererMixin",
     "ClientAttachmentItemTooltipMixin",
-    "ClientMessageRefitGunMixin",
-    "ClientMessageUnloadAttachmentMixin",
     "GunAnimationStateContextMixin",
     "GunHudOverlayMixin",
-    "GunRefitScreenMixin",
-    "GunSmithTableScreenMixin",
-    "InteractGunSmithTable",
+    "GunSmithTableBrowseMemoryMixin",
+    "GunSmithTableCraftBridgeMixin",
+    "GunSmithTableOffhandFallbackMixin",
+    "GunSmithTableSourceViewMixin",
     "InventoryScreenMixin",
     "LivingEntityDrawGunMixin",
     "LocalPlayerDrawMixin",
-    "LocalPlayerReloadMixin",
-    "LocalPlayerShootMixin",
-    "VirtualContainer"
+    "LocalPlayerShootMixin"
   ],
   "server": []
 }

@@ -16,11 +16,4 @@ public class SetupEvent {
         event.enqueueWork(JeiCompat::init);
         event.enqueueWork(SophisticatedBackpacksCompat::init);
     }
-//    @SubscribeEvent
-//    public static void registerRecipes(RegisterEvent event) {
-//        event.register(ForgeRegistries.Keys.RECIPE_SERIALIZERS, helper -> {
-//            helper.register(new ResourceLocation(TACZaddon.MODID, "gun_upgrade"),
-//                    new SmithingRecipeSerializer<>(ToolUpgradeRecipe::new));
-//        });
-//    }
 }

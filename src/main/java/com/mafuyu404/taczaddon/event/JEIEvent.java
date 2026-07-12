@@ -27,11 +27,4 @@ public class JEIEvent {
             if (result) DataStorage.set("GunSmithTableJEI", ItemStack.EMPTY);
         }
     }
-
-//    @SubscribeEvent
-//    public static void JEIRecipes(ItemTooltipEvent event) {
-//        if (Minecraft.getInstance().screen instanceof GunSmithTableScreen) {
-//            DataStorage.set("GunSmithTableJEI", event.getItemStack());
-//        }
-//    }
 }

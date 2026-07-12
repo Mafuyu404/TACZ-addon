@@ -16,7 +16,6 @@ import net.minecraft.world.level.Level;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class DataDrivenSmithingRecipe implements SmithingRecipe {
@@ -33,14 +32,14 @@ public class DataDrivenSmithingRecipe implements SmithingRecipe {
         this.addition = addition;
         this.additionalItems = additionalItems;
 
-        List<String> keyList = new ArrayList<>();
-        for (ResourceLocation additionalItem : additionalItems) {
-            keyList.add(additionalItem.toString());
-        }
-        for (ItemStack item : addition.getItems()) {
-            String itemId = GunSmithingManager.getItemRegistryName(item.getItem());
-            if (itemId != null) GunSmithingManager.putCache(itemId, keyList);
-        }
+//        List<String> keyList = new ArrayList<>();
+//        for (ResourceLocation additionalItem : additionalItems) {
+//            keyList.add(additionalItem.toString());
+//        }
+//        for (ItemStack item : addition.getItems()) {
+//            String itemId = GunSmithingManager.getItemRegistryName(item.getItem());
+//            if (itemId != null) GunSmithingManager.putCache(itemId, keyList);
+//        }
     }
 
     @Override

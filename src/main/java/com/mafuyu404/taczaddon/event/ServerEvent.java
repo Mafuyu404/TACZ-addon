@@ -1,33 +1,90 @@
 package com.mafuyu404.taczaddon.event;
 
 import com.mafuyu404.taczaddon.TACZaddon;
-import com.mafuyu404.taczaddon.common.LiberateAttachment;
-import com.mafuyu404.taczaddon.init.VirtualInventoryChangeEvent;
+import com.mafuyu404.taczaddon.init.GunSmithCraftingSessionManager;
+import com.mafuyu404.taczaddon.init.NetworkHandler;
+import com.tacz.guns.inventory.GunSmithTableMenu;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Player;
-import net.minecraftforge.event.entity.EntityJoinLevelEvent;
+import net.minecraftforge.event.entity.player.PlayerContainerEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
-@Mod.EventBusSubscriber(modid = TACZaddon.MODID)
-public class ServerEvent {
-    @SubscribeEvent
-    public static void onPlayerLogin(EntityJoinLevelEvent event) {
-        if (!(event.getEntity() instanceof Player player)) return;
-        if (!(player instanceof ServerPlayer serverPlayer)) return;
-        LiberateAttachment.syncRuleWhenLogin(serverPlayer);
+/**
+ * Single owner for Forge-side player/session lifecycle.
+ */
+@Mod.EventBusSubscriber(
+        modid = TACZaddon.MODID,
+        bus = Mod.EventBusSubscriber.Bus.FORGE
+)
+public final class ServerEvent {
+    private ServerEvent() {
     }
+
     @SubscribeEvent
-    public static void onVirtualInventorySetItem(VirtualInventoryChangeEvent.SetItemEvent event) {
-        // Intentionally inactive; backpack writes are not mirrored through virtual inventory events.
+    public static void onPlayerLoggedIn(
+            PlayerEvent.PlayerLoggedInEvent event
+    ) {
+        if (!(event.getEntity()
+                instanceof ServerPlayer serverPlayer)) {
+            return;
+        }
+
+        NetworkHandler.sendServerConfig(serverPlayer);
     }
+
     @SubscribeEvent
-    public static void onVirtualInventoryAdd(VirtualInventoryChangeEvent.AddEvent event) {
-        // Intentionally inactive; unloaded attachments remain in the current inventory flow.
+    public static void onContainerClosed(
+            PlayerContainerEvent.Close event
+    ) {
+        if (event.getEntity() instanceof ServerPlayer serverPlayer
+                && event.getContainer()
+                instanceof GunSmithTableMenu) {
+            GunSmithCraftingSessionManager.removeSession(
+                    serverPlayer.getUUID()
+            );
+        }
     }
+
     @SubscribeEvent
-    public void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
-        // Reserved server-login hook; rule sync is handled from EntityJoinLevelEvent.
+    public static void onPlayerLoggedOut(
+            PlayerEvent.PlayerLoggedOutEvent event
+    ) {
+        if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+            GunSmithCraftingSessionManager.removeSession(
+                    serverPlayer.getUUID()
+            );
+        }
+    }
+
+    @SubscribeEvent
+    public static void onPlayerChangedDimension(
+            PlayerEvent.PlayerChangedDimensionEvent event
+    ) {
+        if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+            GunSmithCraftingSessionManager.removeSession(
+                    serverPlayer.getUUID()
+            );
+        }
+    }
+
+    @SubscribeEvent
+    public static void onPlayerRespawn(
+            PlayerEvent.PlayerRespawnEvent event
+    ) {
+        if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+            GunSmithCraftingSessionManager.removeSession(
+                    serverPlayer.getUUID()
+            );
+            NetworkHandler.sendServerConfig(serverPlayer);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onServerStopping(
+            ServerStoppingEvent event
+    ) {
+        GunSmithCraftingSessionManager.removeAll();
     }
 }
