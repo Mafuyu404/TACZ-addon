@@ -31,15 +31,6 @@ public class DataDrivenSmithingRecipe implements SmithingRecipe {
         this.base = base;
         this.addition = addition;
         this.additionalItems = additionalItems;
-
-//        List<String> keyList = new ArrayList<>();
-//        for (ResourceLocation additionalItem : additionalItems) {
-//            keyList.add(additionalItem.toString());
-//        }
-//        for (ItemStack item : addition.getItems()) {
-//            String itemId = GunSmithingManager.getItemRegistryName(item.getItem());
-//            if (itemId != null) GunSmithingManager.putCache(itemId, keyList);
-//        }
     }
 
     @Override
