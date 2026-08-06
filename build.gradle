@@ -29,7 +29,7 @@ FORMAT.setTimeZone(TimeZone.getTimeZone("UTC"))
 apply plugin: 'org.spongepowered.mixin'
 
 base {
-    archivesName = mod_id
+    archivesName = "${mod_id}-${mod_version}-forge-${minecraft_version}"
 }
 
 java {
@@ -50,6 +50,9 @@ minecraft {
 
 
             property 'forge.logging.console.level', 'debug'
+            property 'mixin.debug.verbose', 'true'
+            property 'mixin.debug.countInjections', 'true'
+            property 'mixin.checks.interfaces', 'true'
         }
 
         client {
@@ -134,6 +137,13 @@ dependencies {
     compileOnly fg.deobf("curse.maven:accelerated-rendering-1314021:8179092")
 
     runtimeOnly fg.deobf("curse.maven:just-enough-characters-250702:8117466")
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.12.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.12.2'
+}
+
+tasks.named('test', Test).configure {
+    useJUnitPlatform()
 }
 
 tasks.named('processResources', ProcessResources).configure {

@@ -14,6 +14,8 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 public final class ClientSyncedConfig {
     private static volatile int batchCraftMax = 1;
 
+    private static volatile boolean liberateAttachment = false;
+
     /*
      * Fail closed. A previous server's value must never authorize client
      * prediction on a new connection.
@@ -40,8 +42,17 @@ public final class ClientSyncedConfig {
         return enableShootWhileReloading;
     }
 
+    public static void setLiberateAttachment(boolean enabled) {
+        liberateAttachment = enabled;
+    }
+
+    public static boolean liberateAttachment() {
+        return liberateAttachment;
+    }
+
     public static void resetToSafeDefaults() {
         batchCraftMax = 1;
         enableShootWhileReloading = false;
+        liberateAttachment = false;
     }
 }

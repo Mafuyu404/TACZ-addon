@@ -6,6 +6,10 @@
   "refmap": "taczaddon.refmap.json",
   "mixins": [
     "AbstractGunItemMixin",
+    "ClientMessageRefitGunAccess",
+    "ClientMessageRefitGunMixin",
+    "ClientMessageUnloadAttachmentAccess",
+    "ClientMessageUnloadAttachmentMixin",
     "GunSmithTableMenuAccess",
     "GunSmithTableBlockEntityMixin",
     "InventoryAccessor",
@@ -23,6 +27,7 @@
     "ClientAttachmentItemTooltipMixin",
     "GunAnimationStateContextMixin",
     "GunHudOverlayMixin",
+    "GunRefitScreenMixin",
     "GunSmithTableBrowseMemoryMixin",
     "GunSmithTableCraftBridgeMixin",
     "GunSmithTableOffhandFallbackMixin",

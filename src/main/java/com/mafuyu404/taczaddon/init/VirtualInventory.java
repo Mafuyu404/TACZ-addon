@@ -12,15 +12,44 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Objects;
 
 public class VirtualInventory extends Inventory {
-    public  int size;
+    public int size;
     public int playerInventorySize;
+    private final boolean itemsOnly;
+    private int sinkSlot = -1;
+
     public VirtualInventory(int size, Player player) {
+        this(size, player, false);
+    }
+
+    public VirtualInventory(
+            int size,
+            Player player,
+            boolean itemsOnly
+    ) {
         super(Objects.requireNonNull(player));
+        this.itemsOnly = itemsOnly;
         ((InventoryAccessor) this).setItems(NonNullList.withSize(size, ItemStack.EMPTY));
-        ((InventoryAccessor) this).setCompartments(ImmutableList.of(this.items, this.armor, this.offhand));
+        ((InventoryAccessor) this).setCompartments(
+                itemsOnly
+                        ? ImmutableList.of(this.items)
+                        : ImmutableList.of(
+                                this.items,
+                                this.armor,
+                                this.offhand
+                        )
+        );
         this.playerInventorySize = player.getInventory().getContainerSize();
         this.size = size;
     }
+
+    @Override
+    public int getContainerSize() {
+        if (this.itemsOnly) {
+            return this.size;
+        }
+        return super.getContainerSize();
+    }
+
     public VirtualInventory extend() {
         Inventory playerInventory = this.player.getInventory();
         for (int i = 0; i < this.playerInventorySize; i++) {
@@ -29,9 +58,48 @@ public class VirtualInventory extends Inventory {
         this.selected = playerInventory.selected;
         return this;
     }
+
+    public VirtualInventory withSinkSlot(int slot) {
+        if (slot < 0 || slot >= this.size) {
+            throw new IllegalArgumentException(
+                    "Virtual inventory sink is out of bounds: " + slot
+            );
+        }
+        this.sinkSlot = slot;
+        return this;
+    }
+
+    public int getSinkSlot() {
+        return this.sinkSlot;
+    }
+
+    @Override
+    public int getFreeSlot() {
+        if (this.sinkSlot < 0) {
+            return super.getFreeSlot();
+        }
+        return this.getItem(this.sinkSlot).isEmpty()
+                ? this.sinkSlot
+                : -1;
+    }
+
+    @Override
+    public boolean add(ItemStack stack) {
+        if (this.sinkSlot < 0) {
+            return super.add(stack);
+        }
+        if (stack.isEmpty()
+                || !this.getItem(this.sinkSlot).isEmpty()) {
+            return false;
+        }
+        this.setItem(this.sinkSlot, stack.copy());
+        return true;
+    }
+
     public ItemHandler getHandler() {
         return new ItemHandler(this);
     }
+
     public static class ItemHandler implements IItemHandler {
 
         private final VirtualInventory virtualInventory;

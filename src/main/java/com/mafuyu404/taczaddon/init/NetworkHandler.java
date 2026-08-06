@@ -13,10 +13,10 @@ import java.util.Optional;
 
 public final class NetworkHandler {
     /*
-     * 2.4 removes the obsolete primitive gamerule packet while preserving
-     * explicit wire IDs for all active messages.
+     * 2.5 adds type-safe liberateAttachment state and install messages while
+     * preserving every previously assigned wire ID.
      */
-    private static final String PROTOCOL = "2.4";
+    private static final String PROTOCOL = "2.5";
 
     private static final int ID_PRIMITIVE_RESERVED = 0;
     private static final int ID_SWITCH_GUN = 1;
@@ -26,6 +26,8 @@ public final class NetworkHandler {
     private static final int ID_GUNSMITH_SOURCE_SNAPSHOT = 5;
     private static final int ID_GUNSMITH_CRAFT_REQUEST = 6;
     private static final int ID_GUNSMITH_CRAFT_RESULT = 7;
+    private static final int ID_LIBERATE_ATTACHMENT_STATE = 8;
+    private static final int ID_LIBERATE_ATTACHMENT_INSTALL = 9;
 
     public static final SimpleChannel CHANNEL =
             NetworkRegistry.newSimpleChannel(
@@ -106,6 +108,24 @@ public final class NetworkHandler {
                 GunSmithCraftResultPacket::handle,
                 Optional.of(NetworkDirection.PLAY_TO_CLIENT)
         );
+
+        CHANNEL.registerMessage(
+                ID_LIBERATE_ATTACHMENT_STATE,
+                LiberateAttachmentStatePacket.class,
+                LiberateAttachmentStatePacket::encode,
+                LiberateAttachmentStatePacket::decode,
+                LiberateAttachmentStatePacket::handle,
+                Optional.of(NetworkDirection.PLAY_TO_CLIENT)
+        );
+
+        CHANNEL.registerMessage(
+                ID_LIBERATE_ATTACHMENT_INSTALL,
+                LiberateAttachmentInstallPacket.class,
+                LiberateAttachmentInstallPacket::encode,
+                LiberateAttachmentInstallPacket::decode,
+                LiberateAttachmentInstallPacket::handle,
+                Optional.of(NetworkDirection.PLAY_TO_SERVER)
+        );
     }
 
     public static void sendToClient(
@@ -122,6 +142,27 @@ public final class NetworkHandler {
         sendToClient(
                 player,
                 ServerFeatureConfigSyncPacket.fromServerConfig()
+        );
+    }
+
+    public static void sendLiberateAttachmentState(
+            ServerPlayer player
+    ) {
+        sendLiberateAttachmentState(
+                player,
+                player.level()
+                        .getGameRules()
+                        .getBoolean(RuleRegistry.LIBERATE_ATTACHMENT)
+        );
+    }
+
+    public static void sendLiberateAttachmentState(
+            ServerPlayer player,
+            boolean enabled
+    ) {
+        sendToClient(
+                player,
+                new LiberateAttachmentStatePacket(enabled)
         );
     }
 }

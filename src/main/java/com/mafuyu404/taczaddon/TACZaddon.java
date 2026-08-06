@@ -4,6 +4,7 @@ import com.mafuyu404.taczaddon.init.CommonConfig;
 import com.mafuyu404.taczaddon.init.Config;
 import com.mafuyu404.taczaddon.init.ModRecipeSerializers;
 import com.mafuyu404.taczaddon.init.NetworkHandler;
+import com.mafuyu404.taczaddon.init.RuleRegistry;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
@@ -14,6 +15,7 @@ public class TACZaddon {
     public static final String MODID = "taczaddon";
 
     public TACZaddon(FMLJavaModLoadingContext context) {
+        RuleRegistry.bootstrap();
         NetworkHandler.register();
 
         IEventBus modEventBus = context.getModEventBus();

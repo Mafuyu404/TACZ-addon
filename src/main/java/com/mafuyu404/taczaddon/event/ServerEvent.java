@@ -32,6 +32,7 @@ public final class ServerEvent {
         }
 
         NetworkHandler.sendServerConfig(serverPlayer);
+        NetworkHandler.sendLiberateAttachmentState(serverPlayer);
     }
 
     @SubscribeEvent
@@ -66,6 +67,7 @@ public final class ServerEvent {
             GunSmithCraftingSessionManager.removeSession(
                     serverPlayer.getUUID()
             );
+            NetworkHandler.sendLiberateAttachmentState(serverPlayer);
         }
     }
 
@@ -78,6 +80,7 @@ public final class ServerEvent {
                     serverPlayer.getUUID()
             );
             NetworkHandler.sendServerConfig(serverPlayer);
+            NetworkHandler.sendLiberateAttachmentState(serverPlayer);
         }
     }
 
