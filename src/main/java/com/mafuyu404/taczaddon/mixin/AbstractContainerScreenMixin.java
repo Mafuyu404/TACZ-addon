@@ -1,7 +1,7 @@
 package com.mafuyu404.taczaddon.mixin;
 
 import com.mafuyu404.taczaddon.common.ItemRelationHelper;
-import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksClientCompat;
+import com.mafuyu404.taczaddon.compat.SophisticatedStorageClientCompat;
 import com.mafuyu404.taczaddon.init.Config;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -31,6 +31,9 @@ public abstract class AbstractContainerScreenMixin extends Screen {
     @Unique
     private ItemStack taczaddon$relationHoveredStack = ItemStack.EMPTY;
 
+    @Unique
+    private boolean taczaddon$isSophisticatedStorageScreen;
+
     protected AbstractContainerScreenMixin(Component title) {
         super(title);
     }
@@ -44,7 +47,9 @@ public abstract class AbstractContainerScreenMixin extends Screen {
             CallbackInfo ci
     ) {
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>)(Object)this;
-        if (SophisticatedBackpacksClientCompat.isStorageScreen(screen)) {
+        this.taczaddon$isSophisticatedStorageScreen =
+                SophisticatedStorageClientCompat.isStorageScreen(screen);
+        if (this.taczaddon$isSophisticatedStorageScreen) {
             return;
         }
 
@@ -74,8 +79,7 @@ public abstract class AbstractContainerScreenMixin extends Screen {
             Slot slot,
             CallbackInfo ci
     ) {
-        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>)(Object)this;
-        if (SophisticatedBackpacksClientCompat.isStorageScreen(screen)) {
+        if (this.taczaddon$isSophisticatedStorageScreen) {
             return;
         }
 

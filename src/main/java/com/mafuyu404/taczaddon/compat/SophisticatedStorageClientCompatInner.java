@@ -10,10 +10,10 @@ import net.minecraftforge.client.event.ContainerScreenEvent;
 import net.p3pp3rf1y.sophisticatedcore.client.gui.StorageScreenBase;
 import net.p3pp3rf1y.sophisticatedcore.common.gui.StorageContainerMenuBase;
 
-public final class SophisticatedBackpacksClientCompatInner {
+public final class SophisticatedStorageClientCompatInner {
     private static final int RELATION_HIGHLIGHT_COLOR = 0x80FFA500;
 
-    private SophisticatedBackpacksClientCompatInner() {
+    private SophisticatedStorageClientCompatInner() {
     }
 
     public static boolean isStorageScreen(AbstractContainerScreen<?> screen) {
@@ -26,12 +26,14 @@ public final class SophisticatedBackpacksClientCompatInner {
             return;
         }
 
-        if (!Config.SHOW_ITEM_RELATION.get()) {
+        if (!Config.showItemRelationInSophisticatedStorage()) {
             return;
         }
 
         Slot hoveredSlot = screen.getSlotUnderMouse();
-        if (hoveredSlot == null || !hoveredSlot.isActive() || !hoveredSlot.hasItem()) {
+        if (hoveredSlot == null
+                || !hoveredSlot.isActive()
+                || !hoveredSlot.hasItem()) {
             return;
         }
 
@@ -64,7 +66,9 @@ public final class SophisticatedBackpacksClientCompatInner {
             Slot slot,
             Slot hoveredSlot
     ) {
-        if (slot == hoveredSlot || !slot.isActive() || !slot.hasItem()) {
+        if (slot == hoveredSlot
+                || !slot.isActive()
+                || !slot.hasItem()) {
             return false;
         }
 
@@ -81,7 +85,10 @@ public final class SophisticatedBackpacksClientCompatInner {
         return true;
     }
 
-    private static boolean isSlotInsideScreen(AbstractContainerScreen<?> screen, Slot slot) {
+    private static boolean isSlotInsideScreen(
+            AbstractContainerScreen<?> screen,
+            Slot slot
+    ) {
         return slot.x >= 0
                 && slot.y >= 0
                 && slot.x + 16 <= screen.getXSize()

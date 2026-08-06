@@ -35,6 +35,8 @@ public final class Config {
             MELEE_WEAPON_LIST;
     public static final ForgeConfigSpec.BooleanValue FAST_SWAP_GUN;
     public static final ForgeConfigSpec.BooleanValue SHOW_ITEM_RELATION;
+    public static final ForgeConfigSpec.BooleanValue
+            SHOW_ITEM_RELATION_IN_SOPHISTICATED_STORAGE;
     public static final ForgeConfigSpec.BooleanValue SHOOT_WHILE_RELOADING;
 
     public static final ForgeConfigSpec SPEC;
@@ -113,6 +115,13 @@ public final class Config {
                 .comment("悬停物品时高亮显示相关物品。")
                 .define("enableShowItemRelation", true);
 
+        SHOW_ITEM_RELATION_IN_SOPHISTICATED_STORAGE = BUILDER
+                .comment(
+                        "是否在 Sophisticated Backpacks 和 Sophisticated Storage 界面中高亮相关物品。",
+                        "需要同时启用 enableShowItemRelation。"
+                )
+                .define("enableShowItemRelationInSophisticatedStorage", true);
+
         BUILDER.pop();
 
         SPEC = BUILDER.build();
@@ -188,5 +197,10 @@ public final class Config {
 
     public static int getAllowGunAmount() {
         return LESS_ALLOW_GUN.get();
+    }
+
+    public static boolean showItemRelationInSophisticatedStorage() {
+        return SHOW_ITEM_RELATION.get()
+                && SHOW_ITEM_RELATION_IN_SOPHISTICATED_STORAGE.get();
     }
 }

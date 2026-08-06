@@ -1,8 +1,8 @@
 package com.mafuyu404.taczaddon.event;
 
 import com.mafuyu404.taczaddon.TACZaddon;
-import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksClientCompat;
 import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
+import com.mafuyu404.taczaddon.compat.SophisticatedStorageClientCompat;
 import com.mafuyu404.taczaddon.init.DataStorage;
 import com.mafuyu404.taczaddon.init.KeyBindings;
 import com.mafuyu404.taczaddon.init.NetworkHandler;
@@ -46,7 +46,7 @@ public final class ClientEvent {
     public static void renderSophisticatedItemRelations(
             ContainerScreenEvent.Render.Foreground event
     ) {
-        SophisticatedBackpacksClientCompat.renderItemRelations(event);
+        SophisticatedStorageClientCompat.renderItemRelations(event);
     }
 
     @SubscribeEvent

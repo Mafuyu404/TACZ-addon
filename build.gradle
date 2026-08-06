@@ -111,10 +111,9 @@ dependencies {
 
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
-    implementation fg.deobf("curse.maven:sophisticated-core-618298:8389833")
-    implementation fg.deobf("curse.maven:sophisticated-backpacks-422301:8365688")
-//    implementation fg.deobf("curse.maven:sophisticated-core-618298:8238725")
-//    implementation fg.deobf("curse.maven:sophisticated-backpacks-422301:8238726")
+    implementation fg.deobf("curse.maven:sophisticated-core-618298:8503031")
+    implementation fg.deobf("curse.maven:sophisticated-backpacks-422301:8503063")
+    runtimeOnly fg.deobf("curse.maven:sophisticated-storage-619320:8224087")
 
 
     implementation fg.deobf("curse.maven:timeless-and-classics-zero-1028108:8141310")
