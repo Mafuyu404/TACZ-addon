@@ -126,17 +126,6 @@ public final class SophisticatedBackpacksCompatInner {
                 : (int) result;
     }
 
-    /**
-     * Keep the old misspelled method temporarily so existing callers do not break.
-     */
-    @Deprecated(forRemoval = false)
-    public static List<ItemStack> getItemsFromBackpackBLock(
-            BlockPos blockPos,
-            Player player
-    ) {
-        return getItemsFromBackpackBlock(blockPos, player);
-    }
-
     public static void modifyBlockBackpack(
             ServerPlayer player,
             BlockPos blockPos,

@@ -1,17 +1,17 @@
 package com.mafuyu404.taczaddon.compat;
 
-import com.github.exopandora.shouldersurfing.client.ShoulderSurfingImpl;
+import com.github.exopandora.shouldersurfing.api.client.IShoulderSurfing;
 
-import static com.github.exopandora.shouldersurfing.api.model.Perspective.SHOULDER_SURFING;
+import static com.github.exopandora.shouldersurfing.api.client.Perspective.SHOULDER_SURFING;
 
 public final class ShoulderSurfingCompatInner {
     private ShoulderSurfingCompatInner() {
     }
 
     public static boolean isShoulderSurfing() {
-        return ShoulderSurfingImpl.getInstance().isShoulderSurfing();
+        return IShoulderSurfing.getInstance().isShoulderSurfing();
     }
     public static void enableShoulderSurfing() {
-        ShoulderSurfingImpl.getInstance().changePerspective(SHOULDER_SURFING);
+        IShoulderSurfing.getInstance().changePerspective(SHOULDER_SURFING);
     }
 }

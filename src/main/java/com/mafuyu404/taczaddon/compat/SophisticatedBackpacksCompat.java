@@ -26,9 +26,9 @@ public final class SophisticatedBackpacksCompat {
         // Do not cache mod-loaded state here.
     }
 
-    public static List<ItemStack> getItemsFromBackpackBLock(BlockPos blockPos, Player player) {
+    public static List<ItemStack> getItemsFromBackpackBlock(BlockPos blockPos, Player player) {
         if (!isInstalled()) return new ArrayList<>();
-        return SophisticatedBackpacksCompatInner.getItemsFromBackpackBLock(blockPos, player);
+        return SophisticatedBackpacksCompatInner.getItemsFromBackpackBlock(blockPos, player);
     }
 
     public static List<ItemStack> getItemsFromBackpackItem(ItemStack itemStack) {

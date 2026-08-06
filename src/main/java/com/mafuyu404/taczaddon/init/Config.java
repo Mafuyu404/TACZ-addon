@@ -33,6 +33,7 @@ public final class Config {
         MELEE_WEAPON_LIST = BUILDER
                 .comment("Gun IDs that should be treated as melee weapons.")
                 .defineList("meleeGunIds", List.of("tacz:type_82", "tacz:type_83"),
+                        null,
                         entry -> entry instanceof String id && ResourceLocation.tryParse(id) != null);
         BUILDER.pop();
 

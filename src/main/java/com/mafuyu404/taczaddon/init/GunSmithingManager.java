@@ -30,35 +30,25 @@ public final class GunSmithingManager {
     }
 
     /**
-     * Retained for old recipe-constructor calls and old gun data.
+     * Builds the legacy reverse lookup used by old CombinedItems tags.
      */
-    @Deprecated(forRemoval = false)
-    public static synchronized void putCache(
-            String itemIdText,
-            List<String> attachmentIdTexts
+    public static synchronized void cacheLegacyUnlocks(
+            ResourceLocation itemId,
+            List<ResourceLocation> attachmentIds
     ) {
-        ResourceLocation itemId =
-                ResourceLocation.tryParse(itemIdText);
-
         if (itemId == null) {
             return;
         }
 
-        Set<ResourceLocation> attachmentIds =
+        Set<ResourceLocation> cachedIds =
                 LEGACY_CACHE.computeIfAbsent(
                         itemId,
                         ignored -> new LinkedHashSet<>()
                 );
 
-        for (String attachmentIdText :
-                attachmentIdTexts) {
-            ResourceLocation attachmentId =
-                    ResourceLocation.tryParse(
-                            attachmentIdText
-                    );
-
+        for (ResourceLocation attachmentId : attachmentIds) {
             if (attachmentId != null) {
-                attachmentIds.add(attachmentId);
+                cachedIds.add(attachmentId);
             }
         }
     }
@@ -211,16 +201,4 @@ public final class GunSmithingManager {
         return BuiltInRegistries.ITEM.getKey(item);
     }
 
-    /**
-     * Retained for source compatibility.
-     */
-    @Deprecated(forRemoval = false)
-    public static String getItemRegistryName(Item item) {
-        ResourceLocation itemId =
-                getItemRegistryId(item);
-
-        return itemId == null
-                ? null
-                : itemId.toString();
-    }
 }

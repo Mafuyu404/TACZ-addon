@@ -139,7 +139,7 @@ public final class ContainerPositionPacket
                     )) {
                         List<ItemStack> backpackItems =
                                 SophisticatedBackpacksCompat
-                                        .getItemsFromBackpackBLock(
+                                        .getItemsFromBackpackBlock(
                                                 sourcePos,
                                                 player
                                         );
@@ -205,7 +205,7 @@ public final class ContainerPositionPacket
                 addCopiesWithinLimit(
                         refreshedItems,
                         SophisticatedBackpacksCompat
-                                .getItemsFromBackpackBLock(
+                                .getItemsFromBackpackBlock(
                                         sourcePos,
                                         player
                                 )
