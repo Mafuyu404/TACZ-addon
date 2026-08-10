@@ -1,6 +1,7 @@
 package com.mafuyu404.taczaddon.mixin;
 
 import com.mafuyu404.taczaddon.common.LiberateAttachmentService;
+import com.mafuyu404.taczaddon.compat.ArcanaCompat;
 import com.tacz.guns.api.item.IAttachment;
 import com.tacz.guns.api.item.IGun;
 import com.tacz.guns.api.item.attachment.AttachmentType;
@@ -18,9 +19,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * TaCZ 1.1.8-hotfix (Curse file 8141310) reads attachmentSlotIndex at the
  * first Inventory.getItem call in lambda$handle$0. Validate at HEAD, before
- * either client-controlled index can reach Inventory.
+ * either client-controlled index can reach Inventory. Mixin 0.8.5 applies
+ * lower priorities first; 999 is the smallest adjustment below Arcana's
+ * default 1000 and keeps validation ahead of its cancelling handler.
  */
-@Mixin(value = ClientMessageRefitGun.class, remap = false)
+@Mixin(
+        value = ClientMessageRefitGun.class,
+        priority = 999,
+        remap = false
+)
 public abstract class ClientMessageRefitGunMixin {
     @Inject(
             method = "lambda$handle$0",
@@ -39,19 +46,26 @@ public abstract class ClientMessageRefitGunMixin {
             return;
         }
 
-        // Liberated clients use our ID-based packet. Never interpret their
-        // virtual slot as a real server inventory slot.
-        if (LiberateAttachmentService.isEnabled(player)) {
-            LiberateAttachmentService.refreshRefitScreen(player);
-            callback.cancel();
+        ClientMessageRefitGunAccess access =
+                (ClientMessageRefitGunAccess) message;
+        Inventory realInventory = player.getInventory();
+        int attachmentSlot = access.taczaddon$getAttachmentSlotIndex();
+        int gunSlot = access.taczaddon$getGunSlotIndex();
+        boolean liberated = LiberateAttachmentService.isEnabled(player);
+
+        // Without a supported Arcana handler, liberated clients must keep
+        // using TACZ-addon's ID packet. Never reinterpret a virtual slot as a
+        // real inventory slot.
+        if (liberated
+                && !ArcanaCompat.canHandleNativeAttachmentMessages()) {
+            reject(player, callback);
             return;
         }
 
-        ClientMessageRefitGunAccess access =
-                (ClientMessageRefitGunAccess) message;
-        Inventory inventory = player.getInventory();
-        int attachmentSlot = access.taczaddon$getAttachmentSlotIndex();
-        int gunSlot = access.taczaddon$getGunSlotIndex();
+        Inventory inventory = LiberateAttachmentService.createInventory(
+                realInventory,
+                liberated
+        );
         if (!LiberateAttachmentService.isValidIndex(
                 inventory,
                 attachmentSlot
@@ -76,23 +90,24 @@ public abstract class ClientMessageRefitGunMixin {
         IGun gun = IGun.getIGunOrNull(gunStack);
         AttachmentType claimedType =
                 access.taczaddon$getAttachmentType();
+        ResourceLocation attachmentId = attachment == null
+                ? null
+                : attachment.getAttachmentId(candidate);
+        AttachmentType actualType = attachment == null
+                ? null
+                : attachment.getType(candidate);
         if (attachment == null
                 || gun == null
-                || gun.hasAttachmentLock(gunStack)
-                || claimedType == null
-                || claimedType == AttachmentType.NONE
-                || attachment.getType(candidate) != claimedType
-                || getAttachmentId(attachment, candidate) == null
-                || !gun.allowAttachment(gunStack, candidate)) {
+                || !LiberateAttachmentService.isValidCandidate(
+                attachmentId,
+                attachmentId,
+                claimedType,
+                actualType,
+                gun.hasAttachmentLock(gunStack),
+                gun.allowAttachment(gunStack, candidate)
+        )) {
             reject(player, callback);
         }
-    }
-
-    private static ResourceLocation getAttachmentId(
-            IAttachment attachment,
-            ItemStack candidate
-    ) {
-        return attachment.getAttachmentId(candidate);
     }
 
     private static void reject(

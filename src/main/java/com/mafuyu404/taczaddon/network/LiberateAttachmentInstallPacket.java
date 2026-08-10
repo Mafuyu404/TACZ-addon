@@ -114,11 +114,14 @@ public final class LiberateAttachmentInstallPacket {
         ResourceLocation actualId =
                 attachment.getAttachmentId(candidate);
         AttachmentType actualType = attachment.getType(candidate);
-        if (!message.attachmentId.equals(actualId)
-                || actualType == null
-                || actualType == AttachmentType.NONE
-                || actualType != resolved.get().type()
-                || !gun.allowAttachment(gunStack, candidate)) {
+        if (!LiberateAttachmentService.isValidCandidate(
+                message.attachmentId,
+                actualId,
+                resolved.get().type(),
+                actualType,
+                gun.hasAttachmentLock(gunStack),
+                gun.allowAttachment(gunStack, candidate)
+        )) {
             reject(player);
             return;
         }

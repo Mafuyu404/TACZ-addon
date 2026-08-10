@@ -218,20 +218,54 @@ public final class LiberateAttachmentService {
                 && slot < inventorySize;
     }
 
+    public static boolean isValidCandidate(
+            @Nullable ResourceLocation requestedId,
+            @Nullable ResourceLocation actualId,
+            @Nullable AttachmentType requestedType,
+            @Nullable AttachmentType actualType,
+            boolean attachmentLocked,
+            boolean allowed
+    ) {
+        return requestedId != null
+                && requestedId.equals(actualId)
+                && requestedType != null
+                && requestedType != AttachmentType.NONE
+                && requestedType == actualType
+                && !attachmentLocked
+                && allowed;
+    }
+
+    static boolean isCurrentGunSelection(
+            int inventorySize,
+            int gunSlot,
+            int selectedSlot,
+            boolean sameMainHandReference,
+            boolean isGun
+    ) {
+        return isSlotInRange(inventorySize, gunSlot)
+                && gunSlot == selectedSlot
+                && sameMainHandReference
+                && isGun;
+    }
+
     @Nullable
     public static ItemStack getCurrentRealGun(
             ServerPlayer player,
             int gunSlot
     ) {
         Inventory inventory = player.getInventory();
-        if (!isValidIndex(inventory, gunSlot)
-                || gunSlot != inventory.selected) {
+        if (!isValidIndex(inventory, gunSlot)) {
             return null;
         }
 
         ItemStack gunStack = inventory.getItem(gunSlot);
-        if (gunStack != player.getMainHandItem()
-                || IGun.getIGunOrNull(gunStack) == null) {
+        if (!isCurrentGunSelection(
+                inventory.getContainerSize(),
+                gunSlot,
+                inventory.selected,
+                gunStack == player.getMainHandItem(),
+                IGun.getIGunOrNull(gunStack) != null
+        )) {
             return null;
         }
         return gunStack;
