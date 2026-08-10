@@ -1,5 +1,6 @@
 package com.mafuyu404.taczaddon.mixin;
 
+import com.mafuyu404.taczaddon.compat.CuriosCompat;
 import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
 import com.mafuyu404.taczaddon.init.ReadOnlyCompositeItemHandler;
 import com.tacz.guns.item.ModernKineticGunScriptAPI;
@@ -33,6 +34,14 @@ public class ModernKineticGunScriptAPIHasAmmoMixin {
         if (handler != null) {
             builder.addHandler(handler, "player_inventory");
         }
+
+        CuriosCompat.forEachCuriosHandler(
+                player,
+                curiosHandler -> builder.addHandler(
+                        curiosHandler,
+                        "curios"
+                )
+        );
 
         return builder.buildReadOnly();
     }

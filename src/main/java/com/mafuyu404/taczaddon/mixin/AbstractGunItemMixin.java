@@ -1,5 +1,6 @@
 package com.mafuyu404.taczaddon.mixin;
 
+import com.mafuyu404.taczaddon.compat.CuriosCompat;
 import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
 import com.mafuyu404.taczaddon.init.ReadOnlyCompositeItemHandler;
 import com.tacz.guns.api.item.gun.AbstractGunItem;
@@ -27,6 +28,11 @@ public class AbstractGunItemMixin {
         if (playerHandler != null) {
             builder.addHandler(playerHandler, "player_inventory");
         }
+
+        CuriosCompat.forEachCuriosHandler(
+                player,
+                handler -> builder.addHandler(handler, "curios")
+        );
 
         return builder.buildReadOnly();
     }

@@ -1,5 +1,6 @@
 package com.mafuyu404.taczaddon.mixin;
 
+import com.mafuyu404.taczaddon.compat.CuriosCompat;
 import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
 import com.mafuyu404.taczaddon.init.ExtractingCompositeItemHandler;
 import com.mafuyu404.taczaddon.init.ReadOnlyCompositeItemHandler;
@@ -55,6 +56,11 @@ public class ModernKineticGunScriptAPIMixin {
         );
 
         builder.addHandler(cap, "player_inventory");
+
+        CuriosCompat.forEachCuriosHandler(
+                player,
+                handler -> builder.addHandler(handler, "curios")
+        );
 
         ExtractingCompositeItemHandler extractingHandler =
                 builder.buildExtracting();
