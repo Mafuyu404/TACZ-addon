@@ -14,5 +14,7 @@ public interface GunSmithSourceScreenAccess {
 
     void taczaddon$requestSourceRefresh();
 
+    void taczaddon$tickSourceRefresh();
+
     List<ItemStack> taczaddon$getExternalDisplayStacks();
 }

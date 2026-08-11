@@ -18,8 +18,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class GunSmithCraftingSessionManager {
-    private static final long SESSION_INACTIVITY_TIMEOUT_TICKS =
-            20L * 60L;
+    static final double MAX_INTERACTION_DISTANCE_SQUARED = 64.0D;
 
     private static final Map<UUID, GunSmithCraftingSession> SESSIONS =
             new ConcurrentHashMap<>();
@@ -42,8 +41,7 @@ public final class GunSmithCraftingSessionManager {
                         Objects.requireNonNull(
                                 tableBlockId,
                                 "tableBlockId"
-                        ),
-                        player.level().getGameTime()
+                        )
                 );
 
         SESSIONS.put(player.getUUID(), session);
@@ -59,8 +57,114 @@ public final class GunSmithCraftingSessionManager {
         SESSIONS.remove(playerId);
     }
 
+    public static void removeSession(
+            UUID playerId,
+            int containerId
+    ) {
+        SESSIONS.computeIfPresent(
+                playerId,
+                (ignored, session) ->
+                        session.getContainerId() == containerId
+                                ? null
+                                : session
+        );
+    }
+
+    public static void removeSession(
+            UUID playerId,
+            GunSmithCraftingSession session
+    ) {
+        SESSIONS.remove(playerId, session);
+    }
+
     public static void removeAll() {
         SESSIONS.clear();
+    }
+
+    /**
+     * Policy for packets that reference a gunsmith container.
+     *
+     * A request for an old container must never delete the player's current
+     * session. A request that matches the current container may delete that
+     * matching session when its server-side structural validation fails.
+     */
+    public static SessionRequestDecision evaluateRequest(
+            @Nullable GunSmithCraftingSession session,
+            int suppliedContainerId,
+            boolean structurallyValid
+    ) {
+        if (session == null) {
+            return SessionRequestDecision.REJECTED_NO_SESSION;
+        }
+        if (session.getContainerId() != suppliedContainerId) {
+            return SessionRequestDecision.REJECTED_STALE_CONTAINER;
+        }
+        return structurallyValid
+                ? SessionRequestDecision.ACCEPTED
+                : SessionRequestDecision.REJECTED_INVALID_MATCHING_SESSION;
+    }
+
+    public enum SessionRequestDecision {
+        REJECTED_NO_SESSION(false, false),
+        REJECTED_STALE_CONTAINER(false, false),
+        REJECTED_INVALID_MATCHING_SESSION(false, true),
+        ACCEPTED(true, false);
+
+        private final boolean accepted;
+        private final boolean removeMatchingSession;
+
+        SessionRequestDecision(
+                boolean accepted,
+                boolean removeMatchingSession
+        ) {
+            this.accepted = accepted;
+            this.removeMatchingSession = removeMatchingSession;
+        }
+
+        public boolean accepted() {
+            return this.accepted;
+        }
+
+        public boolean shouldRemoveMatchingSession() {
+            return this.removeMatchingSession;
+        }
+    }
+
+    /**
+     * The complete lifetime policy for a gunsmith session. Elapsed game time
+     * is deliberately absent: an idle session remains valid while its real
+     * server-side menu and table relationship remains valid.
+     */
+    static boolean isLifecycleValid(SessionLifecycleState state) {
+        return state.playerMatches()
+                && state.suppliedContainerMatches()
+                && state.dimensionMatches()
+                && state.gunsmithMenuOpen()
+                && state.activeMenuContainerMatches()
+                && state.menuTableDefinitionMatches()
+                && state.menuStillValid()
+                && state.tableLoaded()
+                && state.expectedTableEntityPresent()
+                && state.tableEntityActive()
+                && state.tableDefinitionMatches()
+                && state.distanceSquared()
+                <= MAX_INTERACTION_DISTANCE_SQUARED;
+    }
+
+    record SessionLifecycleState(
+            boolean playerMatches,
+            boolean suppliedContainerMatches,
+            boolean dimensionMatches,
+            boolean gunsmithMenuOpen,
+            boolean activeMenuContainerMatches,
+            boolean menuTableDefinitionMatches,
+            boolean menuStillValid,
+            boolean tableLoaded,
+            boolean expectedTableEntityPresent,
+            boolean tableEntityActive,
+            boolean tableDefinitionMatches,
+            double distanceSquared
+    ) {
     }
 
     public static final class GunSmithCraftingSession {
@@ -70,74 +174,49 @@ public final class GunSmithCraftingSessionManager {
         private final BlockPos tablePos;
         private final ResourceLocation tableBlockId;
 
-        private long lastValidatedGameTime;
         private long lastAcceptedCraftRequestId = -1L;
         private long lastAcceptedRefreshRequestId = -1L;
         private List<CraftingSourceKey> sourceKeys = List.of();
+
+        /*
+         * Structural/addon-owned mutation revision only. It does not detect
+         * arbitrary external inventory changes; every craft and refresh
+         * re-resolves live server sources.
+         */
         private long sourceRevision;
 
-        private GunSmithCraftingSession(
+        GunSmithCraftingSession(
                 UUID playerId,
                 int containerId,
                 ResourceKey<Level> dimension,
                 BlockPos tablePos,
-                ResourceLocation tableBlockId,
-                long gameTime
+                ResourceLocation tableBlockId
         ) {
             this.playerId = playerId;
             this.containerId = containerId;
             this.dimension = dimension;
             this.tablePos = tablePos;
             this.tableBlockId = tableBlockId;
-            this.lastValidatedGameTime = gameTime;
         }
 
         public boolean validate(
                 ServerPlayer player,
                 int suppliedContainerId
         ) {
-            if (!player.getUUID().equals(this.playerId)
-                    || suppliedContainerId != this.containerId
-                    || !player.level().dimension().equals(this.dimension)) {
-                return false;
-            }
+            GunSmithTableMenu menu = player.containerMenu
+                    instanceof GunSmithTableMenu activeMenu
+                    ? activeMenu
+                    : null;
 
-            if (!(player.containerMenu
-                    instanceof GunSmithTableMenu menu)) {
-                return false;
-            }
-
-            if (menu.containerId != suppliedContainerId
-                    || menu.containerId != this.containerId
-                    || !Objects.equals(
-                    menu.getBlockId(),
-                    this.tableBlockId
-            )
-                    || !menu.stillValid(player)) {
-                return false;
-            }
-
-            long gameTime = player.level().getGameTime();
-            if (gameTime - this.lastValidatedGameTime
-                    > SESSION_INACTIVITY_TIMEOUT_TICKS) {
-                return false;
-            }
-
-            if (!player.level().isLoaded(this.tablePos)) {
-                return false;
-            }
-
-            BlockEntity blockEntity =
-                    player.level().getBlockEntity(this.tablePos);
-            if (!(blockEntity
-                    instanceof GunSmithTableBlockEntity table)
-                    || table.isRemoved()
-                    || !Objects.equals(
-                    table.getId(),
-                    this.tableBlockId
-            )) {
-                return false;
-            }
+            boolean tableLoaded =
+                    player.level().isLoaded(this.tablePos);
+            BlockEntity blockEntity = tableLoaded
+                    ? player.level().getBlockEntity(this.tablePos)
+                    : null;
+            GunSmithTableBlockEntity table = blockEntity
+                    instanceof GunSmithTableBlockEntity activeTable
+                    ? activeTable
+                    : null;
 
             double distanceSquared =
                     player.distanceToSqr(
@@ -145,12 +224,28 @@ public final class GunSmithCraftingSessionManager {
                             this.tablePos.getY() + 0.5D,
                             this.tablePos.getZ() + 0.5D
                     );
-            if (distanceSquared > 64.0D) {
-                return false;
-            }
-
-            this.lastValidatedGameTime = gameTime;
-            return true;
+            return isLifecycleValid(new SessionLifecycleState(
+                    player.getUUID().equals(this.playerId),
+                    suppliedContainerId == this.containerId,
+                    player.level().dimension().equals(this.dimension),
+                    menu != null,
+                    menu != null
+                            && menu.containerId == suppliedContainerId
+                            && menu.containerId == this.containerId,
+                    menu != null && Objects.equals(
+                            menu.getBlockId(),
+                            this.tableBlockId
+                    ),
+                    menu != null && menu.stillValid(player),
+                    tableLoaded,
+                    table != null,
+                    table != null && !table.isRemoved(),
+                    table != null && Objects.equals(
+                            table.getId(),
+                            this.tableBlockId
+                    ),
+                    distanceSquared
+            ));
         }
 
         public synchronized boolean acceptCraftRequestId(
@@ -184,11 +279,13 @@ public final class GunSmithCraftingSessionManager {
             List<CraftingSourceKey> copy = List.copyOf(keys);
             if (!this.sourceKeys.equals(copy)) {
                 this.sourceKeys = copy;
+                // Structural source-set change, not a content fingerprint.
                 this.sourceRevision++;
             }
         }
 
         public synchronized void markSourcesChanged() {
+            // Addon-owned craft mutation marker, not an external content scan.
             this.sourceRevision++;
         }
 

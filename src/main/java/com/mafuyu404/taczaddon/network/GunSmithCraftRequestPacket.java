@@ -6,6 +6,7 @@ import com.mafuyu404.taczaddon.init.GunSmithCraftingSources;
 import com.mafuyu404.taczaddon.init.NetworkHandler;
 import com.mafuyu404.taczaddon.init.crafting.CraftingTransaction;
 import com.mafuyu404.taczaddon.mixin.GunSmithTableMenuAccess;
+import com.mojang.logging.LogUtils;
 import com.tacz.guns.crafting.GunSmithTableRecipe;
 import com.tacz.guns.inventory.GunSmithTableMenu;
 import net.minecraft.network.FriendlyByteBuf;
@@ -13,11 +14,14 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.network.NetworkEvent;
+import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
 import java.util.function.Supplier;
 
 public final class GunSmithCraftRequestPacket {
+    private static final Logger LOGGER = LogUtils.getLogger();
+
     private final int containerId;
     private final long requestId;
     private final ResourceLocation recipeId;
@@ -81,14 +85,27 @@ public final class GunSmithCraftRequestPacket {
                         player.getUUID()
                 );
 
-        if (session == null
-                || !session.validate(
-                player,
-                message.containerId
-        )) {
+        boolean structurallyValid =
+                session != null
+                        && session.validate(
+                        player,
+                        message.containerId
+                );
+        GunSmithCraftingSessionManager.SessionRequestDecision decision =
+                GunSmithCraftingSessionManager.evaluateRequest(
+                        session,
+                        message.containerId,
+                        structurallyValid
+                );
+
+        if (decision.shouldRemoveMatchingSession()) {
             GunSmithCraftingSessionManager.removeSession(
-                    player.getUUID()
+                    player.getUUID(),
+                    message.containerId
             );
+        }
+
+        if (!decision.accepted()) {
             sendFailure(
                     player,
                     message,
@@ -146,8 +163,23 @@ public final class GunSmithCraftRequestPacket {
                 )
         );
 
-        GunSmithCraftingSources.ResolvedSources resolvedSources =
-                GunSmithCraftingSources.resolve(player, session);
+        GunSmithCraftingSources.ResolvedSources resolvedSources;
+        try {
+            resolvedSources =
+                    GunSmithCraftingSources.resolve(player, session);
+        } catch (RuntimeException exception) {
+            LOGGER.error(
+                    "Gunsmith source resolution failed for player {}",
+                    player.getGameProfile().getName(),
+                    exception
+            );
+            sendFailure(
+                    player,
+                    message,
+                    CraftingTransaction.CraftFailure.TRANSACTION_FAILED
+            );
+            return;
+        }
 
         int craftedExecutions = 0;
         ItemStack outputPerCraft = ItemStack.EMPTY;
@@ -155,6 +187,10 @@ public final class GunSmithCraftRequestPacket {
 
         for (int index = 0; index < requestedCount; index++) {
             if (!session.validate(player, message.containerId)) {
+                GunSmithCraftingSessionManager.removeSession(
+                        player.getUUID(),
+                        session
+                );
                 stopReason =
                         CraftingTransaction.CraftFailure.INVALID_SESSION;
                 break;

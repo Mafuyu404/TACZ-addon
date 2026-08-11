@@ -30,7 +30,6 @@
     "GunRefitScreenMixin",
     "GunSmithTableBrowseMemoryMixin",
     "GunSmithTableCraftBridgeMixin",
-    "GunSmithTableOffhandFallbackMixin",
     "GunSmithTableSourceViewMixin",
     "InventoryScreenMixin",
     "LivingEntityDrawGunMixin",

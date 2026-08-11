@@ -13,10 +13,10 @@ import java.util.Optional;
 
 public final class NetworkHandler {
     /*
-     * 2.5 adds type-safe liberateAttachment state and install messages while
-     * preserving every previously assigned wire ID.
+     * 2.7 restores the nearby-container gunsmith protocol on its historical
+     * wire IDs while preserving all unrelated packet assignments.
      */
-    private static final String PROTOCOL = "2.5";
+    private static final String PROTOCOL = "2.7";
 
     private static final int ID_PRIMITIVE_RESERVED = 0;
     private static final int ID_SWITCH_GUN = 1;

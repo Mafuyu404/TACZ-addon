@@ -30,7 +30,10 @@ public final class CommonConfig {
 
         ENABLE_CONTAINER_READER = builder
                 .comment(
-                        "Allow a gunsmith table to use materials from nearby loaded block inventories."
+                        "Allow a gunsmith table to use materials from nearby",
+                        "loaded block inventories. When false, the addon's",
+                        "gunsmith craft override remains active but only the",
+                        "player inventory is available as a material source."
                 )
                 .define("enableContainerReader", true);
 

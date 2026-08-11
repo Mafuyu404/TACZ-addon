@@ -41,9 +41,10 @@ public final class ServerEvent {
     ) {
         if (event.getEntity() instanceof ServerPlayer serverPlayer
                 && event.getContainer()
-                instanceof GunSmithTableMenu) {
+                instanceof GunSmithTableMenu menu) {
             GunSmithCraftingSessionManager.removeSession(
-                    serverPlayer.getUUID()
+                    serverPlayer.getUUID(),
+                    menu.containerId
             );
         }
     }

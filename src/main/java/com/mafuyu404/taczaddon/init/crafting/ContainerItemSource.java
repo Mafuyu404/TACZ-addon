@@ -8,6 +8,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.server.ServerLifecycleHooks;
 
@@ -16,9 +17,19 @@ import javax.annotation.Nullable;
 /**
  * A block inventory source with one backend selected for its lifetime.
  *
- * The handler/container object itself is resolved for every operation, but the
- * backend kind never changes during one crafting request. Planning,
- * simulation, commit, and rollback therefore use the same slot layout.
+ * Source objects are request-scoped: one resolve/craft operation creates one
+ * set of sources. Each source pins the concrete BlockEntity and the
+ * capability/container resolved at construction. If that BlockEntity is
+ * replaced, or the captured LazyOptional is invalidated, the source fails
+ * closed instead of silently switching to a different storage.
+ *
+ * The captured LazyOptional is reused for the request lifetime. This matters
+ * because a valid Forge implementation may return a fresh wrapper object from
+ * repeated getCapability() calls even though the underlying capability has not
+ * changed.
+ *
+ * The raw Container fallback is intentionally conservative. It is used only
+ * when no Forge IItemHandler capability is exposed by the block entity.
  */
 public final class ContainerItemSource implements CraftingItemSource {
     private enum Backend {
@@ -30,11 +41,25 @@ public final class ContainerItemSource implements CraftingItemSource {
     private final ResourceKey<Level> dimension;
     private final BlockPos pos;
     private final Backend backend;
+    @Nullable
+    private final BlockEntity expectedBlockEntity;
+    @Nullable
+    private final LazyOptional<IItemHandler> expectedItemHandlerCapability;
+    @Nullable
+    private final IItemHandler expectedItemHandler;
+    @Nullable
+    private final Container expectedContainer;
 
     public ContainerItemSource(Level level, BlockPos pos) {
         this.dimension = level.dimension();
         this.pos = pos.immutable();
-        this.backend = detectBackend(level, this.pos);
+        BackendBinding binding = detectBackend(level, this.pos);
+        this.backend = binding.backend();
+        this.expectedBlockEntity = binding.blockEntity();
+        this.expectedItemHandlerCapability =
+                binding.itemHandlerCapability();
+        this.expectedItemHandler = binding.itemHandler();
+        this.expectedContainer = binding.container();
     }
 
     @Override
@@ -43,6 +68,17 @@ public final class ContainerItemSource implements CraftingItemSource {
                 this.dimension,
                 this.pos
         );
+    }
+
+    @Override
+    public Object backendIdentity() {
+        if (this.backend == Backend.ITEM_HANDLER) {
+            return this.expectedItemHandler;
+        }
+        if (this.backend == Backend.CONTAINER) {
+            return this.expectedContainer;
+        }
+        return this;
     }
 
     @Override
@@ -236,7 +272,7 @@ public final class ContainerItemSource implements CraftingItemSource {
 
     @Override
     public void markChanged() {
-        BlockEntity blockEntity = resolveBlockEntity();
+        BlockEntity blockEntity = resolveExpectedBlockEntity();
         if (blockEntity != null) {
             blockEntity.setChanged();
         }
@@ -248,7 +284,10 @@ public final class ContainerItemSource implements CraftingItemSource {
         BlockEntity blockEntity =
                 level == null ? null : level.getBlockEntity(this.pos);
 
-        if (level != null && blockEntity != null) {
+        if (level != null
+                && blockEntity != null
+                && !blockEntity.isRemoved()
+                && blockEntity == this.expectedBlockEntity) {
             blockEntity.setChanged();
             level.sendBlockUpdated(
                     this.pos,
@@ -259,29 +298,46 @@ public final class ContainerItemSource implements CraftingItemSource {
         }
     }
 
-    private static Backend detectBackend(Level level, BlockPos pos) {
+    private static BackendBinding detectBackend(
+            Level level,
+            BlockPos pos
+    ) {
         if (!level.isLoaded(pos)) {
-            return Backend.NONE;
+            return BackendBinding.none();
         }
 
         BlockEntity blockEntity = level.getBlockEntity(pos);
         if (blockEntity == null || blockEntity.isRemoved()) {
-            return Backend.NONE;
+            return BackendBinding.none();
         }
 
-        IItemHandler handler = blockEntity
-                .getCapability(ForgeCapabilities.ITEM_HANDLER)
-                .orElse(null);
+        LazyOptional<IItemHandler> capability =
+                blockEntity.getCapability(
+                        ForgeCapabilities.ITEM_HANDLER
+                );
+        IItemHandler handler = capability.orElse(null);
         if (handler != null && handler.getSlots() > 0) {
-            return Backend.ITEM_HANDLER;
+            return new BackendBinding(
+                    Backend.ITEM_HANDLER,
+                    blockEntity,
+                    capability,
+                    handler,
+                    null
+            );
         }
 
         if (blockEntity instanceof Container container
                 && container.getContainerSize() > 0) {
-            return Backend.CONTAINER;
+            return new BackendBinding(
+                    Backend.CONTAINER,
+                    blockEntity,
+                    null,
+                    null,
+                    container
+            );
         }
 
-        return Backend.NONE;
+        return BackendBinding.none();
     }
 
     @Nullable
@@ -304,17 +360,44 @@ public final class ContainerItemSource implements CraftingItemSource {
     }
 
     @Nullable
+    private BlockEntity resolveExpectedBlockEntity() {
+        BlockEntity blockEntity = resolveBlockEntity();
+        return blockEntity == this.expectedBlockEntity
+                ? blockEntity
+                : null;
+    }
+
+    @Nullable
     private IItemHandler resolveHandler() {
         if (this.backend != Backend.ITEM_HANDLER) {
             return null;
         }
 
         BlockEntity blockEntity = resolveBlockEntity();
-        return blockEntity == null
-                ? null
-                : blockEntity
-                .getCapability(ForgeCapabilities.ITEM_HANDLER)
-                .orElse(null);
+        if (blockEntity == null
+                || blockEntity != this.expectedBlockEntity) {
+            return null;
+        }
+
+        LazyOptional<IItemHandler> capability =
+                this.expectedItemHandlerCapability;
+        if (capability == null) {
+            return null;
+        }
+
+        /*
+         * Use the capability instance captured when this request-scoped source
+         * was created. Some valid Forge block entities return a fresh wrapper
+         * object from each getCapability() call; repeatedly querying and
+         * comparing wrapper identity would reject those sources spuriously.
+         *
+         * LazyOptional invalidation still makes this fail closed when the
+         * capability itself is retired.
+         */
+        IItemHandler handler = capability.orElse(null);
+        return isExpectedBackend(blockEntity, handler)
+                ? handler
+                : null;
     }
 
     @Nullable
@@ -324,9 +407,67 @@ public final class ContainerItemSource implements CraftingItemSource {
         }
 
         BlockEntity blockEntity = resolveBlockEntity();
-        return blockEntity instanceof Container container
+        if (blockEntity == null
+                || blockEntity != this.expectedBlockEntity) {
+            return null;
+        }
+
+        Container container = blockEntity instanceof Container value
+                ? value
+                : null;
+        return isExpectedBackend(blockEntity, container)
                 ? container
                 : null;
+    }
+
+    private boolean isExpectedBackend(
+            BlockEntity currentBlockEntity,
+            Object currentBackend
+    ) {
+        return sameBackendIdentity(
+                this.expectedBlockEntity,
+                expectedBackend(),
+                currentBlockEntity,
+                currentBackend
+        );
+    }
+
+    private Object expectedBackend() {
+        if (this.backend == Backend.ITEM_HANDLER) {
+            return this.expectedItemHandler;
+        }
+        if (this.backend == Backend.CONTAINER) {
+            return this.expectedContainer;
+        }
+        return this;
+    }
+
+    static boolean sameBackendIdentity(
+            Object expectedBlockEntity,
+            Object expectedBackend,
+            Object currentBlockEntity,
+            Object currentBackend
+    ) {
+        return expectedBlockEntity == currentBlockEntity
+                && expectedBackend == currentBackend;
+    }
+
+    private record BackendBinding(
+            Backend backend,
+            @Nullable BlockEntity blockEntity,
+            @Nullable LazyOptional<IItemHandler> itemHandlerCapability,
+            @Nullable IItemHandler itemHandler,
+            @Nullable Container container
+    ) {
+        private static BackendBinding none() {
+            return new BackendBinding(
+                    Backend.NONE,
+                    null,
+                    null,
+                    null,
+                    null
+            );
+        }
     }
 
     private static ItemStack remainder(

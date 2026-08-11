@@ -16,7 +16,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(value = GunSmithTableBlockEntity.class, remap = false)
 public abstract class GunSmithTableBlockEntityMixin {
-    @Inject(method = "createMenu", at = @At("RETURN"))
+    @Inject(
+            method = "createMenu",
+            at = @At("RETURN"),
+            require = 1
+    )
     private void taczaddon$createCraftingSession(
             int containerId,
             Inventory inventory,

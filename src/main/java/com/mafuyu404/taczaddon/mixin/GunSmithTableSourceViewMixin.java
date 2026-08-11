@@ -35,11 +35,35 @@ public abstract class GunSmithTableSourceViewMixin
         extends AbstractContainerScreen<GunSmithTableMenu>
         implements GunSmithSourceScreenAccess {
 
+    /*
+     * Refresh every 30 ticks (1.5s) while the workbench screen is active.
+     * A radius-16 scan is up to 3267 candidate positions, so this deliberately
+     * avoids per-frame or per-tick polling and never overlaps an in-flight
+     * request.
+     */
+    @Unique
+    private static final int taczaddon$REFRESH_INTERVAL_TICKS = 30;
+
+    /*
+     * A refresh normally returns almost immediately over Minecraft's reliable
+     * connection. This timeout is not a session lifetime: it only prevents a
+     * lost/aborted response from leaving refreshInFlight stuck forever.
+     */
+    @Unique
+    private static final int taczaddon$REFRESH_TIMEOUT_TICKS = 100;
+
     @Shadow
     public abstract void updateIngredientCount();
 
     @Unique
     private long taczaddon$nextRefreshRequestId;
+
+    @Unique
+    private int taczaddon$trackedContainerId = Integer.MIN_VALUE;
+
+    @Unique
+    private int taczaddon$ticksUntilRefresh =
+            taczaddon$REFRESH_INTERVAL_TICKS;
 
     @Unique
     private long taczaddon$pendingRefreshRequestId = -1L;
@@ -52,6 +76,9 @@ public abstract class GunSmithTableSourceViewMixin
 
     @Unique
     private boolean taczaddon$refreshInFlight;
+
+    @Unique
+    private int taczaddon$pendingRefreshAgeTicks;
 
     @Unique
     private boolean taczaddon$hasAcceptedSnapshot;
@@ -106,6 +133,8 @@ public abstract class GunSmithTableSourceViewMixin
         this.taczaddon$latestSourceRevision = sourceRevision;
         this.taczaddon$hasAcceptedSnapshot = true;
         this.taczaddon$clearPendingRefresh();
+        this.taczaddon$ticksUntilRefresh =
+                taczaddon$REFRESH_INTERVAL_TICKS;
 
         /*
          * TaCZ recalculates ingredient counts and then calls init(). The
@@ -127,6 +156,7 @@ public abstract class GunSmithTableSourceViewMixin
          */
         this.taczaddon$pendingRefreshRequestId = requestId;
         this.taczaddon$refreshInFlight = true;
+        this.taczaddon$pendingRefreshAgeTicks = 0;
 
         NetworkHandler.CHANNEL.sendToServer(
                 new GunSmithSourceRefreshRequestPacket(
@@ -134,6 +164,40 @@ public abstract class GunSmithTableSourceViewMixin
                         requestId
                 )
         );
+    }
+
+    @Override
+    public void taczaddon$tickSourceRefresh() {
+        if (this.taczaddon$trackedContainerId
+                != this.menu.containerId) {
+            return;
+        }
+
+        if (this.taczaddon$refreshInFlight) {
+            this.taczaddon$pendingRefreshAgeTicks++;
+            if (this.taczaddon$pendingRefreshAgeTicks
+                    < taczaddon$REFRESH_TIMEOUT_TICKS) {
+                return;
+            }
+
+            /*
+             * Only the display refresh request timed out. Keep the gunsmith
+             * session itself untouched and supersede the abandoned request
+             * with a new request id. Any late old response is rejected by the
+             * pending-request check in acceptSourceSnapshot().
+             */
+            this.taczaddon$clearPendingRefresh();
+            this.taczaddon$requestSourceRefresh();
+            return;
+        }
+
+        if (--this.taczaddon$ticksUntilRefresh > 0) {
+            return;
+        }
+
+        this.taczaddon$ticksUntilRefresh =
+                taczaddon$REFRESH_INTERVAL_TICKS;
+        this.taczaddon$requestSourceRefresh();
     }
 
     @Override
@@ -160,10 +224,22 @@ public abstract class GunSmithTableSourceViewMixin
         );
     }
 
-    @Inject(method = "init", at = @At("TAIL"), remap = true)
+    @Inject(
+            method = "init",
+            at = @At("TAIL"),
+            remap = true,
+            require = 1
+    )
     private void taczaddon$requestInitialSnapshot(
             CallbackInfo ci
     ) {
+        if (this.taczaddon$trackedContainerId
+                != this.menu.containerId) {
+            this.taczaddon$resetForContainer(
+                    this.menu.containerId
+            );
+        }
+
         if (!this.taczaddon$hasAcceptedSnapshot
                 && !this.taczaddon$refreshInFlight) {
             this.taczaddon$requestSourceRefresh();
@@ -171,8 +247,21 @@ public abstract class GunSmithTableSourceViewMixin
     }
 
     @Unique
+    private void taczaddon$resetForContainer(int containerId) {
+        this.taczaddon$clearPendingRefresh();
+        this.taczaddon$trackedContainerId = containerId;
+        this.taczaddon$ticksUntilRefresh =
+                taczaddon$REFRESH_INTERVAL_TICKS;
+        this.taczaddon$latestAcceptedRefreshRequestId = -1L;
+        this.taczaddon$latestSourceRevision = -1L;
+        this.taczaddon$hasAcceptedSnapshot = false;
+        this.taczaddon$externalDisplayStacks = List.of();
+    }
+
+    @Unique
     private void taczaddon$clearPendingRefresh() {
         this.taczaddon$pendingRefreshRequestId = -1L;
         this.taczaddon$refreshInFlight = false;
+        this.taczaddon$pendingRefreshAgeTicks = 0;
     }
 }

@@ -3,6 +3,8 @@ package com.mafuyu404.taczaddon.mixin;
 import com.mafuyu404.taczaddon.common.ItemRelationHelper;
 import com.mafuyu404.taczaddon.compat.SophisticatedStorageClientCompat;
 import com.mafuyu404.taczaddon.init.Config;
+import com.mafuyu404.taczaddon.init.crafting.GunSmithSourceScreenAccess;
+import com.tacz.guns.client.gui.GunSmithTableScreen;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -36,6 +38,22 @@ public abstract class AbstractContainerScreenMixin extends Screen {
 
     protected AbstractContainerScreenMixin(Component title) {
         super(title);
+    }
+
+    @Inject(
+            method = "containerTick",
+            at = @At("HEAD"),
+            require = 1
+    )
+    private void taczaddon$tickGunSmithSourceRefresh(
+            CallbackInfo ci
+    ) {
+        Object screen = this;
+        if (screen instanceof GunSmithTableScreen
+                && screen
+                instanceof GunSmithSourceScreenAccess sourceAccess) {
+            sourceAccess.taczaddon$tickSourceRefresh();
+        }
     }
 
     @Inject(method = "render", at = @At("HEAD"))

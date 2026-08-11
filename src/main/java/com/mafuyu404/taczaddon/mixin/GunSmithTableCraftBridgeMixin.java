@@ -76,7 +76,8 @@ public abstract class GunSmithTableCraftBridgeMixin
             method = "lambda$addCraftButton$5",
             at = @At("HEAD"),
             cancellable = true,
-            remap = false
+            remap = false,
+            require = 1
     )
     private void taczaddon$interceptCraft(
             Button button,
