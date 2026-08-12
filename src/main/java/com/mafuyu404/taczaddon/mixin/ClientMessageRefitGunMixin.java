@@ -1,7 +1,6 @@
 package com.mafuyu404.taczaddon.mixin;
 
 import com.mafuyu404.taczaddon.common.LiberateAttachmentService;
-import com.mafuyu404.taczaddon.compat.ArcanaCompat;
 import com.tacz.guns.api.item.IAttachment;
 import com.tacz.guns.api.item.IGun;
 import com.tacz.guns.api.item.attachment.AttachmentType;
@@ -19,15 +18,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * TaCZ 1.1.8-hotfix (Curse file 8141310) reads attachmentSlotIndex at the
  * first Inventory.getItem call in lambda$handle$0. Validate at HEAD, before
- * either client-controlled index can reach Inventory. Mixin 0.8.5 applies
- * lower priorities first; 999 is the smallest adjustment below Arcana's
- * default 1000 and keeps validation ahead of its cancelling handler.
+ * either client-controlled index can reach Inventory.
  */
-@Mixin(
-        value = ClientMessageRefitGun.class,
-        priority = 999,
-        remap = false
-)
+@Mixin(value = ClientMessageRefitGun.class, remap = false)
 public abstract class ClientMessageRefitGunMixin {
     @Inject(
             method = "lambda$handle$0",
@@ -53,11 +46,9 @@ public abstract class ClientMessageRefitGunMixin {
         int gunSlot = access.taczaddon$getGunSlotIndex();
         boolean liberated = LiberateAttachmentService.isEnabled(player);
 
-        // Without a supported Arcana handler, liberated clients must keep
-        // using TACZ-addon's ID packet. Never reinterpret a virtual slot as a
-        // real inventory slot.
-        if (liberated
-                && !ArcanaCompat.canHandleNativeAttachmentMessages()) {
+        // Liberated clients use TACZ-addon's ID packet. Never reinterpret a
+        // virtual slot as a real inventory slot.
+        if (liberated) {
             reject(player, callback);
             return;
         }

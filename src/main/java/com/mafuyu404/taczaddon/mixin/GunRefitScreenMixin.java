@@ -2,7 +2,6 @@ package com.mafuyu404.taczaddon.mixin;
 
 import com.mafuyu404.taczaddon.client.GunRefitScreenAccess;
 import com.mafuyu404.taczaddon.common.LiberateAttachmentService;
-import com.mafuyu404.taczaddon.compat.ArcanaCompat;
 import com.mafuyu404.taczaddon.init.ClientSyncedConfig;
 import com.mafuyu404.taczaddon.init.NetworkHandler;
 import com.mafuyu404.taczaddon.network.LiberateAttachmentInstallPacket;
@@ -86,13 +85,6 @@ public abstract class GunRefitScreenMixin
             CallbackInfo callback
     ) {
         if (!ClientSyncedConfig.liberateAttachment()) {
-            return;
-        }
-
-        // Arcana owns the complete attachment transaction behind TaCZ's
-        // native packet. Its server-side handler is still gated by our
-        // earlier-running validation mixin.
-        if (ArcanaCompat.canHandleNativeAttachmentMessages()) {
             return;
         }
 

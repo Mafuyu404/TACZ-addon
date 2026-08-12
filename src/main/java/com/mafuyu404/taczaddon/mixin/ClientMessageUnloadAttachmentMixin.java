@@ -1,7 +1,6 @@
 package com.mafuyu404.taczaddon.mixin;
 
 import com.mafuyu404.taczaddon.common.LiberateAttachmentService;
-import com.mafuyu404.taczaddon.compat.ArcanaCompat;
 import com.tacz.guns.api.item.IAttachment;
 import com.tacz.guns.api.item.IGun;
 import com.tacz.guns.api.item.attachment.AttachmentType;
@@ -20,14 +19,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * TaCZ 1.1.8-hotfix (Curse file 8141310) obtains the inventory once at bytecode
  * offset 10 and invokes Inventory.add(ItemStack) at offset 73. Redirecting that
  * exact inventory source makes the native add write to the virtual sink.
- * Mixin 0.8.5 applies lower priorities first. Priority 499 therefore keeps
- * validation ahead of Arcana's cancelling unload mixin at 500.
  */
-@Mixin(
-        value = ClientMessageUnloadAttachment.class,
-        priority = 499,
-        remap = false
-)
+@Mixin(value = ClientMessageUnloadAttachment.class, remap = false)
 public abstract class ClientMessageUnloadAttachmentMixin {
     @Inject(
             method = "lambda$handle$0",
@@ -64,10 +57,8 @@ public abstract class ClientMessageUnloadAttachmentMixin {
 
         boolean liberated =
                 LiberateAttachmentService.isEnabled(player);
-        boolean arcanaHandlesNative =
-                ArcanaCompat.canHandleNativeAttachmentMessages();
 
-        if (!liberated && !arcanaHandlesNative) {
+        if (!liberated) {
             return;
         }
 
