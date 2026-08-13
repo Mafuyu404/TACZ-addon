@@ -12,31 +12,59 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.network.NetworkEvent;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.Redirect;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 /**
- * TaCZ 1.1.8-hotfix (Curse file 8141310) reads attachmentSlotIndex at the
- * first Inventory.getItem call in lambda$handle$0. Validate at HEAD, before
- * either client-controlled index can reach Inventory.
+ * TaCZ 1.1.8-hotfix (Curse file 8141310) enqueues packet work from the
+ * real handle method. Wrap that task so all player/inventory validation
+ * runs on the server scheduled thread before the original worker runs.
  */
 @Mixin(value = ClientMessageRefitGun.class, remap = false)
 public abstract class ClientMessageRefitGunMixin {
-    @Inject(
-            method = "lambda$handle$0",
-            at = @At("HEAD"),
-            cancellable = true,
+    @Redirect(
+            method =
+                    "handle(Lcom/tacz/guns/network/message/"
+                            + "ClientMessageRefitGun;"
+                            + "Ljava/util/function/Supplier;)V",
+            at = @At(
+                    value = "INVOKE",
+                    target =
+                            "Lnet/minecraftforge/network/NetworkEvent$Context;"
+                                    + "enqueueWork(Ljava/lang/Runnable;)"
+                                    + "Ljava/util/concurrent/CompletableFuture;",
+                    remap = false
+            ),
+            remap = false,
             require = 1
     )
-    private static void taczaddon$validateNativeRefitRequest(
+    private static CompletableFuture taczaddon$enqueueValidatedRefit(
             NetworkEvent.Context context,
+            Runnable originalWork,
             ClientMessageRefitGun message,
-            CallbackInfo callback
+            Supplier<NetworkEvent.Context> contextSupplier
+    ) {
+        return context.enqueueWork(() -> {
+            if (!taczaddon$validateNativeRefitRequest(
+                    context,
+                    message
+            )) {
+                return;
+            }
+
+            originalWork.run();
+        });
+    }
+
+    private static boolean taczaddon$validateNativeRefitRequest(
+            NetworkEvent.Context context,
+            ClientMessageRefitGun message
     ) {
         ServerPlayer player = context.getSender();
         if (player == null) {
-            callback.cancel();
-            return;
+            return false;
         }
 
         ClientMessageRefitGunAccess access =
@@ -49,8 +77,8 @@ public abstract class ClientMessageRefitGunMixin {
         // Liberated clients use TACZ-addon's ID packet. Never reinterpret a
         // virtual slot as a real inventory slot.
         if (liberated) {
-            reject(player, callback);
-            return;
+            refresh(player);
+            return false;
         }
 
         Inventory inventory = LiberateAttachmentService.createInventory(
@@ -61,8 +89,8 @@ public abstract class ClientMessageRefitGunMixin {
                 inventory,
                 attachmentSlot
         )) {
-            reject(player, callback);
-            return;
+            refresh(player);
+            return false;
         }
 
         ItemStack gunStack =
@@ -71,8 +99,8 @@ public abstract class ClientMessageRefitGunMixin {
                         gunSlot
                 );
         if (gunStack == null) {
-            reject(player, callback);
-            return;
+            refresh(player);
+            return false;
         }
 
         ItemStack candidate = inventory.getItem(attachmentSlot);
@@ -97,15 +125,14 @@ public abstract class ClientMessageRefitGunMixin {
                 gun.hasAttachmentLock(gunStack),
                 gun.allowAttachment(gunStack, candidate)
         )) {
-            reject(player, callback);
+            refresh(player);
+            return false;
         }
+
+        return true;
     }
 
-    private static void reject(
-            ServerPlayer player,
-            CallbackInfo callback
-    ) {
+    private static void refresh(ServerPlayer player) {
         LiberateAttachmentService.refreshRefitScreen(player);
-        callback.cancel();
     }
 }

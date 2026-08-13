@@ -37,7 +37,7 @@ public class ClientAttachmentItemTooltipMixin {
             method = "getAllAllowGuns",
             at = @At("RETURN"),
             cancellable = true,
-            require = 1
+            require = 0
     )
     private static void taczaddon$limitAllowGunDisplay(
             List<ItemStack> output,
@@ -62,7 +62,7 @@ public class ClientAttachmentItemTooltipMixin {
                     "<init>(Lcom/tacz/guns/inventory/tooltip/"
                             + "AttachmentItemTooltip;)V",
             at = @At("TAIL"),
-            require = 1
+            require = 0
     )
     private void taczaddon$appendAttributeDifferences(
             AttachmentItemTooltip tooltip,

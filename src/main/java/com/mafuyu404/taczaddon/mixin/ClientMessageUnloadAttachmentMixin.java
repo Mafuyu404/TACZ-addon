@@ -11,9 +11,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.network.NetworkEvent;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 /**
  * TaCZ 1.1.8-hotfix (Curse file 8141310) obtains the inventory once at bytecode
@@ -22,21 +23,47 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(value = ClientMessageUnloadAttachment.class, remap = false)
 public abstract class ClientMessageUnloadAttachmentMixin {
-    @Inject(
-            method = "lambda$handle$0",
-            at = @At("HEAD"),
-            cancellable = true,
+    @Redirect(
+            method =
+                    "handle(Lcom/tacz/guns/network/message/"
+                            + "ClientMessageUnloadAttachment;"
+                            + "Ljava/util/function/Supplier;)V",
+            at = @At(
+                    value = "INVOKE",
+                    target =
+                            "Lnet/minecraftforge/network/NetworkEvent$Context;"
+                                    + "enqueueWork(Ljava/lang/Runnable;)"
+                                    + "Ljava/util/concurrent/CompletableFuture;",
+                    remap = false
+            ),
+            remap = false,
             require = 1
     )
-    private static void taczaddon$validateUnloadRequest(
+    private static CompletableFuture taczaddon$enqueueValidatedUnload(
             NetworkEvent.Context context,
+            Runnable originalWork,
             ClientMessageUnloadAttachment message,
-            CallbackInfo callback
+            Supplier<NetworkEvent.Context> contextSupplier
+    ) {
+        return context.enqueueWork(() -> {
+            if (!taczaddon$validateUnloadRequest(
+                    context,
+                    message
+            )) {
+                return;
+            }
+
+            originalWork.run();
+        });
+    }
+
+    private static boolean taczaddon$validateUnloadRequest(
+            NetworkEvent.Context context,
+            ClientMessageUnloadAttachment message
     ) {
         ServerPlayer player = context.getSender();
         if (player == null) {
-            callback.cancel();
-            return;
+            return false;
         }
 
         ClientMessageUnloadAttachmentAccess access =
@@ -51,21 +78,21 @@ public abstract class ClientMessageUnloadAttachmentMixin {
         if (gunStack == null
                 || requestedType == null
                 || requestedType == AttachmentType.NONE) {
-            reject(player, callback);
-            return;
+            refresh(player);
+            return false;
         }
 
         boolean liberated =
                 LiberateAttachmentService.isEnabled(player);
 
         if (!liberated) {
-            return;
+            return true;
         }
 
         IGun gun = IGun.getIGunOrNull(gunStack);
         if (gun == null || gun.hasAttachmentLock(gunStack)) {
-            reject(player, callback);
-            return;
+            refresh(player);
+            return false;
         }
 
         ItemStack installed = gun.getAttachment(
@@ -78,12 +105,20 @@ public abstract class ClientMessageUnloadAttachmentMixin {
                 || attachment == null
                 || attachment.getType(installed) != requestedType
                 || attachment.getAttachmentId(installed) == null) {
-            reject(player, callback);
+            refresh(player);
+            return false;
         }
+
+        return true;
     }
 
     @Redirect(
-            method = "lambda$handle$0",
+            method =
+                    "lambda$handle$0("
+                            + "Lnet/minecraftforge/network/"
+                            + "NetworkEvent$Context;"
+                            + "Lcom/tacz/guns/network/message/"
+                            + "ClientMessageUnloadAttachment;)V",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/server/level/ServerPlayer;getInventory()Lnet/minecraft/world/entity/player/Inventory;",
@@ -102,11 +137,7 @@ public abstract class ClientMessageUnloadAttachmentMixin {
         );
     }
 
-    private static void reject(
-            ServerPlayer player,
-            CallbackInfo callback
-    ) {
+    private static void refresh(ServerPlayer player) {
         LiberateAttachmentService.refreshRefitScreen(player);
-        callback.cancel();
     }
 }

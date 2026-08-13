@@ -18,8 +18,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 
 import javax.annotation.Nullable;
 
@@ -72,19 +71,35 @@ public abstract class GunSmithTableCraftBridgeMixin
         return true;
     }
 
-    @Inject(
-            method = "lambda$addCraftButton$5",
-            at = @At("HEAD"),
-            cancellable = true,
+    @ModifyArg(
+            method = "addCraftButton()V",
+            at = @At(
+                    value = "INVOKE",
+                    target =
+                            "Lnet/minecraft/client/gui/components/ImageButton;"
+                                    + "<init>(IIIIIIILnet/minecraft/resources/"
+                                    + "ResourceLocation;"
+                                    + "Lnet/minecraft/client/gui/components/"
+                                    + "Button$OnPress;)V",
+                    remap = true
+            ),
+            index = 8,
             remap = false,
             require = 1
     )
-    private void taczaddon$interceptCraft(
-            Button button,
-            CallbackInfo ci
+    private Button.OnPress taczaddon$wrapCraftButton(
+            Button.OnPress originalOnPress
     ) {
-        ci.cancel();
+        return new Button.OnPress() {
+            @Override
+            public void onPress(Button button) {
+                taczaddon$interceptCraft(button);
+            }
+        };
+    }
 
+    @Unique
+    private void taczaddon$interceptCraft(Button button) {
         if (this.selectedRecipe == null) {
             return;
         }

@@ -15,9 +15,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SuppressWarnings("deprecation")
-class ArcanaBinaryFacadeTest {
+class LegacyBinaryFacadeTest {
     @Test
-    void exposesArcanaExpectedJvmMethods() throws Exception {
+    void exposesLegacyExpectedJvmMethods() throws Exception {
         Method useVirtualInventory = LiberateAttachment.class
                 .getDeclaredMethod(
                         "useVirtualInventory",

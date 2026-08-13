@@ -17,11 +17,23 @@ import java.util.ArrayList;
 @Mixin(value = GunAnimationStateContext.class, remap = false)
 public class GunAnimationStateContextMixin {
     @Redirect(
-            method = "lambda$hasAmmoToConsume$8",
+            method =
+                    "lambda$hasAmmoToConsume$8("
+                            + "Lnet/minecraft/world/entity/Entity;)"
+                            + "Ljava/lang/Boolean;",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/world/entity/Entity;getCapability(Lnet/minecraftforge/common/capabilities/Capability;Lnet/minecraft/core/Direction;)Lnet/minecraftforge/common/util/LazyOptional;"
-            )
+                    target =
+                            "Lnet/minecraft/world/entity/Entity;"
+                                    + "getCapability(Lnet/minecraftforge/common/"
+                                    + "capabilities/Capability;"
+                                    + "Lnet/minecraft/core/Direction;)"
+                                    + "Lnet/minecraftforge/common/util/"
+                                    + "LazyOptional;",
+                    remap = false
+            ),
+            remap = false,
+            require = 1
     )
     private <T> LazyOptional<T> redirectGetCapability(Entity instance, net.minecraftforge.common.capabilities.Capability<T> capability, net.minecraft.core.Direction facing) {
         if (!(instance instanceof LocalPlayer player) || capability != ForgeCapabilities.ITEM_HANDLER) {

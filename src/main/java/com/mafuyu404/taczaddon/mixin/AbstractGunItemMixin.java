@@ -18,7 +18,25 @@ import java.util.ArrayList;
 
 @Mixin(value = AbstractGunItem.class, remap = false)
 public class AbstractGunItemMixin {
-    @Redirect(method = "canReload", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;getCapability(Lnet/minecraftforge/common/capabilities/Capability;Lnet/minecraft/core/Direction;)Lnet/minecraftforge/common/util/LazyOptional;"))
+    @Redirect(
+            method =
+                    "canReload(Lnet/minecraft/world/entity/"
+                            + "LivingEntity;Lnet/minecraft/world/item/"
+                            + "ItemStack;)Z",
+            at = @At(
+                    value = "INVOKE",
+                    target =
+                            "Lnet/minecraft/world/entity/LivingEntity;"
+                                    + "getCapability(Lnet/minecraftforge/common/"
+                                    + "capabilities/Capability;"
+                                    + "Lnet/minecraft/core/Direction;)"
+                                    + "Lnet/minecraftforge/common/util/"
+                                    + "LazyOptional;",
+                    remap = false
+            ),
+            remap = false,
+            require = 1
+    )
     private <T> LazyOptional<T> taczaddon$checkBackpackAmmos(LivingEntity instance, Capability<T> capability, Direction facing) {
         if (!(instance instanceof Player player) || capability != ForgeCapabilities.ITEM_HANDLER) {
             return instance.getCapability(capability, facing);

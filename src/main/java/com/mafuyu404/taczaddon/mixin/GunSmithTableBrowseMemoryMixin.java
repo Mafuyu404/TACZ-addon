@@ -81,7 +81,12 @@ public abstract class GunSmithTableBrowseMemoryMixin
         super(menu, inventory, title);
     }
 
-    @Inject(method = "init", at = @At("HEAD"), remap = true)
+    @Inject(
+            method = "init()V",
+            at = @At("HEAD"),
+            remap = true,
+            require = 0
+    )
     private void taczaddon$saveBeforeReinit(CallbackInfo ci) {
         if (this.taczaddon$browseStateRestored) {
             this.taczaddon$saveCurrentState();
@@ -91,13 +96,15 @@ public abstract class GunSmithTableBrowseMemoryMixin
     }
 
     @Inject(
-            method = "init",
+            method = "init()V",
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/tacz/guns/client/gui/GunSmithTableScreen;updateSelectedRecipeAfterFiltering()V",
-                    shift = At.Shift.AFTER
+                    shift = At.Shift.AFTER,
+                    remap = false
             ),
-            remap = false
+            remap = true,
+            require = 0
     )
     private void taczaddon$restoreAfterRecipeClassification(
             CallbackInfo ci
@@ -113,7 +120,12 @@ public abstract class GunSmithTableBrowseMemoryMixin
                 .ifPresent(this::taczaddon$applyBrowseState);
     }
 
-    @Inject(method = "init", at = @At("TAIL"), remap = true)
+    @Inject(
+            method = "init()V",
+            at = @At("TAIL"),
+            remap = true,
+            require = 0
+    )
     private void taczaddon$saveAfterInit(CallbackInfo ci) {
         this.taczaddon$saveCurrentState();
     }

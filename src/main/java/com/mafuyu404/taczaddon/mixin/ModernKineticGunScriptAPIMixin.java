@@ -19,7 +19,26 @@ public class ModernKineticGunScriptAPIMixin {
 
     @Shadow private ItemStack itemStack;
 
-    @Redirect(method = "lambda$consumeAmmoFromPlayer$4", at = @At(value = "INVOKE", target = "Lcom/tacz/guns/api/item/gun/AbstractGunItem;findAndExtractInventoryAmmo(Lnet/minecraftforge/items/IItemHandler;Lnet/minecraft/world/item/ItemStack;I)I"))
+    @Redirect(
+            method =
+                    "lambda$consumeAmmoFromPlayer$4("
+                            + "ILnet/minecraftforge/items/"
+                            + "IItemHandler;)Ljava/lang/Integer;",
+            at = @At(
+                    value = "INVOKE",
+                    target =
+                            "Lcom/tacz/guns/api/item/gun/"
+                                    + "AbstractGunItem;"
+                                    + "findAndExtractInventoryAmmo("
+                                    + "Lnet/minecraftforge/items/"
+                                    + "IItemHandler;"
+                                    + "Lnet/minecraft/world/item/"
+                                    + "ItemStack;I)I",
+                    remap = false
+            ),
+            remap = false,
+            require = 1
+    )
     private int useBackpackAmmo(AbstractGunItem abstractGunItem, IItemHandler cap, ItemStack gunItem, int neededAmount) {
         if (!(shooter instanceof Player player)) return abstractGunItem.findAndExtractInventoryAmmo(cap, gunItem, neededAmount);
         final int[] cnt = {neededAmount};

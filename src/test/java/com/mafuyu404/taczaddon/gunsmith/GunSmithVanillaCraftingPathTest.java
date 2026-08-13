@@ -72,7 +72,9 @@ class GunSmithVanillaCraftingPathTest {
                 "src/main/java/com/mafuyu404/taczaddon/mixin/"
                         + "GunSmithTableCraftBridgeMixin.java"
         );
-        assertTrue(bridge.contains("lambda$addCraftButton$5"));
+        assertFalse(bridge.contains("lambda$addCraftButton$5"));
+        assertTrue(bridge.contains("method = \"addCraftButton()V\""));
+        assertTrue(bridge.contains("taczaddon$wrapCraftButton"));
         assertTrue(bridge.contains("require = 1"));
         assertTrue(bridge.contains("new GunSmithCraftRequestPacket("));
         assertTrue(bridge.contains("PENDING_TIMEOUT_MS = 10_000L"));
@@ -242,7 +244,7 @@ class GunSmithVanillaCraftingPathTest {
             );
         }
 
-        assertEquals(28, declaredCount, "unexpected active Mixin count");
+        assertEquals(29, declaredCount, "unexpected active Mixin count");
     }
 
     @Test

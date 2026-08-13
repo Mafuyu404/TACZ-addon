@@ -8,12 +8,24 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 @Mixin(value = LocalPlayerDraw.class, remap = false)
 public class LocalPlayerDrawMixin {
-    @ModifyVariable(method = "draw", at = @At("STORE"), name = "putAwayTime")
+    @ModifyVariable(
+            method = "draw(Lnet/minecraft/world/item/ItemStack;)V",
+            at = @At("STORE"),
+            index = 7,
+            remap = false,
+            require = 1
+    )
     private long modifyPutAwayTime(long putAwayTime) {
         return Config.FAST_SWAP_GUN.get() ? 0L : putAwayTime;
     }
 
-    @ModifyVariable(method = "draw", at = @At("STORE"), name = "drawTime")
+    @ModifyVariable(
+            method = "draw(Lnet/minecraft/world/item/ItemStack;)V",
+            at = @At("STORE"),
+            index = 3,
+            remap = false,
+            require = 1
+    )
     private long modifyDrawTime(long drawTime) {
         return Config.FAST_SWAP_GUN.get() ? 0L : drawTime;
     }

@@ -206,9 +206,13 @@ public abstract class GunSmithTableSourceViewMixin
     }
 
     @ModifyVariable(
-            method = "getPlayerIngredientCount",
+            method =
+                    "getPlayerIngredientCount("
+                            + "Lcom/tacz/guns/crafting/"
+                            + "GunSmithTableRecipe;)V",
             at = @At("STORE"),
             ordinal = 0,
+            remap = false,
             require = 1
     )
     private Inventory taczaddon$extendInventoryForCounting(
@@ -225,7 +229,7 @@ public abstract class GunSmithTableSourceViewMixin
     }
 
     @Inject(
-            method = "init",
+            method = "init()V",
             at = @At("TAIL"),
             remap = true,
             require = 1

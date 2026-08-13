@@ -17,11 +17,20 @@ import java.util.ArrayList;
 @Mixin(value = ModernKineticGunScriptAPI.class, remap = false)
 public class ModernKineticGunScriptAPIHasAmmoMixin {
     @Redirect(
-            method = "hasAmmoToConsume",
+            method = "hasAmmoToConsume()Z",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/world/entity/LivingEntity;getCapability(Lnet/minecraftforge/common/capabilities/Capability;Lnet/minecraft/core/Direction;)Lnet/minecraftforge/common/util/LazyOptional;"
-            )
+                    target =
+                            "Lnet/minecraft/world/entity/LivingEntity;"
+                                    + "getCapability(Lnet/minecraftforge/common/"
+                                    + "capabilities/Capability;"
+                                    + "Lnet/minecraft/core/Direction;)"
+                                    + "Lnet/minecraftforge/common/util/"
+                                    + "LazyOptional;",
+                    remap = false
+            ),
+            remap = false,
+            require = 1
     )
     private <T> LazyOptional<T> redirectGetCapability(LivingEntity instance, net.minecraftforge.common.capabilities.Capability<T> capability, net.minecraft.core.Direction facing) {
         if (!(instance instanceof Player player) || capability != ForgeCapabilities.ITEM_HANDLER) {

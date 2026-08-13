@@ -8,7 +8,13 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 @Mixin(value = LivingEntityDrawGun.class, remap = false)
 public class LivingEntityDrawGunMixin {
-    @ModifyVariable(method = "draw", at = @At("STORE"), name = "drawTime")
+    @ModifyVariable(
+            method = "draw(Ljava/util/function/Supplier;)V",
+            at = @At("STORE"),
+            index = 2,
+            remap = false,
+            require = 1
+    )
     private long modifyDrawTime(long drawTime) {
         return Config.FAST_SWAP_GUN.get() ? 0L : drawTime;
     }
