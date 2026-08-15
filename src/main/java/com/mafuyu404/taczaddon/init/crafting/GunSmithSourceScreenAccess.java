@@ -5,7 +5,13 @@ import net.minecraft.world.item.ItemStack;
 import java.util.List;
 
 public interface GunSmithSourceScreenAccess {
-    boolean taczaddon$acceptSourceSnapshot(
+    enum AcceptResult {
+        UNCHANGED,
+        UPDATED,
+        REJECTED
+    }
+
+    AcceptResult taczaddon$acceptSourceSnapshot(
             int containerId,
             long requestId,
             long sourceRevision,
@@ -15,6 +21,8 @@ public interface GunSmithSourceScreenAccess {
     void taczaddon$requestSourceRefresh();
 
     void taczaddon$tickSourceRefresh();
+
+    void taczaddon$onScreenInit();
 
     List<ItemStack> taczaddon$getExternalDisplayStacks();
 }

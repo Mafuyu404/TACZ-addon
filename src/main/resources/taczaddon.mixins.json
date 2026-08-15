@@ -2,40 +2,14 @@
   "required": true,
   "minVersion": "0.8",
   "package": "com.mafuyu404.taczaddon.mixin",
-  "compatibilityLevel": "JAVA_17",
   "refmap": "taczaddon.refmap.json",
   "mixins": [
-    "AbstractGunItemMixin",
-    "ClientMessageRefitGunAccess",
-    "ClientMessageRefitGunMixin",
-    "ClientMessageUnloadAttachmentAccess",
-    "ClientMessageUnloadAttachmentMixin",
-    "GunSmithTableMenuAccess",
-    "GunSmithTableBlockEntityMixin",
     "InventoryAccessor",
-    "LivingEntityShootMixin",
-    "LivingEntityShootReloadInterruptMixin",
-    "ModernKineticGunScriptAPIHasAmmoMixin",
-    "ModernKineticGunScriptAPIMixin",
-    "NoCrawlMixin",
     "SmithingMenuMixin"
   ],
   "client": [
     "AbstractContainerScreenMixin",
-    "AimKeyMixin",
-    "AnimateGeoItemRendererMixin",
-    "ClientAttachmentItemTooltipMixin",
-    "GunAnimationStateContextMixin",
-    "GunHudOverlayMixin",
-    "GunRefitScreenMixin",
-    "GunSmithTableBrowseMemoryMixin",
-    "GunSmithTableCraftBridgeMixin",
-    "GunSmithTableSourceViewMixin",
-    "InventoryAttachmentSlotAccess",
-    "InventoryScreenMixin",
-    "LivingEntityDrawGunMixin",
-    "LocalPlayerDrawMixin",
-    "LocalPlayerShootMixin"
+    "InventoryScreenMixin"
   ],
   "server": []
 }

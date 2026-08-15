@@ -3,11 +3,8 @@ package com.mafuyu404.taczaddon.init;
 import net.minecraftforge.common.ForgeConfigSpec;
 
 /**
- * Server-authoritative gunsmith-table policy and gameplay features.
- *
- * Sophisticated Backpacks crafting is intentionally absent from this phase.
- * It must be introduced later as a real CraftingItemSource implementation,
- * not as a virtual-copy inventory.
+ * Server-authoritative nearby-container source policy shared by supported
+ * TaCZ workstation and refit integrations.
  */
 public final class CommonConfig {
     public static final int MIN_CONTAINER_SCAN_RADIUS = 1;
@@ -30,17 +27,20 @@ public final class CommonConfig {
 
         ENABLE_CONTAINER_READER = builder
                 .comment(
-                        "Allow a gunsmith table to use materials from nearby",
-                        "loaded block inventories. When false, the addon's",
-                        "gunsmith craft override remains active but only the",
-                        "player inventory is available as a material source."
+                        "Allow supported TaCZ crafting/refit features to use",
+                        "nearby loaded block inventories. When false, player",
+                        "inventory sources remain available but nearby block",
+                        "sources are disabled for both gunsmith crafting and",
+                        "the refit external candidate list."
                 )
                 .define("enableContainerReader", true);
 
         CONTAINER_SCAN_RADIUS = builder
                 .comment(
-                        "Horizontal radius around the authoritative table position.",
-                        "Only loaded positions from Y-1 through Y+1 are inspected."
+                        "Horizontal radius around the authoritative anchor.",
+                        "Gunsmith uses the workbench root position; refit uses",
+                        "the server player position. Only loaded positions",
+                        "from Y-1 through Y+1 are inspected."
                 )
                 .defineInRange(
                         "containerScanRadius",
@@ -84,6 +84,20 @@ public final class CommonConfig {
     }
 
     public static int getContainerScanRadius() {
+        return CONTAINER_SCAN_RADIUS.get();
+    }
+
+    /**
+     * Neutral name for the shared nearby-container source policy.
+     */
+    public static boolean enableNearbyContainerSources() {
+        return ENABLE_CONTAINER_READER.get();
+    }
+
+    /**
+     * Neutral name for the shared nearby-container source scan radius.
+     */
+    public static int getNearbyContainerScanRadius() {
         return CONTAINER_SCAN_RADIUS.get();
     }
 

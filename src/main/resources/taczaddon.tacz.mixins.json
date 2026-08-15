@@ -1,0 +1,40 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.mafuyu404.taczaddon.mixin.tacz",
+  "plugin": "com.mafuyu404.taczaddon.compat.tacz.TaczAddonMixinPlugin",
+  "refmap": "taczaddon.refmap.json",
+  "mixins": [
+    "NoCrawlMixin",
+    "v1_1_8.AbstractGunItemMixin",
+    "v1_1_8.ClientMessageRefitGunAccess",
+    "v1_1_8.ClientMessageRefitGunMixin",
+    "v1_1_8.ClientMessageUnloadAttachmentAccess",
+    "v1_1_8.ClientMessageUnloadAttachmentMixin",
+    "v1_1_8.GunSmithTableMenuAccess",
+    "v1_1_8.LivingEntityShootMixin",
+    "v1_1_8.LivingEntityShootReloadInterruptMixin",
+    "v1_1_8.ModernKineticGunScriptAPIHasAmmoMixin",
+    "v1_1_8.ModernKineticGunScriptAPIMixin"
+  ],
+  "client": [
+    "AimKeyMixin",
+    "ShoulderSurfingCompatMixin",
+    "v1_1_8.AnimateGeoItemRendererMixin",
+    "v1_1_8.ClientAttachmentItemTooltipMixin",
+    "v1_1_8.GunAnimationStateContextMixin",
+    "v1_1_8.GunHudOverlayMixin",
+    "v1_1_8.GunRefitScreenMixin",
+    "v1_1_8.GunSmithTableBrowseMemoryMixin",
+    "v1_1_8.GunSmithTableCraftBridgeMixin",
+    "v1_1_8.GunSmithTableScreenAccessMixin",
+    "v1_1_8.GunSmithTableSourceViewMixin",
+    "v1_1_8.InventoryAttachmentSlotAccess",
+    "v1_1_8.LivingEntityDrawGunMixin",
+    "v1_1_8.LocalPlayerBetterMeleeMixin",
+    "v1_1_8.LocalPlayerDrawMixin",
+    "v1_1_8.LocalPlayerShootReloadInterruptMixin",
+    "v1_1_8.LocalPlayerSlideShootMixin"
+  ],
+  "server": []
+}

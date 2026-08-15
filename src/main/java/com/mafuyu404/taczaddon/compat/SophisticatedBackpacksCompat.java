@@ -1,61 +1,93 @@
 package com.mafuyu404.taczaddon.compat;
 
-import net.minecraft.core.BlockPos;
+import com.mojang.logging.LogUtils;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.items.IItemHandler;
+import org.slf4j.Logger;
 
-import java.util.ArrayList;
-import java.util.function.Consumer;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Predicate;
 
+/**
+ * Optional Sophisticated Backpacks facade.
+ *
+ * The outer class contains no Sophisticated API types. If the installed
+ * Backpacks version changes incompatibly, the backend is disabled for the
+ * rest of the session instead of crashing the client.
+ */
 public final class SophisticatedBackpacksCompat {
+    private static final Logger LOGGER = LogUtils.getLogger();
     private static final String MOD_ID = "sophisticatedbackpacks";
 
-    private SophisticatedBackpacksCompat() {}
+    private static volatile boolean linkageBroken;
+    private static final AtomicBoolean LINKAGE_WARNING_LOGGED =
+            new AtomicBoolean();
+
+    private SophisticatedBackpacksCompat() {
+    }
 
     public static boolean isInstalled() {
-        return ModList.get().isLoaded(MOD_ID);
+        ModList modList = ModList.get();
+        return modList != null && modList.isLoaded(MOD_ID);
     }
 
-    public static void init() {
-        // Kept for compatibility with existing setup calls.
-        // Do not cache mod-loaded state here.
+    public static boolean visitInventoryBackpacks(
+            Player player,
+            Predicate<IItemHandler> visitor
+    ) {
+        if (!isUsable() || player == null) {
+            return false;
+        }
+        try {
+            return SophisticatedBackpacksCompatInner
+                    .visitInventoryBackpacks(player, visitor);
+        } catch (LinkageError linkageError) {
+            breakLinkage(linkageError);
+            return false;
+        }
     }
 
-    public static ArrayList<ItemStack> getItemsFromBackpackBLock(BlockPos blockPos, Player player) {
-        if (!isInstalled()) return new ArrayList<>();
-        return SophisticatedBackpacksCompatInner.getItemsFromBackpackBLock(blockPos, player);
-    }
-
-    public static ArrayList<ItemStack> getItemsFromBackpackItem(ItemStack itemStack) {
-        if (!isInstalled()) return new ArrayList<>();
-        return SophisticatedBackpacksCompatInner.getItemsFromBackpackItem(itemStack);
-    }
-
-    public static ArrayList<ItemStack> getItemsFromInventoryBackpack(Player player) {
-        if (!isInstalled()) return new ArrayList<>();
-        return SophisticatedBackpacksCompatInner.getItemsFromInventoryBackpack(player);
+    public static boolean mutateInventoryBackpacks(
+            ServerPlayer player,
+            Predicate<IItemHandler> visitor
+    ) {
+        if (!isUsable() || player == null) {
+            return false;
+        }
+        try {
+            return SophisticatedBackpacksCompatInner
+                    .mutateInventoryBackpacks(player, visitor);
+        } catch (LinkageError linkageError) {
+            breakLinkage(linkageError);
+            return false;
+        }
     }
 
     public static void syncAllBackpack(Player player) {
-        if (!isInstalled()) return;
-        SophisticatedBackpacksCompatInner.syncAllBackpack(player);
+        if (!isUsable() || player == null) {
+            return;
+        }
+        try {
+            SophisticatedBackpacksCompatInner.syncAllBackpack(player);
+        } catch (LinkageError linkageError) {
+            breakLinkage(linkageError);
+        }
     }
 
-    public static void modifyInventoryBackpack(ServerPlayer player, ItemStack backpackItem, Consumer<IItemHandler> action) {
-        if (!isInstalled()) return;
-        SophisticatedBackpacksCompatInner.modifyInventoryBackpack(player, backpackItem, action);
+    private static boolean isUsable() {
+        return isInstalled() && !linkageBroken;
     }
 
-    public static void modifyBlockBackpack(ServerPlayer player, BlockPos blockPos, Consumer<IItemHandler> action) {
-        if (!isInstalled()) return;
-        SophisticatedBackpacksCompatInner.modifyBlockBackpack(player, blockPos, action);
-    }
-
-    public static ArrayList<ItemStack> getAllInventoryBackpack(Player player) {
-        if (!isInstalled()) return new ArrayList<>();
-        return SophisticatedBackpacksCompatInner.getAllInventoryBackpack(player);
+    private static void breakLinkage(LinkageError linkageError) {
+        linkageBroken = true;
+        if (LINKAGE_WARNING_LOGGED.compareAndSet(false, true)) {
+            LOGGER.warn(
+                    "[TACZ-addon] Sophisticated Backpacks API is unavailable; "
+                            + "backpack integration disabled for this session",
+                    linkageError
+            );
+        }
     }
 }

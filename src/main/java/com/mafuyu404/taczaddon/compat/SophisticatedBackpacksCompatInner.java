@@ -1,13 +1,10 @@
 package com.mafuyu404.taczaddon.compat;
 
-import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;
-import net.p3pp3rf1y.sophisticatedbackpacks.api.CapabilityBackpackWrapper;
-import net.p3pp3rf1y.sophisticatedbackpacks.backpack.BackpackItem;
 import net.p3pp3rf1y.sophisticatedbackpacks.backpack.BackpackStorage;
 import net.p3pp3rf1y.sophisticatedbackpacks.backpack.wrapper.IBackpackWrapper;
 import net.p3pp3rf1y.sophisticatedbackpacks.common.gui.BackpackContext;
@@ -19,146 +16,172 @@ import net.p3pp3rf1y.sophisticatedcore.inventory.InventoryHandler;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
+import java.util.function.Predicate;
 
-public class SophisticatedBackpacksCompatInner {
-    public static ArrayList<ItemStack> getItemsFromBackpackBLock(BlockPos blockPos, Player player) {
-        ArrayList<ItemStack> items = new ArrayList<>();
-        BackpackContext.Block context = new BackpackContext.Block(blockPos);
-        IBackpackWrapper wrapper = context.getBackpackWrapper(player);
-        addBackpackItems(items, wrapper);
-        return items;
+public final class SophisticatedBackpacksCompatInner {
+    private SophisticatedBackpacksCompatInner() {
     }
 
-    public static void modifyBlockBackpack(ServerPlayer player, BlockPos blockPos, Consumer<IItemHandler> action) {
-        BackpackContext.Block backpackContext = new BackpackContext.Block(blockPos);
-        modifyBackpack(player, backpackContext, action);
+    public static boolean visitInventoryBackpacks(
+            Player player,
+            Predicate<IItemHandler> visitor
+    ) {
+        boolean[] stopped = {false};
+        PlayerInventoryProvider.get().runOnBackpacks(
+                player,
+                (ignoredBackpack, handlerName, identifier, slot) -> {
+                    BackpackContext.Item context =
+                            new BackpackContext.Item(
+                                    handlerName,
+                                    identifier,
+                                    slot
+                            );
+                    IBackpackWrapper wrapper =
+                            context.getBackpackWrapper(player);
+                    if (wrapper == IBackpackWrapper.Noop.INSTANCE) {
+                        return false;
+                    }
+                    InventoryHandler handler =
+                            wrapper.getInventoryHandler();
+                    if (visitor.test(handler)) {
+                        stopped[0] = true;
+                        return true;
+                    }
+                    return false;
+                }
+        );
+        return stopped[0];
     }
 
-    public static ArrayList<ItemStack> getItemsFromBackpackItem(ItemStack itemStack) {
-        ArrayList<ItemStack> items = new ArrayList<>();
-        if (!isBackpackItem(itemStack)) {
-            return items;
-        }
-
-        itemStack.getCapability(CapabilityBackpackWrapper.getCapabilityInstance())
-                .ifPresent(wrapper -> addBackpackItems(items, wrapper));
-        return items;
-    }
-
-    public static ArrayList<ItemStack> getItemsFromInventoryBackpack(Player player) {
-        ArrayList<ItemStack> items = new ArrayList<>();
-        getAllInventoryBackpack(player).forEach(itemStack -> {
-            items.addAll(getItemsFromBackpackItem(itemStack));
-        });
-        return items;
+    public static boolean mutateInventoryBackpacks(
+            ServerPlayer player,
+            Predicate<IItemHandler> visitor
+    ) {
+        boolean[] stopped = {false};
+        PlayerInventoryProvider.get().runOnBackpacks(
+                player,
+                (ignoredBackpack, handlerName, identifier, slot) -> {
+                    BackpackContext.Item context =
+                            new BackpackContext.Item(
+                                    handlerName,
+                                    identifier,
+                                    slot
+                            );
+                    if (!context.canInteractWith(player)) {
+                        return false;
+                    }
+                    IBackpackWrapper wrapper =
+                            context.getBackpackWrapper(player);
+                    if (wrapper == IBackpackWrapper.Noop.INSTANCE) {
+                        return false;
+                    }
+                    InventoryHandler handler =
+                            wrapper.getInventoryHandler();
+                    boolean stop = mutateBackpackHandler(
+                            player,
+                            wrapper,
+                            handler,
+                            visitor
+                    );
+                    if (stop) {
+                        stopped[0] = true;
+                    }
+                    return stop;
+                }
+        );
+        return stopped[0];
     }
 
     public static void syncAllBackpack(Player player) {
-        getAllInventoryBackpack(player).forEach(itemStack -> {
-            itemStack.getCapability(CapabilityBackpackWrapper.getCapabilityInstance()).ifPresent(backpackWrapper ->
-                    backpackWrapper.getContentsUuid().ifPresent(uuid ->
-                            SBPPacketHandler.INSTANCE.sendToServer(new RequestBackpackInventoryContentsMessage(uuid)))
-            );
-        });
+        PlayerInventoryProvider.get().runOnBackpacks(
+                player,
+                (ignoredBackpack, handlerName, identifier, slot) -> {
+                    BackpackContext.Item context =
+                            new BackpackContext.Item(
+                                    handlerName,
+                                    identifier,
+                                    slot
+                            );
+                    IBackpackWrapper wrapper =
+                            context.getBackpackWrapper(player);
+                    if (wrapper != IBackpackWrapper.Noop.INSTANCE) {
+                        wrapper.getContentsUuid().ifPresent(uuid ->
+                                SBPPacketHandler.INSTANCE.sendToServer(
+                                        new RequestBackpackInventoryContentsMessage(
+                                                uuid
+                                        )
+                                )
+                        );
+                    }
+                    return false;
+                }
+        );
     }
 
-    public static void modifyInventoryBackpack(ServerPlayer player, ItemStack backpackItem, Consumer<IItemHandler> action) {
-        PlayerInventoryProvider.get().runOnBackpacks(player, (backpack, inventoryName, identifier, index) -> {
-            if (!ItemStack.matches(backpack, backpackItem)) return false;
-            BackpackContext.Item backpackContext = new BackpackContext.Item(inventoryName, identifier, index);
-            modifyBackpack(player, backpackContext, action);
-            return true;
-        });
-    }
-
-    public static void modifyBackpack(
+    private static boolean mutateBackpackHandler(
             ServerPlayer player,
-            BackpackContext backpackContext,
-            Consumer<IItemHandler> action
+            IBackpackWrapper wrapper,
+            InventoryHandler inventoryHandler,
+            Predicate<IItemHandler> visitor
     ) {
-        if (!backpackContext.canInteractWith(player)) {
-            return;
+        List<ItemStack> before = new ArrayList<>(
+                inventoryHandler.getSlots()
+        );
+        for (int slot = 0;
+             slot < inventoryHandler.getSlots();
+             slot++) {
+            before.add(
+                    inventoryHandler.getStackInSlot(slot).copy()
+            );
         }
 
-        IBackpackWrapper wrapper = backpackContext.getBackpackWrapper(player);
-        if (wrapper == IBackpackWrapper.Noop.INSTANCE) {
-            return;
-        }
-
-        InventoryHandler inventoryHandler = wrapper.getInventoryHandler();
+        boolean stop = visitor.test(inventoryHandler);
+        boolean changed = false;
 
         /*
-         * Snapshot the stacks before running external inventory logic.
-         *
-         * TaCZ mutates ammo-box ItemStacks in place through IAmmoBox#setAmmoCount.
-         * That mutation does not call InventoryHandler#onContentsChanged, so
-         * SophisticatedCore's cached slot NBT would otherwise remain stale.
+         * TaCZ mutates ammo-box ItemStacks in place through
+         * IAmmoBox#setAmmoCount. Push changed stacks back through the handler
+         * so Sophisticated Core refreshes its slot-NBT cache.
          */
-        List<ItemStack> before = new ArrayList<>(inventoryHandler.getSlots());
-        for (int slot = 0; slot < inventoryHandler.getSlots(); slot++) {
-            before.add(inventoryHandler.getStackInSlot(slot).copy());
-        }
-
-        action.accept(inventoryHandler);
-
-        /*
-         * Force changed in-place stacks back through the handler.
-         * This refreshes SophisticatedCore's slot-NBT cache and marks the
-         * affected slot as changed, including slot 0.
-         */
-        for (int slot = 0; slot < inventoryHandler.getSlots(); slot++) {
-            ItemStack current = inventoryHandler.getStackInSlot(slot);
-
+        for (int slot = 0;
+             slot < inventoryHandler.getSlots();
+             slot++) {
+            ItemStack current =
+                    inventoryHandler.getStackInSlot(slot);
             if (!ItemStack.matches(before.get(slot), current)) {
-                inventoryHandler.setStackInSlot(slot, current.copy());
+                inventoryHandler.setStackInSlot(
+                        slot,
+                        current.copy()
+                );
+                changed = true;
             }
         }
 
-        inventoryHandler.saveInventory();
-        player.getInventory().setChanged();
-        player.containerMenu.broadcastChanges();
-        syncBackpackContents(player, wrapper);
-    }
-
-    public static ArrayList<ItemStack> getAllInventoryBackpack(Player player) {
-        ArrayList<ItemStack> items = new ArrayList<>();
-        PlayerInventoryProvider.get().runOnBackpacks(player, (backpack, inventoryName, identifier, index) -> {
-            items.add(backpack.copy());
-            return false;
-        });
-        return items;
-    }
-
-    public static boolean isBackpackItem(ItemStack itemStack) {
-        return (itemStack.getItem() instanceof BackpackItem);
-    }
-
-    public static ArrayList<ItemStack> getItemsFromBackpackContext(Player player, BackpackContext backpackContext) {
-        ArrayList<ItemStack> items = new ArrayList<>();
-        IBackpackWrapper wrapper = backpackContext.getBackpackWrapper(player);
-        addBackpackItems(items, wrapper);
-        return items;
-    }
-
-    private static void addBackpackItems(ArrayList<ItemStack> items, IBackpackWrapper wrapper) {
-        if (wrapper == IBackpackWrapper.Noop.INSTANCE) {
-            return;
+        if (changed) {
+            inventoryHandler.saveInventory();
+            player.getInventory().setChanged();
+            player.containerMenu.broadcastChanges();
+            syncBackpackContents(player, wrapper);
         }
-
-        InventoryHandler handler = wrapper.getInventoryHandler();
-        for (int slot = 0; slot < handler.getSlots(); slot++) {
-            ItemStack stack = handler.getStackInSlot(slot);
-            if (!stack.isEmpty()) {
-                items.add(stack.copy());
-            }
-        }
+        return stop;
     }
 
-    private static void syncBackpackContents(ServerPlayer player, IBackpackWrapper wrapper) {
+    private static void syncBackpackContents(
+            ServerPlayer player,
+            IBackpackWrapper wrapper
+    ) {
         wrapper.getContentsUuid().ifPresent(uuid -> {
-            CompoundTag backpackContent = BackpackStorage.get().getOrCreateBackpackContents(uuid).copy();
-            SBPPacketHandler.INSTANCE.sendToClient(player, new BackpackContentsMessage(uuid, backpackContent));
+            CompoundTag backpackContent =
+                    BackpackStorage.get()
+                            .getOrCreateBackpackContents(uuid)
+                            .copy();
+            SBPPacketHandler.INSTANCE.sendToClient(
+                    player,
+                    new BackpackContentsMessage(
+                            uuid,
+                            backpackContent
+                    )
+            );
         });
     }
 }

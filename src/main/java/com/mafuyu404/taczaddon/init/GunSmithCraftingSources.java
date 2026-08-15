@@ -1,14 +1,13 @@
 package com.mafuyu404.taczaddon.init;
 
-import com.mafuyu404.taczaddon.init.crafting.ContainerItemSource;
 import com.mafuyu404.taczaddon.init.crafting.CraftingItemSource;
 import com.mafuyu404.taczaddon.init.crafting.CraftingSourceKey;
+import com.mafuyu404.taczaddon.init.crafting.NearbyInventorySourceResolver;
 import com.mafuyu404.taczaddon.init.crafting.PlayerInventorySource;
+import com.mafuyu404.taczaddon.init.crafting.WorkbenchAnchor;
 import com.mojang.logging.LogUtils;
-import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
 import org.slf4j.Logger;
 
 import java.util.*;
@@ -25,6 +24,29 @@ public final class GunSmithCraftingSources {
             ServerPlayer player,
             GunSmithCraftingSessionManager.GunSmithCraftingSession session
     ) {
+        return resolve(
+                player,
+                new WorkbenchAnchor(
+                        session.getDimension(),
+                        session.getTablePos()
+                ),
+                session
+        );
+    }
+
+    public static ResolvedSources resolve(
+            ServerPlayer player,
+            WorkbenchAnchor anchor
+    ) {
+        return resolve(player, anchor, null);
+    }
+
+    private static ResolvedSources resolve(
+            ServerPlayer player,
+            WorkbenchAnchor anchor,
+            @javax.annotation.Nullable
+            GunSmithCraftingSessionManager.GunSmithCraftingSession session
+    ) {
         ArrayList<CraftingItemSource> sources = new ArrayList<>();
         ArrayList<ItemStack> externalStacks = new ArrayList<>();
         LinkedHashSet<CraftingSourceKey> sourceKeys =
@@ -39,19 +61,43 @@ public final class GunSmithCraftingSources {
         backendIdentities.add(playerSource.backendIdentity());
 
         if (CommonConfig.enableContainerReader()) {
-            resolveNearbyContainers(
-                    player,
-                    session,
-                    sources,
-                    externalStacks,
-                    sourceKeys,
-                    backendIdentities
+            List<CraftingItemSource> nearby =
+                    NearbyInventorySourceResolver.resolve(
+                            player,
+                            anchor.pos(),
+                            CommonConfig.getContainerScanRadius(),
+                            1
             );
+
+            for (CraftingItemSource source : nearby) {
+                try {
+                    List<ItemStack> sourceDisplayStacks =
+                            NearbyInventorySourceResolver
+                                    .readAllDisplayStacks(source);
+                    addUniqueSource(
+                            sources,
+                            externalStacks,
+                            sourceKeys,
+                            backendIdentities,
+                            source,
+                            sourceDisplayStacks,
+                            MAX_EXTERNAL_STACKS
+                    );
+                } catch (RuntimeException exception) {
+                    LOGGER.warn(
+                            "Skipping unreadable gunsmith source {}",
+                            source.key(),
+                            exception
+                    );
+                }
+            }
         }
 
         List<CraftingSourceKey> immutableKeys =
                 List.copyOf(sourceKeys);
-        session.updateSourceKeys(immutableKeys);
+        if (session != null) {
+            session.updateSourceKeys(immutableKeys);
+        }
 
         return new ResolvedSources(
                 Collections.unmodifiableList(
@@ -64,67 +110,6 @@ public final class GunSmithCraftingSources {
                         new ArrayList<>(immutableKeys)
                 )
         );
-    }
-
-    private static void resolveNearbyContainers(
-            ServerPlayer player,
-            GunSmithCraftingSessionManager.GunSmithCraftingSession session,
-            List<CraftingItemSource> sources,
-            List<ItemStack> externalStacks,
-            Set<CraftingSourceKey> sourceKeys,
-            Set<Object> backendIdentities
-    ) {
-        Level level = player.level();
-        BlockPos tablePos = session.getTablePos();
-        int radius = CommonConfig.getContainerScanRadius();
-
-        BlockPos min = tablePos.offset(-radius, -1, -radius);
-        BlockPos max = tablePos.offset(radius, 1, radius);
-
-        ArrayList<BlockPos> positions = new ArrayList<>();
-        for (BlockPos mutable : BlockPos.betweenClosed(min, max)) {
-            positions.add(mutable.immutable());
-        }
-        positions.sort(Comparator.comparingLong(BlockPos::asLong));
-
-        for (BlockPos pos : positions) {
-            if (pos.equals(tablePos) || !level.isLoaded(pos)) {
-                continue;
-            }
-
-            try {
-                ContainerItemSource source =
-                        new ContainerItemSource(level, pos);
-
-                if (!source.hasUsableBackend()) {
-                    continue;
-                }
-
-                List<ItemStack> sourceDisplayStacks =
-                        readAllDisplayStacks(source);
-
-                /*
-                 * Keep the server's usable-source set identical to what the
-                 * client can represent. Never partially expose a source and
-                 * then allow crafting from its hidden slots.
-                 */
-                addUniqueSource(
-                        sources,
-                        externalStacks,
-                        sourceKeys,
-                        backendIdentities,
-                        source,
-                        sourceDisplayStacks,
-                        MAX_EXTERNAL_STACKS
-                );
-            } catch (RuntimeException exception) {
-                LOGGER.warn(
-                        "Skipping unreadable gunsmith container source at {}",
-                        pos,
-                        exception
-                );
-            }
-        }
     }
 
     static boolean addUniqueSource(
@@ -153,22 +138,6 @@ public final class GunSmithCraftingSources {
         sources.add(source);
         externalStacks.addAll(displayStacks);
         return true;
-    }
-
-    private static List<ItemStack> readAllDisplayStacks(
-            CraftingItemSource source
-    ) {
-        ArrayList<ItemStack> stacks = new ArrayList<>();
-        int slots = source.slotCount();
-
-        for (int slot = 0; slot < slots; slot++) {
-            ItemStack stack = source.getStackInSlot(slot);
-            if (!stack.isEmpty()) {
-                stacks.add(stack.copy());
-            }
-        }
-
-        return stacks;
     }
 
     private static ArrayList<ItemStack> copyStacks(

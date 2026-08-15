@@ -82,6 +82,7 @@ mixin {
     add sourceSets.main, "${mod_id}.refmap.json"
 
     config "${mod_id}.mixins.json"
+    config "${mod_id}.tacz.mixins.json"
 }
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
@@ -101,6 +102,10 @@ repositories {
             includeGroup "mezz.jei"
         }
     }
+    maven {
+        name = "Modrinth"
+        url = "https://api.modrinth.com/maven"
+    }
     mavenCentral()
     mavenLocal()
     flatDir {
@@ -114,15 +119,21 @@ dependencies {
 
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
-    implementation fg.deobf("curse.maven:sophisticated-core-618298:8503031")
-    implementation fg.deobf("curse.maven:sophisticated-backpacks-422301:8503063")
-    runtimeOnly fg.deobf("curse.maven:sophisticated-storage-619320:8224087")
+    compileOnly fg.deobf("curse.maven:sophisticated-core-618298:8656526")
+    runtimeOnly fg.deobf("curse.maven:sophisticated-core-618298:8656526")
+    compileOnly fg.deobf("curse.maven:sophisticated-backpacks-422301:8656555")
+    runtimeOnly fg.deobf("curse.maven:sophisticated-backpacks-422301:8656555")
+    runtimeOnly fg.deobf("curse.maven:sophisticated-storage-619320:8656633")
 
 
     implementation fg.deobf("curse.maven:timeless-and-classics-zero-1028108:8141310")
 
-    implementation fg.deobf("curse.maven:shoulder-surfing-reloaded-243190:8392390")
-    //implementation fg.deobf("curse.maven:shoulder-surfing-reloaded-243190:5455954")
+    compileOnly fg.deobf("curse.maven:shoulder-surfing-reloaded-243190:8596413")
+    //runtimeOnly fg.deobf("curse.maven:shoulder-surfing-reloaded-243190:8596413")
+    compileOnly fg.deobf("curse.maven:leawind-third-person-930880:8602826")
+    runtimeOnly fg.deobf("curse.maven:leawind-third-person-930880:8602826")
+    compileOnly fg.deobf("maven.modrinth:LIqveQm1:1.5.0-beta+forge-1.20.1")
+    runtimeOnly fg.deobf("maven.modrinth:LIqveQm1:1.5.0-beta+forge-1.20.1")
 
     implementation fg.deobf("curse.maven:kubejs-238086:8020595")
     implementation fg.deobf("curse.maven:rhino-416294:6186971")
@@ -135,9 +146,10 @@ dependencies {
     implementation fg.deobf("curse.maven:kiwi-303657:8322142")
 
     compileOnly fg.deobf("curse.maven:accelerated-rendering-1314021:8179092")
-
     runtimeOnly fg.deobf("curse.maven:just-enough-characters-250702:8117466")
 
+    compileOnly 'org.ow2.asm:asm-tree:9.9.1'
+    testImplementation 'org.ow2.asm:asm-tree:9.9.1'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.12.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.12.2'
 }

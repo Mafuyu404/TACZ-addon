@@ -13,10 +13,10 @@ import java.util.Optional;
 
 public final class NetworkHandler {
     /*
-     * 2.7 restores the nearby-container gunsmith protocol on its historical
-     * wire IDs while preserving all unrelated packet assignments.
+     * 2.8 adds the refit source snapshot and external-install protocol while
+     * preserving all existing packet assignments.
      */
-    private static final String PROTOCOL = "2.7";
+    private static final String PROTOCOL = "2.8";
 
     private static final int ID_PRIMITIVE_RESERVED = 0;
     private static final int ID_SWITCH_GUN = 1;
@@ -28,6 +28,9 @@ public final class NetworkHandler {
     private static final int ID_GUNSMITH_CRAFT_RESULT = 7;
     private static final int ID_LIBERATE_ATTACHMENT_STATE = 8;
     private static final int ID_LIBERATE_ATTACHMENT_INSTALL = 9;
+    private static final int ID_REFIT_SOURCE_REFRESH = 10;
+    private static final int ID_REFIT_SOURCE_SNAPSHOT = 11;
+    private static final int ID_REFIT_EXTERNAL_INSTALL = 12;
 
     public static final SimpleChannel CHANNEL =
             NetworkRegistry.newSimpleChannel(
@@ -124,6 +127,33 @@ public final class NetworkHandler {
                 LiberateAttachmentInstallPacket::encode,
                 LiberateAttachmentInstallPacket::decode,
                 LiberateAttachmentInstallPacket::handle,
+                Optional.of(NetworkDirection.PLAY_TO_SERVER)
+        );
+
+        CHANNEL.registerMessage(
+                ID_REFIT_SOURCE_REFRESH,
+                RefitSourceRefreshRequestPacket.class,
+                RefitSourceRefreshRequestPacket::encode,
+                RefitSourceRefreshRequestPacket::decode,
+                RefitSourceRefreshRequestPacket::handle,
+                Optional.of(NetworkDirection.PLAY_TO_SERVER)
+        );
+
+        CHANNEL.registerMessage(
+                ID_REFIT_SOURCE_SNAPSHOT,
+                RefitSourceSnapshotPacket.class,
+                RefitSourceSnapshotPacket::encode,
+                RefitSourceSnapshotPacket::decode,
+                RefitSourceSnapshotPacket::handle,
+                Optional.of(NetworkDirection.PLAY_TO_CLIENT)
+        );
+
+        CHANNEL.registerMessage(
+                ID_REFIT_EXTERNAL_INSTALL,
+                RefitExternalAttachmentInstallPacket.class,
+                RefitExternalAttachmentInstallPacket::encode,
+                RefitExternalAttachmentInstallPacket::decode,
+                RefitExternalAttachmentInstallPacket::handle,
                 Optional.of(NetworkDirection.PLAY_TO_SERVER)
         );
     }

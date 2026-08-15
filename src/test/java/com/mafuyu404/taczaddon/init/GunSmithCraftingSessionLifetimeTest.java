@@ -34,7 +34,7 @@ class GunSmithCraftingSessionLifetimeTest {
     }
 
     @Test
-    void inactivityStateIsAbsentFromTheSessionImplementation()
+    void activeSessionHasNoIdleTimeoutButPendingInteractionsDo()
             throws IOException {
         String source = Files.readString(
                 Path.of(
@@ -46,7 +46,7 @@ class GunSmithCraftingSessionLifetimeTest {
 
         assertFalse(source.contains("SESSION_INACTIVITY_TIMEOUT_TICKS"));
         assertFalse(source.contains("lastValidatedGameTime"));
-        assertFalse(source.contains("getGameTime()"));
+        assertTrue(source.contains("PENDING_INTERACTION_TTL_TICKS"));
     }
 
     @Test

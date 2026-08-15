@@ -20,10 +20,130 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class GunSmithCraftingSessionManager {
     static final double MAX_INTERACTION_DISTANCE_SQUARED = 64.0D;
 
+    private static final long PENDING_INTERACTION_TTL_TICKS = 20L;
+
     private static final Map<UUID, GunSmithCraftingSession> SESSIONS =
             new ConcurrentHashMap<>();
 
+    private static final Map<UUID, PendingGunSmithInteraction>
+            PENDING_INTERACTIONS = new ConcurrentHashMap<>();
+
     private GunSmithCraftingSessionManager() {
+    }
+
+    public static void rememberTableInteraction(
+            ServerPlayer player,
+            BlockPos tablePos,
+            GunSmithTableBlockEntity table
+    ) {
+        Objects.requireNonNull(player, "player");
+        Objects.requireNonNull(tablePos, "tablePos");
+        Objects.requireNonNull(table, "table");
+
+        ResourceLocation blockId = table.getId();
+
+        if (blockId == null || table.isRemoved()) {
+            PENDING_INTERACTIONS.remove(player.getUUID());
+            return;
+        }
+
+        PENDING_INTERACTIONS.put(
+                player.getUUID(),
+                new PendingGunSmithInteraction(
+                        player.getUUID(),
+                        player.level().dimension(),
+                        tablePos.immutable(),
+                        blockId,
+                        player.level().getGameTime()
+                )
+        );
+    }
+
+    public static boolean createSessionFromPending(
+            ServerPlayer player,
+            GunSmithTableMenu menu
+    ) {
+        Objects.requireNonNull(player, "player");
+        Objects.requireNonNull(menu, "menu");
+
+        UUID playerId = player.getUUID();
+        PendingGunSmithInteraction pending =
+                PENDING_INTERACTIONS.remove(playerId);
+
+        // Opening a new gunsmith menu invalidates any previous active session.
+        SESSIONS.remove(playerId);
+
+        if (pending == null) {
+            return false;
+        }
+
+        ResourceLocation menuBlockId = menu.getBlockId();
+        boolean tableLoaded =
+                player.level().isLoaded(pending.tablePos());
+        BlockEntity blockEntity = tableLoaded
+                ? player.level().getBlockEntity(pending.tablePos())
+                : null;
+        GunSmithTableBlockEntity table = blockEntity
+                instanceof GunSmithTableBlockEntity activeTable
+                ? activeTable
+                : null;
+        long age =
+                player.level().getGameTime()
+                        - pending.capturedGameTime();
+        double distanceSquared =
+                player.distanceToSqr(
+                        pending.tablePos().getX() + 0.5D,
+                        pending.tablePos().getY() + 0.5D,
+                        pending.tablePos().getZ() + 0.5D
+                );
+
+        boolean valid = isPendingInteractionValid(
+                new PendingInteractionValidation(
+                        playerId.equals(pending.playerId()),
+                        player.level().dimension().equals(
+                                pending.dimension()
+                        ),
+                        age >= 0L
+                                && age
+                                <= PENDING_INTERACTION_TTL_TICKS,
+                        menuBlockId != null
+                                && Objects.equals(
+                                menuBlockId,
+                                pending.tableBlockId()
+                        ),
+                        tableLoaded,
+                        table != null,
+                        table != null && !table.isRemoved(),
+                        table != null && Objects.equals(
+                                table.getId(),
+                                pending.tableBlockId()
+                        ),
+                        menu.stillValid(player),
+                        distanceSquared
+                                <= MAX_INTERACTION_DISTANCE_SQUARED
+                )
+        );
+
+        if (!valid) {
+            return false;
+        }
+
+        createSession(
+                player,
+                menu.containerId,
+                pending.tablePos(),
+                pending.tableBlockId()
+        );
+        return true;
+    }
+
+    public static void clearPendingInteraction(UUID playerId) {
+        PENDING_INTERACTIONS.remove(playerId);
+    }
+
+    public static void clearPlayerState(UUID playerId) {
+        SESSIONS.remove(playerId);
+        PENDING_INTERACTIONS.remove(playerId);
     }
 
     public static GunSmithCraftingSession createSession(
@@ -79,6 +199,45 @@ public final class GunSmithCraftingSessionManager {
 
     public static void removeAll() {
         SESSIONS.clear();
+        PENDING_INTERACTIONS.clear();
+    }
+
+    static boolean isPendingInteractionValid(
+            PendingInteractionValidation state
+    ) {
+        return state.playerMatches()
+                && state.dimensionMatches()
+                && state.withinTtl()
+                && state.menuDefinitionMatches()
+                && state.tableLoaded()
+                && state.expectedTableEntityPresent()
+                && state.tableEntityActive()
+                && state.tableDefinitionMatches()
+                && state.menuStillValid()
+                && state.withinDistance();
+    }
+
+    record PendingGunSmithInteraction(
+            UUID playerId,
+            ResourceKey<Level> dimension,
+            BlockPos tablePos,
+            ResourceLocation tableBlockId,
+            long capturedGameTime
+    ) {
+    }
+
+    record PendingInteractionValidation(
+            boolean playerMatches,
+            boolean dimensionMatches,
+            boolean withinTtl,
+            boolean menuDefinitionMatches,
+            boolean tableLoaded,
+            boolean expectedTableEntityPresent,
+            boolean tableEntityActive,
+            boolean tableDefinitionMatches,
+            boolean menuStillValid,
+            boolean withinDistance
+    ) {
     }
 
     /**

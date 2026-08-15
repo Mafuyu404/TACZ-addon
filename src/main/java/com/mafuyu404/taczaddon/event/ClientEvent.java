@@ -1,12 +1,14 @@
 package com.mafuyu404.taczaddon.event;
 
 import com.mafuyu404.taczaddon.TACZaddon;
+import com.mafuyu404.taczaddon.client.GunRefitScreenAccess;
 import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
 import com.mafuyu404.taczaddon.compat.SophisticatedStorageClientCompat;
 import com.mafuyu404.taczaddon.init.DataStorage;
 import com.mafuyu404.taczaddon.init.KeyBindings;
 import com.mafuyu404.taczaddon.init.NetworkHandler;
 import com.mafuyu404.taczaddon.init.VirtualInventory;
+import com.mafuyu404.taczaddon.init.crafting.GunSmithSourceScreenAccess;
 import com.mafuyu404.taczaddon.network.SwitchGunPacket;
 import com.tacz.guns.api.item.IGun;
 import net.minecraft.client.Minecraft;
@@ -15,9 +17,11 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ContainerScreenEvent;
 import net.minecraftforge.client.event.InputEvent;
+import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -27,12 +31,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Client features unrelated to server-authoritative gunsmith positioning.
- *
- * The obsolete RightClickBlock workbench-position capture is intentionally
- * absent. Gunsmith positions come only from the server block entity session.
- */
 @Mod.EventBusSubscriber(
         modid = TACZaddon.MODID,
         value = Dist.CLIENT,
@@ -40,6 +38,35 @@ import java.util.Optional;
 )
 public final class ClientEvent {
     private ClientEvent() {
+    }
+
+    @SubscribeEvent
+    public static void onScreenInitPost(
+            ScreenEvent.Init.Post event
+    ) {
+        if (event.getScreen()
+                instanceof GunSmithSourceScreenAccess sourceAccess) {
+            sourceAccess.taczaddon$onScreenInit();
+        }
+        if (event.getScreen()
+                instanceof GunRefitScreenAccess refitAccess) {
+            refitAccess.taczaddon$onRefitScreenInit();
+        }
+    }
+
+    @SubscribeEvent
+    public static void tickRefitSourceRefresh(
+            TickEvent.ClientTickEvent event
+    ) {
+        if (event.phase == TickEvent.Phase.END) {
+            return;
+        }
+
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.screen
+                instanceof GunRefitScreenAccess refitAccess) {
+            refitAccess.taczaddon$tickRefitSourceRefresh();
+        }
     }
 
     @SubscribeEvent
@@ -52,6 +79,7 @@ public final class ClientEvent {
     @SubscribeEvent
     public static void storeGunList(InputEvent.Key event) {
         Minecraft minecraft = Minecraft.getInstance();
+
         if (minecraft.screen != null
                 || event.getKey()
                 != KeyBindings.SWITCH_GUN_KEY.getKey().getValue()
@@ -89,6 +117,7 @@ public final class ClientEvent {
             InputEvent.MouseScrollingEvent event
     ) {
         Minecraft minecraft = Minecraft.getInstance();
+
         if (minecraft.screen != null
                 || !KeyBindings.SWITCH_GUN_KEY.isDown()) {
             return;
@@ -164,11 +193,13 @@ public final class ClientEvent {
         event.setCanceled(true);
     }
 
-    /*
-     * This cache belongs to the separate backpack ammo/HUD compatibility
-     * feature. It is intentionally not used by gunsmith-table crafting.
-     */
     public static VirtualInventory _virtualInventory;
+
+    private static final int BACKPACK_HUD_REFRESH_INTERVAL_TICKS = 5;
+    private static Player taczaddon$hudCachePlayer;
+    private static Level taczaddon$hudCacheLevel;
+    private static int taczaddon$hudTicksUntilRefresh;
+    private static boolean taczaddon$hudInitialSyncRequested;
 
     @SubscribeEvent
     public static void storageBackpack(
@@ -178,20 +209,69 @@ public final class ClientEvent {
             return;
         }
 
-        Player player = Minecraft.getInstance().player;
-        if (player == null) {
+        Minecraft minecraft = Minecraft.getInstance();
+        Player player = minecraft.player;
+        Level level = minecraft.level;
+
+        if (player == null || level == null) {
             _virtualInventory = null;
+            taczaddon$hudCachePlayer = null;
+            taczaddon$hudCacheLevel = null;
+            taczaddon$hudTicksUntilRefresh = 0;
+            taczaddon$hudInitialSyncRequested = false;
             return;
         }
 
-        if (DataStorage.get("backpackData") == null) {
-            SophisticatedBackpacksCompat.syncAllBackpack(player);
-            DataStorage.set("backpackData", true);
+        if (taczaddon$hudCachePlayer != player
+                || taczaddon$hudCacheLevel != level) {
+            taczaddon$hudCachePlayer = player;
+            taczaddon$hudCacheLevel = level;
+            taczaddon$hudTicksUntilRefresh = 0;
+            taczaddon$hudInitialSyncRequested = false;
+            DataStorage.set("backpackData", null);
         }
 
-        ArrayList<ItemStack> combined =
-                SophisticatedBackpacksCompat
-                        .getItemsFromInventoryBackpack(player);
+        if (!taczaddon$hudInitialSyncRequested) {
+            if (DataStorage.get("backpackData") == null) {
+                SophisticatedBackpacksCompat.syncAllBackpack(player);
+                DataStorage.set("backpackData", true);
+            }
+
+            taczaddon$hudInitialSyncRequested = true;
+            rebuildBackpackHudInventory(player);
+            taczaddon$hudTicksUntilRefresh =
+                    BACKPACK_HUD_REFRESH_INTERVAL_TICKS;
+            return;
+        }
+
+        if (--taczaddon$hudTicksUntilRefresh > 0) {
+            return;
+        }
+
+        rebuildBackpackHudInventory(player);
+        taczaddon$hudTicksUntilRefresh =
+                BACKPACK_HUD_REFRESH_INTERVAL_TICKS;
+    }
+
+    private static void rebuildBackpackHudInventory(Player player) {
+        ArrayList<ItemStack> combined = new ArrayList<>();
+
+        SophisticatedBackpacksCompat.visitInventoryBackpacks(
+                player,
+                handler -> {
+                    for (int index = 0;
+                         index < handler.getSlots();
+                         index++) {
+                        ItemStack stack =
+                                handler.getStackInSlot(index);
+                        if (!stack.isEmpty()) {
+                            combined.add(stack.copy());
+                        }
+                    }
+                    return false;
+                }
+        );
+
         combined.addAll(player.getInventory().items);
 
         VirtualInventory virtualInventory =

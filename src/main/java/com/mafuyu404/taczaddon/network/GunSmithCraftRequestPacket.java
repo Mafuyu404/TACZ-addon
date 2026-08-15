@@ -5,7 +5,7 @@ import com.mafuyu404.taczaddon.init.GunSmithCraftingSessionManager;
 import com.mafuyu404.taczaddon.init.GunSmithCraftingSources;
 import com.mafuyu404.taczaddon.init.NetworkHandler;
 import com.mafuyu404.taczaddon.init.crafting.CraftingTransaction;
-import com.mafuyu404.taczaddon.mixin.GunSmithTableMenuAccess;
+import com.mafuyu404.taczaddon.mixin.tacz.v1_1_8.GunSmithTableMenuAccess;
 import com.mojang.logging.LogUtils;
 import com.tacz.guns.crafting.GunSmithTableRecipe;
 import com.tacz.guns.inventory.GunSmithTableMenu;
