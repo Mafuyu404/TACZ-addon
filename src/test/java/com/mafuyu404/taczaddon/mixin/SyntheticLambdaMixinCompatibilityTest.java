@@ -78,12 +78,26 @@ class SyntheticLambdaMixinCompatibilityTest {
         assertTrue(kinetic.contains(
                 "method = \"consumeAmmoFromPlayer(I)I\""
         ));
+        assertTrue(kinetic.contains("at = @At(\"RETURN\")"));
+        assertFalse(kinetic.contains("at = @At(\"HEAD\")"));
         assertTrue(kinetic.contains("taczaddon$consumeBackpackAmmo"));
+        assertTrue(kinetic.contains(
+                "AmmoConsumptionOrchestrator"
+        ));
+        assertFalse(kinetic.contains(
+                "static int consumeRemaining"
+        ));
+        assertFalse(kinetic.contains(
+                "static int clampConsumed"
+        ));
         assertFalse(kinetic.contains("getDescriptionId()"));
         assertFalse(kinetic.contains("VirtualInventory"));
 
         assertTrue(helper.contains("hasCompatibleAmmo"));
-        assertTrue(helper.contains("consumeCompatibleAmmo"));
+        assertTrue(helper.contains("consumeBackpackAmmoRaw"));
+        assertTrue(helper.contains("extractCompatibleAmmoDirectly"));
+        assertFalse(helper.contains("consumeCompatibleAmmo"));
+        assertFalse(helper.contains("findAndExtractInventoryAmmo"));
         assertTrue(helper.contains("isAmmoOfGun"));
         assertTrue(helper.contains("isAmmoBoxOfGun"));
     }

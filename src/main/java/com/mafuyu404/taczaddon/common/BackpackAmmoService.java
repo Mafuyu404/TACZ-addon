@@ -2,9 +2,9 @@ package com.mafuyu404.taczaddon.common;
 
 import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
 import com.mafuyu404.taczaddon.init.VirtualInventory;
+import com.tacz.guns.api.DefaultAssets;
 import com.tacz.guns.api.item.IAmmo;
 import com.tacz.guns.api.item.IAmmoBox;
-import com.tacz.guns.api.item.gun.AbstractGunItem;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -53,15 +53,13 @@ public final class BackpackAmmoService {
                 && containsCompatibleAmmo(handler, gunStack);
     }
 
-    public static int consumeCompatibleAmmo(
+    public static int consumeBackpackAmmoRaw(
             ServerPlayer player,
-            AbstractGunItem gun,
             ItemStack gunStack,
-            int requested,
-            @Nullable IItemHandler vanillaHandler
+            int requested
     ) {
-        if (player == null
-                || gun == null
+        if (!SophisticatedBackpacksCompat.isInstalled()
+                || player == null
                 || gunStack == null
                 || gunStack.isEmpty()
                 || requested <= 0) {
@@ -72,34 +70,22 @@ public final class BackpackAmmoService {
         SophisticatedBackpacksCompat.mutateInventoryBackpacks(
                 player,
                 handler -> {
-                    remaining[0] -= extractFromHandler(
-                            gun,
+                    if (remaining[0] <= 0) {
+                        return true;
+                    }
+
+                    int consumed = extractCompatibleAmmoDirectly(
+                            handler,
                             gunStack,
+                            remaining[0]
+                    );
+                    remaining[0] -= clampConsumed(
                             remaining[0],
-                            handler
+                            consumed
                     );
                     return remaining[0] <= 0;
                 }
         );
-
-        if (remaining[0] > 0) {
-            IItemHandler handler = vanillaHandler;
-            if (handler == null) {
-                handler = player.getCapability(
-                                ForgeCapabilities.ITEM_HANDLER,
-                                null
-                        )
-                        .orElse(null);
-            }
-            if (handler != null) {
-                remaining[0] -= extractFromHandler(
-                        gun,
-                        gunStack,
-                        remaining[0],
-                        handler
-                );
-            }
-        }
 
         return requested - remaining[0];
     }
@@ -167,58 +153,71 @@ public final class BackpackAmmoService {
         return false;
     }
 
-    static int consumeCompatibleAmmoFromHandlers(
-            int requested,
-            Iterable<? extends IItemHandler> backpackHandlers,
-            AmmoExtractor extractor,
-            @Nullable IItemHandler vanillaHandler
+    static int extractCompatibleAmmoDirectly(
+            IItemHandler handler,
+            ItemStack gunStack,
+            int requested
     ) {
-        int remaining = requested;
-        for (IItemHandler handler : backpackHandlers) {
-            if (remaining <= 0) {
-                break;
-            }
-            remaining -= usedAmount(
-                    remaining,
-                    extractor.extract(handler, remaining)
-            );
+        if (requested <= 0 || handler == null
+                || gunStack == null || gunStack.isEmpty()) {
+            return 0;
         }
-        if (remaining > 0 && vanillaHandler != null) {
-            remaining -= usedAmount(
-                    remaining,
-                    extractor.extract(vanillaHandler, remaining)
-            );
+
+        int remaining = requested;
+        for (int slot = 0;
+             slot < handler.getSlots() && remaining > 0;
+             slot++) {
+            ItemStack stack = handler.getStackInSlot(slot);
+            if (stack.isEmpty()) {
+                continue;
+            }
+
+            Item item = stack.getItem();
+            if (item instanceof IAmmo ammo
+                    && ammo.isAmmoOfGun(gunStack, stack)) {
+                ItemStack extracted = handler.extractItem(
+                        slot,
+                        remaining,
+                        false
+                );
+                remaining -= clampConsumed(
+                        remaining,
+                        Math.max(0, extracted.getCount())
+                );
+                continue;
+            }
+
+            if (item instanceof IAmmoBox ammoBox
+                    && ammoBox.isAmmoBoxOfGun(gunStack, stack)) {
+                int boxAmmoCount = Math.max(
+                        0,
+                        ammoBox.getAmmoCount(stack)
+                );
+                int extracted = Math.min(
+                        boxAmmoCount,
+                        remaining
+                );
+                if (extracted > 0) {
+                    int newCount = boxAmmoCount - extracted;
+                    ammoBox.setAmmoCount(stack, newCount);
+                    if (newCount <= 0) {
+                        ammoBox.setAmmoId(
+                                stack,
+                                DefaultAssets.EMPTY_AMMO_ID
+                        );
+                    }
+                    remaining -= extracted;
+                }
+            }
         }
         return requested - remaining;
     }
 
-    @FunctionalInterface
-    interface AmmoExtractor {
-        int extract(IItemHandler handler, int remaining);
-    }
-
-    static int extractFromHandler(
-            AbstractGunItem gun,
-            ItemStack gunStack,
-            int remaining,
-            IItemHandler handler
-    ) {
-        if (remaining <= 0 || handler == null) {
+    static int clampConsumed(int requested, int consumed) {
+        if (requested <= 0) {
             return 0;
         }
-        int extracted = Math.max(
-                0,
-                gun.findAndExtractInventoryAmmo(
-                        handler,
-                        gunStack,
-                        remaining
-                )
-        );
-        return usedAmount(remaining, extracted);
-    }
-
-    static int usedAmount(int remaining, int extracted) {
-        return Math.max(0, Math.min(remaining, extracted));
+        return Math.max(0, Math.min(requested, consumed));
     }
 
     private static boolean containsCompatibleAmmo(

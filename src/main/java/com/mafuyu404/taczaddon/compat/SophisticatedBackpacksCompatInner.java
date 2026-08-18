@@ -1,6 +1,9 @@
 package com.mafuyu404.taczaddon.compat;
 
+import com.mojang.logging.LogUtils;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -13,12 +16,20 @@ import net.p3pp3rf1y.sophisticatedbackpacks.network.RequestBackpackInventoryCont
 import net.p3pp3rf1y.sophisticatedbackpacks.network.SBPPacketHandler;
 import net.p3pp3rf1y.sophisticatedbackpacks.util.PlayerInventoryProvider;
 import net.p3pp3rf1y.sophisticatedcore.inventory.InventoryHandler;
+import org.slf4j.Logger;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Predicate;
 
 public final class SophisticatedBackpacksCompatInner {
+    private static final Logger LOGGER = LogUtils.getLogger();
+
     private SophisticatedBackpacksCompatInner() {
     }
 
@@ -41,8 +52,10 @@ public final class SophisticatedBackpacksCompatInner {
                     if (wrapper == IBackpackWrapper.Noop.INSTANCE) {
                         return false;
                     }
-                    InventoryHandler handler =
-                            wrapper.getInventoryHandler();
+                    InventoryHandler handler = getFreshInventoryHandler(
+                            player,
+                            wrapper
+                    );
                     if (visitor.test(handler)) {
                         stopped[0] = true;
                         return true;
@@ -51,6 +64,134 @@ public final class SophisticatedBackpacksCompatInner {
                 }
         );
         return stopped[0];
+    }
+
+    private static InventoryHandler getFreshInventoryHandler(
+            Player player,
+            IBackpackWrapper wrapper
+    ) {
+        InventoryHandler handler = wrapper.getInventoryHandler();
+        if (player == null || !player.level().isClientSide) {
+            return handler;
+        }
+
+        Optional<UUID> contentsUuid = wrapper.getContentsUuid();
+        if (contentsUuid.isEmpty()) {
+            return handler;
+        }
+
+        UUID uuid = contentsUuid.get();
+        CompoundTag contents =
+                BackpackStorage.get()
+                        .getOrCreateBackpackContents(uuid);
+        if (!hasSynchronizedInventoryTag(contents)) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug(
+                        "[TACZ-addon/SophisticatedBackpacks] "
+                                + "clientInventoryRefresh=false "
+                                + "reason=inventory_tag_missing uuid={}",
+                        uuid
+                );
+            }
+            return handler;
+        }
+
+        CompoundTag synchronizedInventory =
+                contents.getCompound(
+                        InventoryHandler.INVENTORY_TAG
+                );
+        CompoundTag cachedInventory = handler.serializeNBT();
+        if (!needsClientInventoryRefresh(
+                synchronizedInventory,
+                cachedInventory
+        )) {
+            return handler;
+        }
+
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug(
+                    "[TACZ-addon/SophisticatedBackpacks] "
+                            + "clientInventoryRefresh=true uuid={} "
+                            + "cachedHash={} syncedHash={}",
+                    uuid,
+                    Integer.toHexString(
+                            cachedInventory.hashCode()
+                    ),
+                    Integer.toHexString(
+                            synchronizedInventory.hashCode()
+                    )
+            );
+        }
+
+        wrapper.onContentsNbtUpdated();
+        return wrapper.getInventoryHandler();
+    }
+
+    static boolean hasSynchronizedInventoryTag(
+            CompoundTag contents
+    ) {
+        return contents != null
+                && contents.contains(
+                        InventoryHandler.INVENTORY_TAG,
+                        Tag.TAG_COMPOUND
+                );
+    }
+
+    static boolean needsClientInventoryRefresh(
+            CompoundTag synchronizedInventory,
+            CompoundTag cachedInventory
+    ) {
+        if (Objects.equals(
+                synchronizedInventory,
+                cachedInventory
+        )) {
+            return false;
+        }
+        if (synchronizedInventory == null
+                || cachedInventory == null) {
+            return true;
+        }
+        if (synchronizedInventory.getInt("Size")
+                != cachedInventory.getInt("Size")) {
+            return true;
+        }
+        return !sameItemsBySlot(
+                synchronizedInventory.getList(
+                        "Items",
+                        Tag.TAG_COMPOUND
+                ),
+                cachedInventory.getList(
+                        "Items",
+                        Tag.TAG_COMPOUND
+                )
+        );
+    }
+
+    private static boolean sameItemsBySlot(
+            ListTag synchronizedItems,
+            ListTag cachedItems
+    ) {
+        if (synchronizedItems.size() != cachedItems.size()) {
+            return false;
+        }
+
+        Map<Integer, CompoundTag> bySlot =
+                new HashMap<>();
+        for (Tag tag : synchronizedItems) {
+            CompoundTag item = (CompoundTag) tag;
+            bySlot.put(item.getInt("Slot"), item);
+        }
+
+        for (Tag tag : cachedItems) {
+            CompoundTag item = (CompoundTag) tag;
+            CompoundTag synchronizedItem =
+                    bySlot.get(item.getInt("Slot"));
+            if (synchronizedItem == null
+                    || !synchronizedItem.equals(item)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public static boolean mutateInventoryBackpacks(

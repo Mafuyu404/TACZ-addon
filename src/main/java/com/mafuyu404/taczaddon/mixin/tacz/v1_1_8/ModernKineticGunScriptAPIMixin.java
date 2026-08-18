@@ -1,6 +1,8 @@
 package com.mafuyu404.taczaddon.mixin.tacz.v1_1_8;
 
+import com.mafuyu404.taczaddon.compat.BeyondIntegrationCompat;
 import com.mafuyu404.taczaddon.common.BackpackAmmoService;
+import com.mafuyu404.taczaddon.common.AmmoConsumptionOrchestrator;
 import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
 import com.tacz.guns.api.entity.IGunOperator;
 import com.tacz.guns.api.item.gun.AbstractGunItem;
@@ -22,9 +24,17 @@ public class ModernKineticGunScriptAPIMixin {
 
     @Shadow private AbstractGunItem abstractGunItem;
 
+    /*
+     * Forge 1.20.1 resolves Mixin 0.8.5, whose @Inject annotation does not
+     * define the order element. The composition below is order-independent:
+     * if Beyond Integration's own RETURN hook runs first, its consumed amount
+     * is already visible in cir; if this hook runs first, the controlled
+     * PlayerMainInvWrapper bridge gives Beyond the exact compatibility call it
+     * expects before the Sophisticated Backpack fallback.
+     */
     @Inject(
             method = "consumeAmmoFromPlayer(I)I",
-            at = @At("HEAD"),
+            at = @At("RETURN"),
             cancellable = true,
             remap = false,
             require = 1
@@ -33,7 +43,8 @@ public class ModernKineticGunScriptAPIMixin {
             int neededAmount,
             CallbackInfoReturnable<Integer> cir
     ) {
-        if (this.abstractGunItem == null
+        if (neededAmount <= 0
+                || this.abstractGunItem == null
                 || this.shooter == null
                 || this.itemStack == null
                 || this.itemStack.isEmpty()) {
@@ -43,7 +54,6 @@ public class ModernKineticGunScriptAPIMixin {
         if (this.abstractGunItem.useInventoryAmmo(this.itemStack)
                 && !IGunOperator.fromLivingEntity(this.shooter)
                 .needCheckAmmo()) {
-            cir.setReturnValue(neededAmount);
             return;
         }
 
@@ -56,21 +66,36 @@ public class ModernKineticGunScriptAPIMixin {
             return;
         }
 
-        net.minecraftforge.items.IItemHandler vanilla = player
-                .getCapability(
-                        net.minecraftforge.common.capabilities
-                                .ForgeCapabilities.ITEM_HANDLER,
-                        null
-                )
-                .orElse(null);
-        cir.setReturnValue(
-                BackpackAmmoService.consumeCompatibleAmmo(
+        AbstractGunItem gun = this.abstractGunItem;
+        ItemStack gunStack = this.itemStack;
+        boolean beyondActive = BeyondIntegrationCompat.isInstalled();
+        int consumedSoFar = AmmoConsumptionOrchestrator.clampConsumed(
+                neededAmount,
+                cir.getReturnValueI()
+        );
+        int finalConsumed = AmmoConsumptionOrchestrator.consumeRemaining(
+                neededAmount,
+                consumedSoFar,
+                beyondActive,
+                beyondActive
+                        ? remaining ->
+                                BeyondIntegrationCompat
+                                        .consumeThroughTaczInventoryContract(
+                                                player,
+                                                gun,
+                                                gunStack,
+                                                remaining
+                                        )
+                        : remaining -> 0,
+                remaining -> BackpackAmmoService.consumeBackpackAmmoRaw(
                         player,
-                        this.abstractGunItem,
-                        this.itemStack,
-                        neededAmount,
-                        vanilla
+                        gunStack,
+                        remaining
                 )
         );
+
+        if (cir.getReturnValueI() != finalConsumed) {
+            cir.setReturnValue(finalConsumed);
+        }
     }
 }

@@ -145,6 +145,9 @@ dependencies {
 
     implementation fg.deobf("curse.maven:kiwi-303657:8322142")
 
+    implementation fg.deobf("curse.maven:beyond-dimensions-1222890:8588447")
+    implementation fg.deobf("curse.maven:beyond-integration-1557405:8668459")
+
     compileOnly fg.deobf("curse.maven:accelerated-rendering-1314021:8179092")
     runtimeOnly fg.deobf("curse.maven:just-enough-characters-250702:8117466")
 

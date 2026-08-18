@@ -238,9 +238,10 @@ public final class ClientEvent {
             }
 
             taczaddon$hudInitialSyncRequested = true;
-            rebuildBackpackHudInventory(player);
+            /* Request-only tick: the server response is asynchronous. */
             taczaddon$hudTicksUntilRefresh =
                     BACKPACK_HUD_REFRESH_INTERVAL_TICKS;
+            _virtualInventory = null;
             return;
         }
 
