@@ -1,6 +1,7 @@
 package com.mafuyu404.taczaddon.mixin;
 
 import com.mafuyu404.taczaddon.common.ItemRelationHelper;
+import com.mafuyu404.taczaddon.client.GunSmithIngredientScreenAccess;
 import com.mafuyu404.taczaddon.compat.SophisticatedStorageClientCompat;
 import com.mafuyu404.taczaddon.init.Config;
 import com.mafuyu404.taczaddon.init.crafting.GunSmithSourceScreenAccess;
@@ -19,6 +20,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(AbstractContainerScreen.class)
 public abstract class AbstractContainerScreenMixin extends Screen {
@@ -88,6 +90,34 @@ public abstract class AbstractContainerScreenMixin extends Screen {
                 this.taczaddon$relationHoveredStack = slot.getItem();
                 return;
             }
+        }
+    }
+
+    @Inject(
+            method = "mouseReleased",
+            at = @At("HEAD"),
+            cancellable = true,
+            require = 1
+    )
+    private void taczaddon$handleGunSmithIngredientRelease(
+            double mouseX,
+            double mouseY,
+            int button,
+            CallbackInfoReturnable<Boolean> cir
+    ) {
+        Object screen = this;
+
+        if (!(screen instanceof
+                GunSmithIngredientScreenAccess access)) {
+            return;
+        }
+
+        if (access.taczaddon$handleIngredientMouseRelease(
+                mouseX,
+                mouseY,
+                button
+        )) {
+            cir.setReturnValue(true);
         }
     }
 

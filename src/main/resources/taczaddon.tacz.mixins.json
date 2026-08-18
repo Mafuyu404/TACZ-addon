@@ -27,6 +27,7 @@
     "v1_1_8.GunRefitScreenMixin",
     "v1_1_8.GunSmithTableBrowseMemoryMixin",
     "v1_1_8.GunSmithTableCraftBridgeMixin",
+    "v1_1_8.GunSmithTableIngredientInteractionMixin",
     "v1_1_8.GunSmithTableScreenAccessMixin",
     "v1_1_8.GunSmithTableSourceViewMixin",
     "v1_1_8.InventoryAttachmentSlotAccess",

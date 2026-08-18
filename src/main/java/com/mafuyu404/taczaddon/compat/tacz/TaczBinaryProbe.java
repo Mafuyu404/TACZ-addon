@@ -24,9 +24,16 @@ public final class TaczBinaryProbe {
     }
 
     public static ProbeResult inspect(FeatureContract contract) {
+        return inspect(contract, TaczBinaryProbe::readClassBytes);
+    }
+
+    static ProbeResult inspect(
+            FeatureContract contract,
+            ClassByteSource classSource
+    ) {
         List<String> failures = new ArrayList<>();
         for (ClassContract classContract : contract.classes()) {
-            inspectClass(classContract, failures);
+            inspectClass(classContract, failures, classSource);
         }
         return new ProbeResult(
                 failures.isEmpty(),
@@ -39,9 +46,10 @@ public final class TaczBinaryProbe {
 
     private static void inspectClass(
             ClassContract classContract,
-            List<String> failures
+            List<String> failures,
+            ClassByteSource classSource
     ) {
-        byte[] bytes = readClassBytes(classContract.className());
+        byte[] bytes = classSource.read(classContract.className());
         if (bytes == null) {
             failures.add(
                     "missing class " + classContract.className()
@@ -233,6 +241,11 @@ public final class TaczBinaryProbe {
         } catch (IOException exception) {
             return null;
         }
+    }
+
+    @FunctionalInterface
+    interface ClassByteSource {
+        byte[] read(String className);
     }
 
     public record ProbeResult(

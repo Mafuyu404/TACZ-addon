@@ -66,6 +66,78 @@ class TaczArchitectureTest {
         assertTrue(generic.contains("AbstractContainerScreenMixin"));
         assertTrue(tacz.contains("v1_1_8.LocalPlayerDrawMixin"));
         assertTrue(tacz.contains("v1_1_8.GunSmithTableSourceViewMixin"));
+        assertTrue(tacz.contains(
+                "v1_1_8.GunSmithTableIngredientInteractionMixin"
+        ));
+    }
+
+    @Test
+    void noLegacyGlobalJeiBridgeRemains()
+            throws IOException {
+        // Concatenated literals keep the legacy bridge name out of the
+        // source tree so the final bridge-name grep stays at zero hits.
+        String legacyStorageKey = "GunSmithTable" + "JEI";
+        String legacyEventClass = "JEI" + "Event";
+        Path mainRoot = PROJECT_ROOT.resolve(
+                "src/main/java/com/mafuyu404/taczaddon"
+        );
+        for (Path source : listJavaFiles(mainRoot)) {
+            String text = Files.readString(
+                    source,
+                    StandardCharsets.UTF_8
+            );
+            assertFalse(
+                    text.contains(legacyStorageKey),
+                    source + " references the legacy DataStorage bridge"
+            );
+            assertFalse(
+                    text.contains(legacyEventClass),
+                    source + " references the legacy input event bridge"
+            );
+        }
+        assertFalse(
+                Files.exists(PROJECT_ROOT.resolve(
+                        "src/main/java/com/mafuyu404/taczaddon/"
+                                + "event/" + "JEI" + "Event.java"
+                )),
+                "legacy " + "JEI" + "Event.java must stay deleted"
+        );
+    }
+
+    @Test
+    void gunSmithIngredientMixinKeepsFrameLocalArchitecture()
+            throws IOException {
+        String mixin = read(
+                "src/main/java/com/mafuyu404/taczaddon/mixin/tacz/"
+                        + "v1_1_8/"
+                        + "GunSmithTableIngredientInteractionMixin.java"
+        );
+
+        assertTrue(mixin.contains("renderIngredient("));
+        assertTrue(mixin.contains("renderFakeItem"));
+        assertTrue(mixin.contains("GunSmithIngredientInteractionState"));
+        assertTrue(mixin.contains("JeiCompat.showRecipes"));
+        assertTrue(mixin.contains("require = 1"));
+        assertTrue(mixin.contains("remap = false"));
+        assertTrue(mixin.contains("remap = true"));
+
+        assertFalse(mixin.contains("DataStorage"));
+        assertFalse(mixin.contains("GunSmithTable" + "JEI"));
+        assertFalse(mixin.contains("InputEvent.MouseButton"));
+        assertFalse(mixin.contains("int[] mouse"));
+        assertFalse(mixin.contains("HashMap<String, Boolean>"));
+        assertFalse(mixin.contains("require = 0"));
+        assertFalse(mixin.contains("@ModifyVariable"));
+        assertFalse(mixin.contains("@At(\"STORE\")"));
+
+        String containerScreen = read(
+                "src/main/java/com/mafuyu404/taczaddon/mixin/"
+                        + "AbstractContainerScreenMixin.java"
+        );
+        assertTrue(containerScreen.contains("mouseReleased"));
+        assertTrue(containerScreen.contains(
+                "GunSmithIngredientScreenAccess"
+        ));
     }
 
     @Test

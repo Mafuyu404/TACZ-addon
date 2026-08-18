@@ -315,6 +315,28 @@ public final class TaczContractRegistry {
                 )
         );
 
+        FeatureContract ingredientInteraction = versionBound(
+                TaczFeature.GUNSMITH_INGREDIENT_INTERACTION,
+                gunsmithIngredientInteractionContract()
+        );
+        featureContracts.put(
+                TaczFeature.GUNSMITH_INGREDIENT_INTERACTION,
+                ingredientInteraction
+        );
+        featureScopes.put(
+                TaczFeature.GUNSMITH_INGREDIENT_INTERACTION,
+                CompatibilityScope.VERSION_BOUND
+        );
+        mixinBindings.put(
+                MIXIN_V1 + "GunSmithTableIngredientInteractionMixin",
+                binding(
+                        MIXIN_V1
+                                + "GunSmithTableIngredientInteractionMixin",
+                        TaczFeature.GUNSMITH_INGREDIENT_INTERACTION,
+                        ingredientInteraction
+                )
+        );
+
         FeatureContract sourceView = versionBound(
                 TaczFeature.GUNSMITH_EXTERNAL_SOURCE_VIEW,
                 sourceViewContract()
@@ -904,6 +926,29 @@ public final class TaczContractRegistry {
                         "Ljava/util/LinkedHashMap;"
                 ),
                 FieldContract.of("typePage", "I")
+        );
+    }
+
+    private static ClassContract gunsmithIngredientInteractionContract() {
+        return new ClassContract(
+                "com.tacz.guns.client.gui.GunSmithTableScreen"
+        ).withMethods(
+                new MethodContract(
+                        "renderIngredient",
+                        "(Lnet/minecraft/client/gui/GuiGraphics;)V",
+                        List.of(new InvokeContract(
+                                "net/minecraft/client/gui/GuiGraphics",
+                                "renderFakeItem",
+                                "(Lnet/minecraft/world/item/ItemStack;II)V",
+                                1,
+                                1,
+                                List.of("m_280203_")
+                        ))
+                ),
+                new MethodContract(
+                        "render",
+                        "(Lnet/minecraft/client/gui/GuiGraphics;IIF)V"
+                ).withAliases("m_88315_")
         );
     }
 

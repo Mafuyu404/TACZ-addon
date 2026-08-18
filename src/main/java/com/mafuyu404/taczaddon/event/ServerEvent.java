@@ -58,19 +58,21 @@ public final class ServerEvent {
         }
 
         BlockPos tablePos = event.getPos();
+        BlockState blockState =
+                event.getLevel().getBlockState(tablePos);
+
+        if (!(blockState.getBlock()
+                instanceof AbstractGunSmithTableBlock tableBlock)) {
+            return;
+        }
+
+        tablePos = tableBlock.getRootPos(
+                tablePos,
+                blockState
+        );
+
         BlockEntity blockEntity =
                 event.getLevel().getBlockEntity(tablePos);
-
-        if (!(blockEntity instanceof GunSmithTableBlockEntity)) {
-            BlockState blockState =
-                    event.getLevel().getBlockState(tablePos);
-            if (blockState.getBlock()
-                    instanceof AbstractGunSmithTableBlock tableBlock) {
-                tablePos = tableBlock.getRootPos(tablePos, blockState);
-                blockEntity =
-                        event.getLevel().getBlockEntity(tablePos);
-            }
-        }
 
         if (!(blockEntity instanceof GunSmithTableBlockEntity table)
                 || table.isRemoved()) {
