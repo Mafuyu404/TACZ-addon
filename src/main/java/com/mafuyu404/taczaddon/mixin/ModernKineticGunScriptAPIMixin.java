@@ -9,39 +9,78 @@ import com.tacz.guns.item.ModernKineticGunScriptAPI;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.items.IItemHandler;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+/**
+ * Ammo consumption from addon extra storage (inventory backpacks / Curios)
+ * plus the player's normal inventory.
+ *
+ * <p>Version-bound on the stable source method
+ * {@code consumeAmmoFromPlayer(I)I} (previously a redirect inside the javac
+ * synthetic lambda {@code lambda$consumeAmmoFromPlayer$4}). Only
+ * {@link ServerPlayer} shooters are taken over; every other shooter keeps
+ * TaCZ's native path.
+ *
+ * <p>The taken-over logic mirrors TaCZ's own method exactly (inventory-ammo
+ * reload exemption, dummy ammo, then inventory extraction), except the
+ * extraction handler is a transactional composite of the player inventory,
+ * inventory backpacks and Curios, and {@code commitChanges()} applies the
+ * mutations.
+ */
 @Mixin(value = ModernKineticGunScriptAPI.class, remap = false)
-public class ModernKineticGunScriptAPIMixin {
-    @Shadow private LivingEntity shooter;
+public abstract class ModernKineticGunScriptAPIMixin {
 
-    @Redirect(
-            method = "lambda$consumeAmmoFromPlayer$4",
-            at = @At(
-                    value = "INVOKE",
-                    target =
-                            "Lcom/tacz/guns/api/item/gun/AbstractGunItem;"
-                                    + "findAndExtractInventoryAmmo("
-                                    + "Lnet/neoforged/neoforge/items/IItemHandler;"
-                                    + "Lnet/minecraft/world/item/ItemStack;I)I"
-            )
+    @Shadow
+    private LivingEntity shooter;
+
+    @Shadow
+    private ItemStack itemStack;
+
+    @Shadow
+    private AbstractGunItem abstractGunItem;
+
+    @Shadow
+    public abstract boolean useInventoryAmmo();
+
+    @Shadow
+    public abstract boolean isReloadingNeedConsumeAmmo();
+
+    @Inject(
+            method = "consumeAmmoFromPlayer(I)I",
+            at = @At("HEAD"),
+            cancellable = true,
+            remap = false,
+            require = 1
     )
-    private int useBackpackAmmo(
-            AbstractGunItem abstractGunItem,
-            IItemHandler cap,
-            ItemStack gunItem,
-            int neededAmount
+    private void taczaddon$consumeAmmoFromPlayer(
+            int neededAmount,
+            CallbackInfoReturnable<Integer> cir
     ) {
         if (!(shooter instanceof ServerPlayer player)) {
-            return abstractGunItem.findAndExtractInventoryAmmo(
-                    cap,
-                    gunItem,
-                    neededAmount
+            return;
+        }
+
+        if (useInventoryAmmo()
+                && !isReloadingNeedConsumeAmmo()) {
+            cir.setReturnValue(neededAmount);
+            return;
+        }
+
+        if (abstractGunItem.useDummyAmmo(itemStack)) {
+            cir.setReturnValue(
+                    abstractGunItem.findAndExtractDummyAmmo(
+                            itemStack,
+                            neededAmount
+                    )
             );
+            return;
         }
 
         ReadOnlyCompositeItemHandler.Builder builder =
@@ -55,11 +94,24 @@ public class ModernKineticGunScriptAPIMixin {
                 )
         );
 
-        builder.addHandler(cap, "player_inventory");
+        IItemHandler playerHandler =
+                player.getCapability(
+                        Capabilities.ItemHandler.ENTITY
+                );
+
+        if (playerHandler != null) {
+            builder.addHandler(
+                    playerHandler,
+                    "player_inventory"
+            );
+        }
 
         CuriosCompat.forEachCuriosHandler(
                 player,
-                handler -> builder.addHandler(handler, "curios")
+                handler -> builder.addHandler(
+                        handler,
+                        "curios"
+                )
         );
 
         ExtractingCompositeItemHandler extractingHandler =
@@ -68,12 +120,12 @@ public class ModernKineticGunScriptAPIMixin {
         int consumed =
                 abstractGunItem.findAndExtractInventoryAmmo(
                         extractingHandler,
-                        gunItem,
+                        itemStack,
                         neededAmount
                 );
 
         extractingHandler.commitChanges();
 
-        return consumed;
+        cir.setReturnValue(consumed);
     }
 }

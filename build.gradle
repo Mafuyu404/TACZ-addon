@@ -77,6 +77,11 @@ neoForge {
         }
     }
 
+    unitTest {
+        enable()
+        testedMod.set(project.provider(() -> mods.getByName(mod_id)))
+    }
+
     mods {
         "${mod_id}" {
             sourceSet(sourceSets.main)
@@ -97,6 +102,14 @@ dependencies {
     implementation "curse.maven:sophisticated-backpacks-422301:8569661"
     implementation "curse.maven:jei-238222:8569044"
     implementation "curse.maven:curios-309927:6529130"
+
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.2'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
 }
 
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {

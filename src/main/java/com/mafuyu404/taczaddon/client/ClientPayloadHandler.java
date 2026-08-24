@@ -37,6 +37,17 @@ public final class ClientPayloadHandler {
 
         screen.init();
 
+        /*
+         * Intentionally mirrors TaCZ 1.21.1's native
+         * ServerMessageRefreshRefitScreen.updateScreen(), which performs the
+         * same screen.init() followed by AttachmentPropertyManager
+         * .postChangeEvent(player, player.getMainHandItem()) after every
+         * successful refit. The server-side postChange in
+         * AttachmentRefitService refreshes server-side caches; this
+         * client-side call refreshes the client's attachment modifier cache
+         * (tooltips/property diagrams) for the synced main-hand gun, so it is
+         * not redundant and must be kept.
+         */
         AttachmentPropertyManager.postChangeEvent(
                 player,
                 player.getMainHandItem()
