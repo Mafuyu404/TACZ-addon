@@ -23,32 +23,19 @@ import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @EventBusSubscriber(modid = TACZaddon.MODID, value = Dist.CLIENT)
 public final class ClientEvent {
-    /*
-     * Request fresh Sophisticated Backpacks inventory NBT once per second
-     * while the player is holding a gun.
-     *
-     * The request transfers complete backpack inventory and upgrade NBT, so it
-     * should not run every client tick.
-     */
-    private static final int BACKPACK_SYNC_INTERVAL_TICKS = 20;
-
-    /*
-     * Rebuild the synthetic inventory periodically even when no payload has
-     * explicitly invalidated it. This also keeps normal player inventory
-     * contents reasonably current for consumers of the virtual inventory.
-     */
-    private static final int BACKPACK_CACHE_REFRESH_TICKS = 20;
-
     private static VirtualInventory virtualInventory;
 
-    private static long nextBackpackSyncTick;
-    private static long nextBackpackRefreshTick;
-
-    private static UUID cachedPlayerId;
+    /*
+     * Schedules the unconditional world-join backpack contents bootstrap and
+     * the later recovery polling/rebuild ticks. The planner tracks player and
+     * level identity so old wrapper/virtual inventory state does not leak
+     * across reconnects or dimension changes.
+     */
+    private static final BackpackCacheTickPlanner BACKPACK_CACHE_PLANNER =
+            new BackpackCacheTickPlanner();
 
     private ClientEvent() {
     }
@@ -198,42 +185,54 @@ public final class ClientEvent {
             return;
         }
 
-        UUID playerId = player.getUUID();
-
-        if (!playerId.equals(cachedPlayerId)) {
-            cachedPlayerId = playerId;
-
+        if (BACKPACK_CACHE_PLANNER.isNewIdentity(
+                player,
+                player.level()
+        )) {
             virtualInventory = null;
-            nextBackpackSyncTick = 0L;
-            nextBackpackRefreshTick = 0L;
         }
 
         long gameTime = player.level().getGameTime();
 
         /*
-         * TaCZ's ammunition HUD only examines the main-hand gun, so full
-         * backpack synchronization is only requested while a main-hand gun is
-         * present.
+         * TaCZ's ammunition HUD only examines the main-hand gun, so periodic
+         * recovery synchronization is only requested while a main-hand gun is
+         * present. The unconditional bootstrap request above does not depend
+         * on holdingGun: a player must never need to open a backpack or equip
+         * a gun before TACZAddon requests authoritative backpack contents.
          */
         boolean holdingGun =
                 IGun.getIGunOrNull(player.getMainHandItem()) != null;
 
-        if (holdingGun && gameTime >= nextBackpackSyncTick) {
-            SophisticatedBackpacksCompat.syncAllBackpack(player);
-
-            nextBackpackSyncTick =
-                    gameTime + BACKPACK_SYNC_INTERVAL_TICKS;
+        switch (BACKPACK_CACHE_PLANNER.tick(
+                player,
+                player.level(),
+                holdingGun,
+                gameTime
+        )) {
+            case BOOTSTRAP_REQUEST -> {
+                /*
+                 * Request-only tick. The server response is asynchronous, so
+                 * the virtual inventory must not be built from an
+                 * unsynchronized client wrapper yet.
+                 */
+                SophisticatedBackpacksCompat.syncAllBackpack(player);
+                virtualInventory = null;
+            }
+            case PERIODIC_SYNC_REQUEST -> {
+                /*
+                 * Recovery only: ordinary consumption correctness comes from
+                 * the immediate server contents payload + cache invalidation.
+                 */
+                SophisticatedBackpacksCompat.syncAllBackpack(player);
+            }
+            case REBUILD_CACHE -> {
+                refreshBackpackCache(player);
+            }
+            case WAIT -> {
+                // Nothing to do this tick.
+            }
         }
-
-        if (virtualInventory != null
-                && gameTime < nextBackpackRefreshTick) {
-            return;
-        }
-
-        refreshBackpackCache(player);
-
-        nextBackpackRefreshTick =
-                gameTime + BACKPACK_CACHE_REFRESH_TICKS;
     }
 
     @SubscribeEvent
@@ -256,7 +255,7 @@ public final class ClientEvent {
      */
     public static void invalidateBackpackCache() {
         virtualInventory = null;
-        nextBackpackRefreshTick = 0L;
+        BACKPACK_CACHE_PLANNER.invalidateCache();
     }
 
     private static void refreshBackpackCache(Player player) {
@@ -316,11 +315,7 @@ public final class ClientEvent {
 
     private static void clearClientCaches() {
         virtualInventory = null;
-
-        nextBackpackSyncTick = 0L;
-        nextBackpackRefreshTick = 0L;
-
-        cachedPlayerId = null;
+        BACKPACK_CACHE_PLANNER.reset();
     }
 
     private static Optional<String> taczaddon$getGunId(

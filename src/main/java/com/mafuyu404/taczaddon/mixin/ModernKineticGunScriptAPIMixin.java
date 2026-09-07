@@ -29,10 +29,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * TaCZ's native path.
  *
  * <p>The taken-over logic mirrors TaCZ's own method exactly (inventory-ammo
- * reload exemption, dummy ammo, then inventory extraction), except the
- * extraction handler is a transactional composite of the player inventory,
- * inventory backpacks and Curios, and {@code commitChanges()} applies the
- * mutations.
+ * reload exemption, dummy ammo, then inventory extraction). Sophisticated
+ * Backpacks are consumed first through the mutation-aware
+ * {@code mutateInventoryBackpacks} facade, which snapshots every handler,
+ * persists changed handlers and immediately pushes the authoritative contents
+ * to the client. Any remaining requested amount is then consumed from the
+ * player inventory and Curios through the existing transactional composite.
  */
 @Mixin(value = ModernKineticGunScriptAPI.class, remap = false)
 public abstract class ModernKineticGunScriptAPIMixin {
@@ -83,49 +85,91 @@ public abstract class ModernKineticGunScriptAPIMixin {
             return;
         }
 
-        ReadOnlyCompositeItemHandler.Builder builder =
-                ReadOnlyCompositeItemHandler.builder();
+        /*
+         * First consume from Sophisticated Backpacks. The facade snapshots
+         * every backpack handler, persists mutations and synchronizes the
+         * authoritative contents back to the client immediately, so the HUD
+         * does not have to wait for periodic polling.
+         */
+        int[] remaining = {neededAmount};
 
-        SophisticatedBackpacksCompat.forEachInventoryBackpackHandler(
+        SophisticatedBackpacksCompat.mutateInventoryBackpacks(
                 player,
-                handler -> builder.addHandler(
-                        handler,
-                        "inventory_backpack"
-                )
+                backpackHandler -> {
+                    /*
+                     * Extract per backpack through the transactional
+                     * composite so TaCZ IAmmoBox modifications are applied to
+                     * working copies first and written back through
+                     * commitChanges(); the surrounding mutation facade then
+                     * persists and synchronizes any handler change.
+                     */
+                    ReadOnlyCompositeItemHandler.Builder backpackBuilder =
+                            ReadOnlyCompositeItemHandler.builder();
+                    backpackBuilder.addHandler(
+                            backpackHandler,
+                            "inventory_backpack"
+                    );
+
+                    ExtractingCompositeItemHandler extractingHandler =
+                            backpackBuilder.buildExtracting();
+
+                    int consumed =
+                            abstractGunItem
+                                    .findAndExtractInventoryAmmo(
+                                            extractingHandler,
+                                            itemStack,
+                                            remaining[0]
+                                    );
+
+                    extractingHandler.commitChanges();
+
+                    remaining[0] -= consumed;
+
+                    return remaining[0] <= 0;
+                }
         );
 
-        IItemHandler playerHandler =
-                player.getCapability(
-                        Capabilities.ItemHandler.ENTITY
-                );
+        if (remaining[0] > 0) {
+            ReadOnlyCompositeItemHandler.Builder builder =
+                    ReadOnlyCompositeItemHandler.builder();
 
-        if (playerHandler != null) {
-            builder.addHandler(
-                    playerHandler,
-                    "player_inventory"
+            IItemHandler playerHandler =
+                    player.getCapability(
+                            Capabilities.ItemHandler.ENTITY
+                    );
+
+            if (playerHandler != null) {
+                builder.addHandler(
+                        playerHandler,
+                        "player_inventory"
+                );
+            }
+
+            CuriosCompat.forEachCuriosHandler(
+                    player,
+                    handler -> builder.addHandler(
+                            handler,
+                            "curios"
+                    )
             );
+
+            ExtractingCompositeItemHandler extractingHandler =
+                    builder.buildExtracting();
+
+            int consumed =
+                    abstractGunItem.findAndExtractInventoryAmmo(
+                            extractingHandler,
+                            itemStack,
+                            remaining[0]
+                    );
+
+            extractingHandler.commitChanges();
+
+            remaining[0] -= consumed;
         }
 
-        CuriosCompat.forEachCuriosHandler(
-                player,
-                handler -> builder.addHandler(
-                        handler,
-                        "curios"
-                )
+        cir.setReturnValue(
+                Math.max(0, neededAmount - remaining[0])
         );
-
-        ExtractingCompositeItemHandler extractingHandler =
-                builder.buildExtracting();
-
-        int consumed =
-                abstractGunItem.findAndExtractInventoryAmmo(
-                        extractingHandler,
-                        itemStack,
-                        neededAmount
-                );
-
-        extractingHandler.commitChanges();
-
-        cir.setReturnValue(consumed);
     }
 }

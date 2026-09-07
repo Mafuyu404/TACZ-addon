@@ -1,6 +1,6 @@
 package com.mafuyu404.taczaddon.client;
 
-import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompatInner;
+import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
 import com.mafuyu404.taczaddon.event.ClientEvent;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -26,7 +26,7 @@ public final class SophisticatedBackpacksClientSync {
             }
 
             boolean refreshed =
-                    SophisticatedBackpacksCompatInner
+                    SophisticatedBackpacksCompat
                             .refreshInventoryBackpackWrapper(
                                     player,
                                     backpackUuid

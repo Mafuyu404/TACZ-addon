@@ -98,8 +98,11 @@ dependencies {
 
     implementation "curse.maven:shoulder-surfing-reloaded-243190:8495746"
 
-    implementation "curse.maven:sophisticated-core-618298:8503041"
-    implementation "curse.maven:sophisticated-backpacks-422301:8569661"
+
+    implementation "curse.maven:sophisticated-backpacks-422301:8817433"
+    implementation "curse.maven:sophisticated-core-618298:8815718"
+//    implementation "curse.maven:sophisticated-core-618298:8503041"
+//    implementation "curse.maven:sophisticated-backpacks-422301:8569661"
     implementation "curse.maven:jei-238222:8569044"
     implementation "curse.maven:curios-309927:6529130"
 

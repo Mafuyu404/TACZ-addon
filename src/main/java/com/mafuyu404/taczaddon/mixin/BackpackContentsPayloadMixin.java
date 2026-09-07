@@ -21,7 +21,15 @@ public abstract class BackpackContentsPayloadMixin {
     @Inject(
             method = "handlePayload",
             at = @At("TAIL"),
-            remap = false
+            remap = false,
+            /*
+             * TaczAddonMixinPlugin is the primary contract gate and skips
+             * this mixin when the target bytecode does not match. require = 0
+             * is only a secondary safety net so a still-unexpected method
+             * shape degrades to a missing optional feature instead of a
+             * startup crash.
+             */
+            require = 0
     )
     private static void taczaddon$afterBackpackContentsReceived(
             @Coerce Object payload,

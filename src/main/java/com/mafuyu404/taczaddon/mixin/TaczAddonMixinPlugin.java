@@ -1,17 +1,20 @@
 package com.mafuyu404.taczaddon.mixin;
 
 import com.mafuyu404.taczaddon.common.RefitCompatibility;
+import com.mafuyu404.taczaddon.compat.sophisticated.SophisticatedPayloadContractState;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.MethodInsnNode;
+import org.objectweb.asm.tree.MethodNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.spongepowered.asm.mixin.MixinEnvironment;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
-import org.spongepowered.asm.mixin.MixinEnvironment;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,15 +22,14 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * TaCZ binary-contract gate.
+ * Binary-contract gate for mixins that target optional dependency classes.
  *
- * <p>The liberateAttachment refit integration is version-bound to a verified
- * TaCZ 1.21.1 contract. Instead of letting a {@code require = 1} mixin turn a
- * contract mismatch into a startup crash, this plugin inspects the actual
- * dependency class bytes (ASM, no target class loading) and only applies the
- * affected mixins when the contract holds.
+ * <p>Instead of letting a {@code require = 1} mixin turn a contract mismatch
+ * into a startup crash, this plugin inspects the actual dependency class
+ * bytes (ASM, no target class loading) and only applies the affected mixins
+ * when the contract holds.
  *
- * <p>If the contract is missing:
+ * <p>If a contract is missing:
  * <ul>
  *     <li>an ERROR is logged with the expected contract;</li>
  *     <li>the affected mixin is skipped (feature unavailable);</li>
@@ -44,6 +46,10 @@ import java.util.Set;
  *     <li>GunRefitScreen: {@code addAttachmentTypeButtons()V},
  *     {@code addInventoryAttachmentButtons()V} (both non-static),
  *     non-static non-final {@code currentPage:I}</li>
+ *     <li>BackpackContentsPayload (Sophisticated Backpacks): static
+ *     {@code handlePayload(BackpackContentsPayload, IPayloadContext)V},
+ *     record accessors {@code backpackUuid()Ljava/util/UUID;} and
+ *     {@code backpackContents()Lnet/minecraft/nbt/CompoundTag;}</li>
  * </ul>
  *
  * <p>Dependency graph (fail closed):
@@ -51,6 +57,7 @@ import java.util.Set;
  * ClientMessageUnloadAttachmentMixin  requires UNLOAD_PACKET
  * ClientMessageUnloadAttachmentAccessor requires UNLOAD_PACKET
  * GunRefitScreenMixin                  requires REFIT_SCREEN AND UNLOAD_PACKET
+ * BackpackContentsPayloadMixin         requires BACKPACK_CONTENTS_PAYLOAD
  * </pre>
  *
  * <p>The server-side provenance-aware unload takeover may stand alone (it
@@ -73,15 +80,21 @@ public final class TaczAddonMixinPlugin
             PACKAGE + "ClientMessageUnloadAttachmentAccessor";
     private static final String REFIT_MIXIN =
             PACKAGE + "GunRefitScreenMixin";
+    private static final String BACKPACK_PAYLOAD_MIXIN =
+            PACKAGE + "BackpackContentsPayloadMixin";
 
     private static final String UNLOAD_PACKET =
             "com/tacz/guns/network/message/"
                     + "ClientMessageUnloadAttachment";
     private static final String REFIT_SCREEN =
             "com/tacz/guns/client/gui/GunRefitScreen";
+    private static final String BACKPACK_CONTENTS_PAYLOAD =
+            "net/p3pp3rf1y/sophisticatedbackpacks/network/"
+                    + "BackpackContentsPayload";
 
     private Boolean unloadContractValid;
     private Boolean refitContractValid;
+    private Boolean backpackPayloadContractValid;
 
     @Override
     public void onLoad(String mixinPackage) {
@@ -120,6 +133,25 @@ public final class TaczAddonMixinPlugin
             String mixinClassName,
             IMixinInfo mixinInfo
     ) {
+        if (!mixinClassName.equals(BACKPACK_PAYLOAD_MIXIN)) {
+            return;
+        }
+
+        boolean installed =
+                hasAppliedBackpackPayloadHook(targetClass);
+
+        SophisticatedPayloadContractState.reportApplied(
+                installed
+        );
+
+        if (!installed) {
+            LOGGER.error(
+                    "[taczaddon] Sophisticated Backpacks payload preflight "
+                            + "passed, but the transformed BackpackContentsPayload "
+                            + "does not contain the TACZAddon response hook. "
+                            + "CLIENT_SYNC remains disabled; startup continues."
+            );
+        }
     }
 
     @Override
@@ -127,6 +159,22 @@ public final class TaczAddonMixinPlugin
             String targetClassName,
             String mixinClassName
     ) {
+        if (mixinClassName.equals(BACKPACK_PAYLOAD_MIXIN)) {
+            boolean valid =
+                    isBackpackPayloadContractValid();
+
+            /*
+             * A positive preflight only means the target is eligible for the mixin.
+             * CLIENT_SYNC must remain unavailable until postApply confirms that the
+             * transformed handlePayload method actually invokes our injected handler.
+             */
+            SophisticatedPayloadContractState.reportPreflight(
+                    valid
+            );
+
+            return valid;
+        }
+
         if (mixinClassName.equals(UNLOAD_MIXIN)
                 || mixinClassName.equals(UNLOAD_ACCESSOR)) {
             return RefitCompatibility.shouldEnableUnload(
@@ -144,13 +192,121 @@ public final class TaczAddonMixinPlugin
         return true;
     }
 
+    /**
+     * Verifies the post-transform result rather than merely trusting that
+     * shouldApplyMixin accepted the raw target contract.
+     *
+     * <p>Mixin injection handlers are merged into the target class and may be
+     * renamed (for example with a generated handler prefix), so the check searches
+     * the transformed handlePayload bytecode for an INVOKESTATIC whose method name
+     * contains our unique handler name.
+     *
+     * <p>This specifically distinguishes:
+     *
+     * <pre>
+     * preflight passed + injection succeeded
+     *     -> true
+     *
+     * preflight passed + require=0 injected zero callbacks
+     *     -> false
+     * </pre>
+     */
+    private static boolean hasAppliedBackpackPayloadHook(
+            ClassNode targetClass
+    ) {
+        if (targetClass == null
+                || targetClass.methods == null) {
+            return false;
+        }
+
+        for (MethodNode method : targetClass.methods) {
+            if (!"handlePayload".equals(method.name)
+                    || !ContractVisitor.HANDLE_PAYLOAD_DESCRIPTOR.equals(
+                    method.desc
+            )) {
+                continue;
+            }
+
+            if (method.instructions == null) {
+                return false;
+            }
+
+            for (
+                    var instruction =
+                    method.instructions.getFirst();
+                    instruction != null;
+                    instruction = instruction.getNext()
+            ) {
+                if (!(instruction instanceof MethodInsnNode invocation)) {
+                    continue;
+                }
+
+                if (invocation.getOpcode() != Opcodes.INVOKESTATIC) {
+                    continue;
+                }
+
+                /*
+                 * Injection handlers are merged into the target itself.
+                 */
+                if (!targetClass.name.equals(invocation.owner)) {
+                    continue;
+                }
+
+                /*
+                 * Mixin may rename the handler to something like
+                 * handler$...$taczaddon$afterBackpackContentsReceived.
+                 */
+                if (invocation.name.contains(
+                        "taczaddon$afterBackpackContentsReceived"
+                )) {
+                    return true;
+                }
+            }
+
+            /*
+             * The expected handlePayload overload exists but contains no call to
+             * our injected response handler.
+             */
+            return false;
+        }
+
+        return false;
+    }
+
+    private boolean isBackpackPayloadContractValid() {
+        if (backpackPayloadContractValid == null) {
+            backpackPayloadContractValid =
+                    verifyContract(
+                            BACKPACK_CONTENTS_PAYLOAD,
+                            "BackpackContentsPayload",
+                            ContractKind.BACKPACK_CONTENTS_PAYLOAD,
+                            "client Sophisticated backpack cache refresh"
+                    );
+
+            if (!backpackPayloadContractValid) {
+                LOGGER.error(
+                        "[taczaddon] Sophisticated Backpacks payload binary "
+                                + "contract mismatch. The BackpackContents"
+                                + "Payload mixin is skipped and the "
+                                + "CLIENT_SYNC capability stays unavailable; "
+                                + "startup continues."
+                );
+            }
+        }
+
+        return backpackPayloadContractValid;
+    }
+
     private boolean isUnloadContractValid() {
         if (unloadContractValid == null) {
             unloadContractValid =
                     verifyContract(
                             UNLOAD_PACKET,
                             "ClientMessageUnloadAttachment",
-                            ContractKind.UNLOAD_PACKET
+                            ContractKind.UNLOAD_PACKET,
+                            "server-side virtual attachment unload "
+                                    + "protection and client "
+                                    + "liberateAttachment refit integration"
                     );
 
             if (!unloadContractValid) {
@@ -185,7 +341,8 @@ public final class TaczAddonMixinPlugin
                     verifyContract(
                             REFIT_SCREEN,
                             "GunRefitScreen",
-                            ContractKind.REFIT_SCREEN
+                            ContractKind.REFIT_SCREEN,
+                            "client liberateAttachment refit UI"
                     );
 
             if (!refitContractValid) {
@@ -210,18 +367,19 @@ public final class TaczAddonMixinPlugin
     private static boolean verifyContract(
             String classInternalName,
             String className,
-            ContractKind kind
+            ContractKind kind,
+            String disabledFeature
     ) {
         byte[] classBytes = readClassBytes(classInternalName);
 
         if (classBytes == null) {
             LOGGER.error(
-                    "[taczaddon] TaCZ compatibility gate: could not read {} "
+                    "[taczaddon] Compatibility gate: could not read {} "
                             + "from the dependency classpath. Expected binary "
-                            + "contract: {}. liberateAttachment refit "
-                            + "integration disabled.",
+                            + "contract: {}. Disabled: {}.",
                     className,
-                    kind.expectedDescription
+                    kind.expectedDescription,
+                    disabledFeature
             );
             return false;
         }
@@ -239,11 +397,11 @@ public final class TaczAddonMixinPlugin
             valid = visitor.matches();
         } catch (RuntimeException exception) {
             LOGGER.error(
-                    "[taczaddon] TaCZ compatibility gate: failed to inspect "
-                            + "{}. Expected binary contract: {}. "
-                            + "liberateAttachment refit integration disabled.",
+                    "[taczaddon] Compatibility gate: failed to inspect {}. "
+                            + "Expected binary contract: {}. Disabled: {}.",
                     className,
                     kind.expectedDescription,
+                    disabledFeature,
                     exception
             );
             return false;
@@ -251,12 +409,12 @@ public final class TaczAddonMixinPlugin
 
         if (!valid) {
             LOGGER.error(
-                    "[taczaddon] TaCZ compatibility gate: {} does not match "
-                            + "the verified contract (expected {}). "
-                            + "liberateAttachment refit integration disabled; "
-                            + "startup continues.",
+                    "[taczaddon] Compatibility gate: {} does not match the "
+                            + "verified contract (expected {}). Disabled: "
+                            + "{}; startup continues.",
                     className,
-                    kind.expectedDescription
+                    kind.expectedDescription,
+                    disabledFeature
             );
         }
 
@@ -292,6 +450,12 @@ public final class TaczAddonMixinPlugin
                 "non-static addAttachmentTypeButtons()V, "
                         + "non-static addInventoryAttachmentButtons()V, "
                         + "non-static non-final currentPage:I"
+        ),
+        BACKPACK_CONTENTS_PAYLOAD(
+                "static handlePayload(BackpackContentsPayload, "
+                        + "IPayloadContext)V, accessor "
+                        + "backpackUuid()Ljava/util/UUID;, accessor "
+                        + "backpackContents()Lnet/minecraft/nbt/CompoundTag;"
         );
 
         private final String expectedDescription;
@@ -314,6 +478,18 @@ public final class TaczAddonMixinPlugin
                 "Lcom/tacz/guns/api/item/attachment/"
                         + "AttachmentType;";
 
+        private static final String HANDLE_PAYLOAD_DESCRIPTOR =
+                "(Lnet/p3pp3rf1y/sophisticatedbackpacks/network/"
+                        + "BackpackContentsPayload;"
+                        + "Lnet/neoforged/neoforge/network/handling/"
+                        + "IPayloadContext;)V";
+
+        private static final String UUID_DESCRIPTOR =
+                "Ljava/util/UUID;";
+
+        private static final String COMPOUND_TAG_DESCRIPTOR =
+                "Lnet/minecraft/nbt/CompoundTag;";
+
         private final ContractKind kind;
 
         private boolean staticHandle;
@@ -322,6 +498,9 @@ public final class TaczAddonMixinPlugin
         private boolean addAttachmentTypeButtons;
         private boolean addInventoryAttachmentButtons;
         private boolean currentPageField;
+        private boolean staticHandlePayload;
+        private boolean backpackUuidAccessor;
+        private boolean backpackContentsAccessor;
 
         ContractVisitor(ContractKind kind) {
             super(Opcodes.ASM9);
@@ -372,22 +551,43 @@ public final class TaczAddonMixinPlugin
                 String signature,
                 String[] exceptions
         ) {
+            boolean staticMethod =
+                    (access & Opcodes.ACC_STATIC) != 0;
+
             if ("handle".equals(name)
                     && HANDLE_DESCRIPTOR.equals(descriptor)
-                    && (access & Opcodes.ACC_STATIC) != 0) {
+                    && staticMethod) {
                 staticHandle = true;
             }
 
             if ("addAttachmentTypeButtons".equals(name)
                     && "()V".equals(descriptor)
-                    && (access & Opcodes.ACC_STATIC) == 0) {
+                    && !staticMethod) {
                 addAttachmentTypeButtons = true;
             }
 
             if ("addInventoryAttachmentButtons".equals(name)
                     && "()V".equals(descriptor)
-                    && (access & Opcodes.ACC_STATIC) == 0) {
+                    && !staticMethod) {
                 addInventoryAttachmentButtons = true;
+            }
+
+            if ("handlePayload".equals(name)
+                    && HANDLE_PAYLOAD_DESCRIPTOR.equals(descriptor)
+                    && staticMethod) {
+                staticHandlePayload = true;
+            }
+
+            if ("backpackUuid".equals(name)
+                    && UUID_DESCRIPTOR.equals(descriptor)
+                    && !staticMethod) {
+                backpackUuidAccessor = true;
+            }
+
+            if ("backpackContents".equals(name)
+                    && COMPOUND_TAG_DESCRIPTOR.equals(descriptor)
+                    && !staticMethod) {
+                backpackContentsAccessor = true;
             }
 
             return null;
@@ -403,6 +603,10 @@ public final class TaczAddonMixinPlugin
                         addAttachmentTypeButtons
                                 && addInventoryAttachmentButtons
                                 && currentPageField;
+                case BACKPACK_CONTENTS_PAYLOAD ->
+                        staticHandlePayload
+                                && backpackUuidAccessor
+                                && backpackContentsAccessor;
             };
         }
     }
