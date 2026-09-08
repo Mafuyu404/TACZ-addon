@@ -149,7 +149,7 @@ public final class TaczAddonMixinPlugin
                     "[taczaddon] Sophisticated Backpacks payload preflight "
                             + "passed, but the transformed BackpackContentsPayload "
                             + "does not contain the TACZAddon response hook. "
-                            + "CLIENT_SYNC remains disabled; startup continues."
+                            + "Optional immediate invalidation is unavailable; native sync is unaffected."
             );
         }
     }
@@ -165,8 +165,8 @@ public final class TaczAddonMixinPlugin
 
             /*
              * A positive preflight only means the target is eligible for the mixin.
-             * CLIENT_SYNC must remain unavailable until postApply confirms that the
-             * transformed handlePayload method actually invokes our injected handler.
+             * The optional callback is usable only after postApply confirms that the
+             * transformed handler invokes it. Native CLIENT_SYNC is independent.
              */
             SophisticatedPayloadContractState.reportPreflight(
                     valid
@@ -288,7 +288,7 @@ public final class TaczAddonMixinPlugin
                         "[taczaddon] Sophisticated Backpacks payload binary "
                                 + "contract mismatch. The BackpackContents"
                                 + "Payload mixin is skipped and the "
-                                + "CLIENT_SYNC capability stays unavailable; "
+                                + "optional immediate invalidation is unavailable; native sync is unaffected; "
                                 + "startup continues."
                 );
             }

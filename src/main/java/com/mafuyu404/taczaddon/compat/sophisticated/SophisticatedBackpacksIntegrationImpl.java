@@ -6,6 +6,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -21,6 +22,10 @@ import net.p3pp3rf1y.sophisticatedbackpacks.backpack.wrapper.IBackpackWrapper;
 import net.p3pp3rf1y.sophisticatedbackpacks.common.gui.BackpackContext;
 import net.p3pp3rf1y.sophisticatedbackpacks.network.BackpackContentsPayload;
 import net.p3pp3rf1y.sophisticatedbackpacks.network.RequestBackpackInventoryContentsPayload;
+import net.p3pp3rf1y.sophisticatedbackpacks.network.RequestLinkedStorageBackpackContentsPayload;
+import net.p3pp3rf1y.sophisticatedcore.linkedstorage.LinkedStorageStackLifecycle;
+import net.p3pp3rf1y.sophisticatedcore.linkedstorage.LinkedStorageEndpointStackState;
+import net.p3pp3rf1y.sophisticatedcore.linkedstorage.LinkedStorageEndpointData;
 import net.p3pp3rf1y.sophisticatedcore.init.ModCoreDataComponents;
 import net.p3pp3rf1y.sophisticatedcore.inventory.InventoryHandler;
 import net.p3pp3rf1y.sophisticatedcore.upgrades.UpgradeHandler;
@@ -146,6 +151,21 @@ public final class SophisticatedBackpacksIntegrationImpl
                 "net.p3pp3rf1y.sophisticatedcore.init."
                         + "ModCoreDataComponents"
         );
+        checkClass(
+                "net.p3pp3rf1y.sophisticatedbackpacks.network."
+                        + "LinkedStorageBackpackContentsPayload"
+        );
+        Objects.requireNonNull(ModCoreDataComponents.STORAGE_UUID.get());
+        Objects.requireNonNull(ModCoreDataComponents.LINKED_STORAGE_ENDPOINT.get());
+
+        // Exercise the exact typed members used by bootstrap, without sending
+        // packets or resolving a wrapper before its native snapshot exists.
+        UUID probeId = new UUID(0L, 0L);
+        Objects.requireNonNull(new RequestBackpackInventoryContentsPayload(probeId).type());
+        Objects.requireNonNull(new RequestLinkedStorageBackpackContentsPayload(probeId, -1L).type());
+        Objects.requireNonNull(LinkedStorageStackLifecycle.classifyEndpoint(ItemStack.EMPTY));
+        Objects.requireNonNull(LinkedStorageEndpointStackState.ENDPOINT);
+        Objects.requireNonNull(new LinkedStorageEndpointData(probeId, probeId).groupId());
         return true;
     }
 
@@ -549,35 +569,70 @@ public final class SophisticatedBackpacksIntegrationImpl
             return;
         }
 
-        Set<UUID> requestedUuids = new HashSet<>();
-
+        ClientSyncRequests requests = new ClientSyncRequests(
+                payload -> PacketDistributor.sendToServer(payload),
+                backpack -> BackpackWrapper.fromStack(backpack)
+        );
         bridge().forEachBackpack(
                 player,
                 (backpack, inventoryName, identifier, index) -> {
-                    UUID uuid = backpack.get(
-                            ModCoreDataComponents.STORAGE_UUID.get()
-                    );
-
-                    if (uuid == null || !requestedUuids.add(uuid)) {
-                        return false;
+                    // A linked endpoint must never fall through to STORAGE_UUID,
+                    // even when its endpoint data is transiently unavailable.
+                    if (isLinkedStorageEndpoint(backpack)) {
+                        return requests.request(true, getLinkedStorageGroupId(backpack), backpack);
                     }
-
-                    /*
-                     * Register a wrapper for this exact ItemStack instance.
-                     *
-                     * Do not initialize its InventoryHandler here because the
-                     * client BackpackStorage may not contain the synchronized
-                     * NBT yet.
-                     */
-                    BackpackWrapper.fromStack(backpack);
-
-                    PacketDistributor.sendToServer(
-                            new RequestBackpackInventoryContentsPayload(uuid)
-                    );
-
-                    return false;
+                    return requests.request(false,
+                            backpack.get(ModCoreDataComponents.STORAGE_UUID.get()), backpack);
                 }
         );
+    }
+
+    private static boolean isLinkedStorageEndpoint(ItemStack backpack) {
+        return LinkedStorageStackLifecycle.classifyEndpoint(backpack)
+                == LinkedStorageEndpointStackState.ENDPOINT;
+    }
+
+    @javax.annotation.Nullable
+    private static UUID getLinkedStorageGroupId(ItemStack backpack) {
+        LinkedStorageEndpointData endpoint =
+                backpack.get(ModCoreDataComponents.LINKED_STORAGE_ENDPOINT.get());
+        return endpoint == null ? null : endpoint.groupId();
+    }
+
+    /** One bootstrap pass; no UUIDs or revisions survive a world/session change. */
+    static final class ClientSyncRequests {
+        private final Set<UUID> requestedStorageUuids = new HashSet<>();
+        private final Set<UUID> requestedLinkedGroupIds = new HashSet<>();
+        private final Consumer<CustomPacketPayload> sender;
+        private final Consumer<ItemStack> registerNormalWrapper;
+
+        ClientSyncRequests(Consumer<CustomPacketPayload> sender, Consumer<ItemStack> registerNormalWrapper) {
+            this.sender = sender;
+            this.registerNormalWrapper = registerNormalWrapper;
+        }
+
+        /** Returns false in every case so the provider keeps visiting backpacks. */
+        boolean request(boolean linkedEndpoint, @javax.annotation.Nullable UUID id, ItemStack backpack) {
+            if (linkedEndpoint) {
+                if (id != null && requestedLinkedGroupIds.add(id)) {
+                    // Upstream sends a snapshot unless knownRevision equals the
+                    // group's revision. -1 forces bootstrap after native logout clear.
+                    sender.accept(new RequestLinkedStorageBackpackContentsPayload(id, -1L));
+                    com.mojang.logging.LogUtils.getLogger().debug(
+                            "[taczaddon] Requested linked backpack contents group={} knownRevision=-1", id);
+                }
+                return false;
+            }
+            if (id != null && requestedStorageUuids.add(id)) {
+                // Register only the exact ordinary stack; do not initialize its
+                // InventoryHandler until BackpackStorage has native contents.
+                registerNormalWrapper.accept(backpack);
+                sender.accept(new RequestBackpackInventoryContentsPayload(id));
+                com.mojang.logging.LogUtils.getLogger().debug(
+                        "[taczaddon] Requested ordinary backpack contents storageUuid={}", id);
+            }
+            return false;
+        }
     }
 
     /**

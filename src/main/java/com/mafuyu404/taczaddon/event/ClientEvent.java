@@ -176,6 +176,11 @@ public final class ClientEvent {
     }
 
     @SubscribeEvent
+    public static void refreshRefitSources(ClientTickEvent.Pre event) {
+        com.mafuyu404.taczaddon.client.RefitExternalSourceState.tick();
+    }
+
+    @SubscribeEvent
     public static void storageBackpack(ClientTickEvent.Pre event) {
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
@@ -241,6 +246,9 @@ public final class ClientEvent {
     ) {
         clearClientCaches();
         ClientSessionState.clear();
+        ClientSyncedConfig.reset();
+        com.mafuyu404.taczaddon.client.GunSmithCraftBridgeState.reset();
+        com.mafuyu404.taczaddon.client.RefitExternalSourceState.clear();
     }
 
     public static Optional<Inventory> getVirtualInventory() {

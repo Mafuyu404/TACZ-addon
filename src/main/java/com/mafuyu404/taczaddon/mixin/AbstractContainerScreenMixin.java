@@ -80,7 +80,8 @@ public abstract class AbstractContainerScreenMixin
         this.taczaddon$relationHoveredStack =
                 ItemStack.EMPTY;
 
-        if (!Config.SHOW_ITEM_RELATION.get()) {
+        if (!Config.SHOW_ITEM_RELATION.get() || (taczaddon$isSophisticatedScreen()
+                && !Config.showItemRelationInSophisticatedStorage())) {
             this.taczaddon$invalidateRelationCache();
             return;
         }
@@ -118,7 +119,8 @@ public abstract class AbstractContainerScreenMixin
             Slot slot,
             CallbackInfo ci
     ) {
-        if (!Config.SHOW_ITEM_RELATION.get()) {
+        if (!Config.SHOW_ITEM_RELATION.get() || (taczaddon$isSophisticatedScreen()
+                && !Config.showItemRelationInSophisticatedStorage())) {
             return;
         }
 
@@ -137,6 +139,13 @@ public abstract class AbstractContainerScreenMixin
                 0,
                 0x80FFA500
         );
+    }
+
+    @Unique
+    private boolean taczaddon$isSophisticatedScreen() {
+        String name = this.getClass().getName();
+        return name.startsWith("net.p3pp3rf1y.sophisticatedbackpacks.")
+                || name.startsWith("net.p3pp3rf1y.sophisticatedstorage.");
     }
 
     @Unique

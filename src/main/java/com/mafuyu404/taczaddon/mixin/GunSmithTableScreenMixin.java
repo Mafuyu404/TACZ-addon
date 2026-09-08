@@ -80,7 +80,7 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
 
     @Unique
     private void taczaddon$requestNearbyContainerSnapshotIfNeeded() {
-        if (!Config.enableGunSmithTableContainerReader()) {
+        if (!Config.enableGunSmithTableContainerReader() || !ClientSyncedConfig.enableNearbyContainerSources()) {
             return;
         }
 
@@ -446,7 +446,7 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
 
     @ModifyVariable(method = "getPlayerIngredientCount", at = @At("STORE"), ordinal = 0)
     private Inventory taczaddon$modifyIngredientShow(Inventory inventory) {
-        if (!Config.enableGunSmithTableContainerReader()) {
+        if (!Config.enableGunSmithTableContainerReader() || !ClientSyncedConfig.enableNearbyContainerSources()) {
             return inventory;
         }
 
@@ -551,127 +551,9 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
             Button.OnPress original
     ) {
         return button -> {
-            int requestedAttempts =
-                    Screen.hasShiftDown()
-                            ? Math.max(
-                            1,
-                            Math.min(
-                                    Config.getMassCraftTime(),
-                                    64
-                            )
-                    )
-                            : 1;
-
-            int allowedAttempts =
-                    this.taczaddon$getClientCraftableCount(
-                            requestedAttempts
-                    );
-
-            if (allowedAttempts <= 0) {
-                return;
-            }
-
-            for (int attempt = 0;
-                 attempt < allowedAttempts;
-                 attempt++) {
-                original.onPress(button);
-            }
-
-            this.taczaddon$showCraftRequestToast(
-                    allowedAttempts
-            );
+            if (this.selectedRecipe == null) return;
+            com.mafuyu404.taczaddon.client.GunSmithCraftBridgeState.request(this.menu.containerId,
+                    this.selectedRecipe.id(), com.mafuyu404.taczaddon.client.GunSmithCraftBridgeState.requestedCount(Screen.hasShiftDown()));
         };
     }
-
-    @Unique
-    private int taczaddon$getClientCraftableCount(
-            int requestedAttempts
-    ) {
-        if (requestedAttempts <= 0
-                || this.selectedRecipe == null
-                || this.playerIngredientCount == null) {
-            return 0;
-        }
-
-        Minecraft minecraft = Minecraft.getInstance();
-
-        if (minecraft.player == null) {
-            return 0;
-        }
-
-        if (minecraft.player.isCreative()) {
-            return requestedAttempts;
-        }
-
-        List<GunSmithTableIngredient> inputs =
-                this.selectedRecipe
-                        .value()
-                        .getInputs();
-
-        int craftable = requestedAttempts;
-
-        for (int index = 0;
-             index < inputs.size();
-             index++) {
-            if (!this.playerIngredientCount
-                    .containsKey(index)) {
-                return 0;
-            }
-
-            int required =
-                    inputs.get(index).getCount();
-
-            if (required <= 0) {
-                continue;
-            }
-
-            int available =
-                    this.playerIngredientCount.get(index);
-
-            craftable = Math.min(
-                    craftable,
-                    available / required
-            );
-
-            if (craftable <= 0) {
-                return 0;
-            }
-        }
-
-        return craftable;
-    }
-
-    @Unique
-    private void taczaddon$showCraftRequestToast(
-            int attempts
-    ) {
-        if (!Config.enableGunSmithTableCraftToast()
-                || this.selectedRecipe == null
-                || attempts <= 0) {
-            return;
-        }
-
-        ItemStack output =
-                this.selectedRecipe
-                        .value()
-                        .getOutput();
-
-        if (output.isEmpty()) {
-            return;
-        }
-
-        long totalOutput =
-                (long) output.getCount()
-                        * attempts;
-
-        ItemIconToast.create(
-                "Craft requested",
-                output.getHoverName().getString()
-                        + " x "
-                        + totalOutput,
-                output.copy()
-        );
-    }
-
 }
-

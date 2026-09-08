@@ -1,9 +1,7 @@
 package com.mafuyu404.taczaddon.network;
 
 import com.mafuyu404.taczaddon.TACZaddon;
-import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
 import com.mafuyu404.taczaddon.init.Config;
-import com.mafuyu404.taczaddon.init.ContainerMaster;
 import com.mafuyu404.taczaddon.init.ContainerReaderState;
 import com.mafuyu404.taczaddon.init.NetworkHandler;
 import com.tacz.guns.inventory.GunSmithTableMenu;
@@ -41,8 +39,6 @@ public final class ContainerPositionPacket
                             ContainerPositionPacket::blockPos
                     );
 
-    private static final int SCAN_HORIZONTAL_RADIUS = 2;
-    private static final int SCAN_VERTICAL_RADIUS = 1;
 
     private static final double MAX_REQUEST_DISTANCE_SQR = 64.0D;
     private static final int MAX_RETURNED_STACKS = 216;
@@ -96,7 +92,13 @@ public final class ContainerPositionPacket
                 return;
             }
 
-            scanAndSend(player, message.blockPos);
+            var session = com.mafuyu404.taczaddon.init.GunSmithCraftingSessionManager.getSession(player.getUUID());
+            var state = player.level().getBlockState(message.blockPos);
+            if (!(state.getBlock() instanceof com.tacz.guns.block.AbstractGunSmithTableBlock tableBlock)) return;
+            BlockPos rootPos = tableBlock.getRootPos(message.blockPos, state);
+            if (session == null || !session.validate(player, player.containerMenu.containerId)
+                    || !session.getTablePos().equals(rootPos)) return;
+            scanAndSend(player, session.getTablePos());
         });
     }
 
@@ -112,55 +114,23 @@ public final class ContainerPositionPacket
         List<BlockPos> containerPositions = new ArrayList<>();
         List<BlockPos> backpackPositions = new ArrayList<>();
 
-        for (
-                int x = tablePos.getX() - SCAN_HORIZONTAL_RADIUS;
-                x <= tablePos.getX() + SCAN_HORIZONTAL_RADIUS;
-                x++
-        ) {
-            for (
-                    int y = tablePos.getY() - SCAN_VERTICAL_RADIUS;
-                    y <= tablePos.getY() + SCAN_VERTICAL_RADIUS;
-                    y++
-            ) {
-                for (
-                        int z = tablePos.getZ() - SCAN_HORIZONTAL_RADIUS;
-                        z <= tablePos.getZ() + SCAN_HORIZONTAL_RADIUS;
-                        z++
-                ) {
-                    BlockPos sourcePos = new BlockPos(x, y, z);
-
-                    if (!player.level().isLoaded(sourcePos)) {
-                        continue;
-                    }
-
-                    if (SophisticatedBackpacksCompat.isBackpackBlock(
-                            player.level(),
-                            sourcePos
-                    )) {
-                        List<ItemStack> backpackItems =
-                                SophisticatedBackpacksCompat
-                                        .getItemsFromBackpackBlock(
-                                                sourcePos,
-                                                player
-                                        );
-
-                        if (!backpackItems.isEmpty()) {
-                            addCopiesWithinLimit(items, backpackItems);
-                            backpackPositions.add(sourcePos.immutable());
-                        }
-                    }
-
-                    List<ItemStack> containerItems =
-                            ContainerMaster.readContainerFromPos(
-                                    player.level(),
-                                    sourcePos
-                            );
-
-                    if (!containerItems.isEmpty()) {
-                        addCopiesWithinLimit(items, containerItems);
-                        containerPositions.add(sourcePos.immutable());
-                    }
+        for (var source : com.mafuyu404.taczaddon.init.NearbyInventorySourceResolver.resolve(
+                player, tablePos, Config.getContainerScanRadius(), 1)) {
+            try {
+                if (!source.isValid()) continue;
+                List<ItemStack> sourceItems = new ArrayList<>();
+                for (int slot = 0; slot < source.handler().getSlots() && items.size() + sourceItems.size() < MAX_RETURNED_STACKS; slot++) {
+                    ItemStack stack = source.handler().getStackInSlot(slot);
+                    if (!stack.isEmpty()) sourceItems.add(stack.copy());
                 }
+                items.addAll(sourceItems);
+                if (source.kind() == com.mafuyu404.taczaddon.init.NearbyInventorySourceResolver.SourceKind.CONTAINER) {
+                    containerPositions.add(source.pos());
+                } else {
+                    backpackPositions.add(source.pos());
+                }
+            } catch (RuntimeException exception) {
+                com.mojang.logging.LogUtils.getLogger().warn("Skipping unavailable nearby ingredient source {}", source.pos(), exception);
             }
         }
 
@@ -177,7 +147,7 @@ public final class ContainerPositionPacket
     }
 
     /**
-     * Re-reads the source positions discovered by the initial scan.
+     * Re-resolves the loaded sources around the authoritative session anchor.
      *
      * Call this after the server has consumed crafting ingredients.
      */
@@ -190,65 +160,9 @@ public final class ContainerPositionPacket
             return;
         }
 
-        ContainerReaderState.getSnapshot(player).ifPresent(snapshot -> {
-            List<ItemStack> refreshedItems = new ArrayList<>();
-
-            for (BlockPos sourcePos : snapshot.backpackPositions()) {
-                if (refreshedItems.size() >= MAX_RETURNED_STACKS) {
-                    break;
-                }
-
-                if (!player.level().isLoaded(sourcePos)) {
-                    continue;
-                }
-
-                addCopiesWithinLimit(
-                        refreshedItems,
-                        SophisticatedBackpacksCompat
-                                .getItemsFromBackpackBlock(
-                                        sourcePos,
-                                        player
-                                )
-                );
-            }
-
-            for (BlockPos sourcePos : snapshot.containerPositions()) {
-                if (refreshedItems.size() >= MAX_RETURNED_STACKS) {
-                    break;
-                }
-
-                if (!player.level().isLoaded(sourcePos)) {
-                    continue;
-                }
-
-                addCopiesWithinLimit(
-                        refreshedItems,
-                        ContainerMaster.readContainerFromPos(
-                                player.level(),
-                                sourcePos
-                        )
-                );
-            }
-
-            NetworkHandler.sendToClient(
-                    player,
-                    new ContainerReaderPacket(refreshedItems)
-            );
-        });
-    }
-
-    private static void addCopiesWithinLimit(
-            List<ItemStack> target,
-            List<ItemStack> source
-    ) {
-        for (ItemStack stack : source) {
-            if (target.size() >= MAX_RETURNED_STACKS) {
-                return;
-            }
-
-            if (!stack.isEmpty()) {
-                target.add(stack.copy());
-            }
+        var session = com.mafuyu404.taczaddon.init.GunSmithCraftingSessionManager.getSession(player.getUUID());
+        if (session != null && session.validate(player, player.containerMenu.containerId)) {
+            scanAndSend(player, session.getTablePos());
         }
     }
 

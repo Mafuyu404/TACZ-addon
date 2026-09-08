@@ -10,6 +10,9 @@ import java.util.List;
 import java.util.Set;
 
 public final class Config {
+    public static final ModConfigSpec.BooleanValue SHOOT_WHILE_RELOADING;
+    public static final ModConfigSpec.IntValue CONTAINER_SCAN_RADIUS;
+    public static final ModConfigSpec.BooleanValue SHOW_ITEM_RELATION_IN_SOPHISTICATED_STORAGE;
     public static final ModConfigSpec.BooleanValue BETTER_AIM_CAMERA;
     public static final ModConfigSpec.BooleanValue GUNSMITHTABLE_CRAFT_TOAST;
     public static final ModConfigSpec.BooleanValue GUNSMITHTABLE_CONTAINER_READER;
@@ -37,16 +40,28 @@ public final class Config {
                         entry -> entry instanceof String id && ResourceLocation.tryParse(id) != null);
         BUILDER.pop();
 
+        BUILDER.push("Gun Setting");
+        SHOOT_WHILE_RELOADING = BUILDER.comment(
+                "Allow firing to interrupt an active tactical reload.",
+                "The gun must still contain immediately fireable loaded ammunition.",
+                "A failed shot must not cancel the reload.")
+                .define("enableShootWhileReloading", true);
+        BUILDER.pop();
+
         BUILDER.push("GunSmithTable Setting");
+        CONTAINER_SCAN_RADIUS = BUILDER.comment(
+                "Horizontal nearby-container scan radius.",
+                "Only loaded positions from Y-1 through Y+1 are inspected.")
+                .defineInRange("containerScanRadius", 3, 1, 16);
         GUNSMITHTABLE_CRAFT_TOAST = BUILDER
-                .comment("Show item toasts when crafting at the gun smith table.")
+                .comment("Show the actual server-confirmed result after gunsmith crafting.")
                 .define("enableCraftToast", true);
         GUNSMITHTABLE_CONTAINER_READER = BUILDER
-                .comment("Read nearby container contents while crafting at the gun smith table.")
+                .comment("Allow supported gunsmith/refit features to use nearby loaded containers.")
                 .define("enableContainerReader", true);
         GUNSMITHTABLE_MASS_CRAFT_TIME = BUILDER
-                .comment("Number of repeated crafts when holding shift at the gun smith table.")
-                .defineInRange("massCraftCount", 4, 1, 64);
+                .comment("Maximum server-authoritative craft executions requested by one shift-click.")
+                .defineInRange("massCraftCount", 64, 1, 64);
         BUILDER.pop();
 
         BUILDER.push("Attachment Setting");
@@ -59,6 +74,10 @@ public final class Config {
         BUILDER.pop();
 
         BUILDER.push("Other Setting");
+        SHOW_ITEM_RELATION_IN_SOPHISTICATED_STORAGE = BUILDER.comment(
+                "Highlight related items inside Sophisticated Backpacks/Storage screens.",
+                "Requires enableShowItemRelation.")
+                .define("enableShowItemRelationInSophisticatedStorage", true);
         BETTER_AIM_CAMERA = BUILDER
                 .comment("Temporarily switch to first person while aiming from another camera mode.")
                 .define("enableBetterAimCamera", true);
@@ -99,6 +118,11 @@ public final class Config {
     public static void onConfigReload(ModConfigEvent.Reloading event) {
         if (event.getConfig().getSpec() == SPEC) {
             updateItemBlacklist();
+            var server = net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+            if (server != null) server.execute(() -> {
+                var packet = com.mafuyu404.taczaddon.network.ConfigSyncPacket.fromServerConfig();
+                for (var player : server.getPlayerList().getPlayers()) NetworkHandler.sendToClient(player, packet);
+            });
         }
     }
 
@@ -126,7 +150,15 @@ public final class Config {
         return LESS_ALLOW_GUN.get();
     }
 
+    public static boolean enableShootWhileReloading() { return SHOOT_WHILE_RELOADING.get(); }
+    public static int getContainerScanRadius() { return CONTAINER_SCAN_RADIUS.get(); }
+    public static int getBatchCraftMax() { return Math.max(1, Math.min(GUNSMITHTABLE_MASS_CRAFT_TIME.get(), 64)); }
+    public static boolean enableNearbyContainerSources() { return GUNSMITHTABLE_CONTAINER_READER.get(); }
+    public static boolean showItemRelationInSophisticatedStorage() {
+        return SHOW_ITEM_RELATION.get() && SHOW_ITEM_RELATION_IN_SOPHISTICATED_STORAGE.get();
+    }
+
     public static int getMassCraftTime() {
-        return GUNSMITHTABLE_MASS_CRAFT_TIME.get();
+        return getBatchCraftMax();
     }
 }

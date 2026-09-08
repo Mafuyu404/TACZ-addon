@@ -80,6 +80,11 @@ public abstract class GunRefitScreenMixin
         super(title);
     }
 
+    @Inject(method = "init", at = @At("HEAD"), require = 1)
+    private void taczaddon$refreshExternalCandidates(CallbackInfo ci) {
+        com.mafuyu404.taczaddon.client.RefitExternalSourceState.requestIfNeeded();
+    }
+
     /**
      * Version-bound takeover of {@code addAttachmentTypeButtons()V}.
      *
@@ -349,14 +354,10 @@ public abstract class GunRefitScreenMixin
         Inventory realInventory =
                 minecraft.player.getInventory();
 
-        Inventory displayedInventory =
-                LiberateAttachment.useVirtualInventory(
-                        realInventory
-                );
-
-        boolean virtualInventory =
-                displayedInventory
-                        instanceof VirtualInventory;
+        boolean virtualInventory = LiberateAttachment.isLiberated(minecraft.player);
+        Inventory displayedInventory = virtualInventory
+                ? LiberateAttachment.useVirtualInventory(realInventory)
+                : com.mafuyu404.taczaddon.client.RefitExternalSourceState.createDisplayInventory(realInventory);
 
         int startX = this.width - 30;
         int startY = 50;
@@ -457,6 +458,15 @@ public abstract class GunRefitScreenMixin
                                         minecraft.player,
                                         SoundManager.INSTALL_SOUND
                                 );
+
+                                if (displayedInventory instanceof com.mafuyu404.taczaddon.client.RefitDisplayInventory display) {
+                                    var external = display.externalAt(capturedSlot);
+                                    if (external != null) {
+                                        NetworkHandler.sendToServer(new com.mafuyu404.taczaddon.network.RefitExternalAttachmentInstallPacket(
+                                                realInventory.selected, external.locator(), external.attachmentId(), external.type()));
+                                        return;
+                                    }
+                                }
 
                                 int sourceSlot =
                                         virtualInventory

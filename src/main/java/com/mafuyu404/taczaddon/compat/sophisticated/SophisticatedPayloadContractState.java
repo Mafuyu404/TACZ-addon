@@ -1,8 +1,8 @@
 package com.mafuyu404.taczaddon.compat.sophisticated;
 
 /**
- * Process-lifetime state connecting the Sophisticated payload Mixin gate to
- * the runtime CLIENT_SYNC capability.
+ * Process-lifetime state of the optional Sophisticated payload Mixin hook.
+ * Native CLIENT_SYNC protocol readiness is independent of this hook.
  *
  * <p>The state transition is deliberately fail-closed:
  *
@@ -19,7 +19,7 @@ package com.mafuyu404.taczaddon.compat.sophisticated;
  * </pre>
  *
  * <p>Only INSTALLED is usable. Passing the raw dependency contract check is
- * therefore not enough to enable CLIENT_SYNC: postApply must also verify that
+ * therefore not enough to enable the optional callback: postApply must verify that
  * the response hook was actually injected into the transformed target.
  */
 public final class SophisticatedPayloadContractState {
@@ -86,7 +86,7 @@ public final class SophisticatedPayloadContractState {
      *
      * <p>A positive postApply report is accepted only after a positive
      * preflight. Calling this unexpectedly from UNKNOWN must fail closed
-     * rather than enabling CLIENT_SYNC.
+     * rather than declaring the optional callback installed.
      */
     public static synchronized void reportApplied(
             boolean installed
@@ -106,7 +106,7 @@ public final class SophisticatedPayloadContractState {
     }
 
     /**
-     * CLIENT_SYNC is enabled only when successful injection has been verified.
+     * The optional acceleration/invalidation callback is usable only after verified injection.
      */
     public static boolean isUsable() {
         return state == State.INSTALLED;

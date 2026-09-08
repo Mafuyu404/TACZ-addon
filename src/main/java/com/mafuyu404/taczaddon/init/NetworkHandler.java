@@ -10,7 +10,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public class NetworkHandler {
-    private static final String PROTOCOL = "1.0";
+    private static final String PROTOCOL = "2.0";
 
     public static void register(IEventBus modBus) {
         modBus.addListener(NetworkHandler::registerPayloads);
@@ -20,6 +20,12 @@ public class NetworkHandler {
         // The addon sends server-authoritative inventory and UI state packets, so both
         // sides must negotiate the same channel instead of treating it as optional.
         PayloadRegistrar registrar = event.registrar(TACZaddon.MODID).versioned(PROTOCOL);
+        registrar.playToClient(ConfigSyncPacket.TYPE, ConfigSyncPacket.STREAM_CODEC, ConfigSyncPacket::handle);
+        registrar.playToServer(GunSmithCraftRequestPacket.TYPE, GunSmithCraftRequestPacket.STREAM_CODEC, GunSmithCraftRequestPacket::handle);
+        registrar.playToClient(GunSmithCraftResultPacket.TYPE, GunSmithCraftResultPacket.STREAM_CODEC, GunSmithCraftResultPacket::handle);
+        registrar.playToServer(RefitSourceRefreshRequestPacket.TYPE, RefitSourceRefreshRequestPacket.STREAM_CODEC, RefitSourceRefreshRequestPacket::handle);
+        registrar.playToClient(RefitSourceSnapshotPacket.TYPE, RefitSourceSnapshotPacket.STREAM_CODEC, RefitSourceSnapshotPacket::handle);
+        registrar.playToServer(RefitExternalAttachmentInstallPacket.TYPE, RefitExternalAttachmentInstallPacket.STREAM_CODEC, RefitExternalAttachmentInstallPacket::handle);
         registrar.playToClient(RuleSyncPacket.TYPE, RuleSyncPacket.STREAM_CODEC, RuleSyncPacket::handle);
         registrar.playToClient(ContainerReaderPacket.TYPE, ContainerReaderPacket.STREAM_CODEC, ContainerReaderPacket::handle);
         registrar.playToServer(ContainerPositionPacket.TYPE, ContainerPositionPacket.STREAM_CODEC, ContainerPositionPacket::handle);

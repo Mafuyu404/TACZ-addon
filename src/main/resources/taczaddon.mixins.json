@@ -10,6 +10,7 @@
     "ClientMessageUnloadAttachmentAccessor",
     "ClientMessageUnloadAttachmentMixin",
     "GunSmithTableMenuMixin",
+    "GunSmithTableMenuAccess",
     "InventoryAccessor",
     "LivingEntityShootMixin",
     "ModernKineticGunScriptAPIHasAmmoMixin",

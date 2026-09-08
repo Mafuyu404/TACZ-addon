@@ -251,9 +251,7 @@ public final class SophisticatedRuntime {
                 case BLOCK_BACKPACK ->
                         integration.probeBlockBackpack();
                 case CLIENT_SYNC ->
-                        integration.probeClientSync()
-                                && SophisticatedPayloadContractState
-                                .isUsable();
+                        integration.probeClientSync();
             };
         } catch (SophisticatedCompatibilityException exception) {
             markBroken(capability, exception);
@@ -317,10 +315,10 @@ public final class SophisticatedRuntime {
         if (capability == SophisticatedCapability.CLIENT_SYNC) {
             LOGGER.error(
                     "[taczaddon] Sophisticated CLIENT_SYNC capability is "
-                            + "unavailable: the BackpackContentsPayload "
-                            + "response hook contract is not usable in this "
-                            + "environment, so custom backpack cache refresh "
-                            + "requests are disabled. Sophisticated Backpacks "
+                            + "unavailable: the native normal/linked contents "
+                            + "protocol contract is not usable in this "
+                            + "environment, so bootstrap content requests "
+                            + "are disabled. Sophisticated Backpacks "
                             + "version: {}. Sophisticated Core version: {}. "
                             + "Carried and block backpack capabilities remain "
                             + "independent.",

@@ -61,6 +61,55 @@ public final class AttachmentRefitService {
         INTERNAL_FAILURE
     }
 
+    /** Extends the existing ownership model with a reversible nearby source. */
+    public static InstallResult installExternal(ServerPlayer player, int gunSlot,
+            com.mafuyu404.taczaddon.init.NearbyInventorySourceResolver.Source source, int sourceSlot,
+            ResourceLocation expectedId, AttachmentType expectedType) {
+        Inventory inventory = player.getInventory();
+        if (!RefitSourceResolver.canUseSources(player) || !isValidGunSlot(inventory, gunSlot) || !source.isValid()
+                || !(source.handler() instanceof net.neoforged.neoforge.items.IItemHandlerModifiable handler)
+                || sourceSlot < 0 || sourceSlot >= handler.getSlots()) return InstallResult.REJECTED;
+        ItemStack gunStack = inventory.getItem(gunSlot);
+        IGun gun = IGun.getIGunOrNull(gunStack);
+        ItemStack current = handler.getStackInSlot(sourceSlot);
+        IAttachment attachment = IAttachment.getIAttachmentOrNull(current);
+        if (gun == null || gun.hasAttachmentLock(gunStack) || attachment == null
+                || !expectedId.equals(attachment.getAttachmentId(current)) || expectedType != attachment.getType(current)
+                || !gun.allowAttachment(gunStack, current)) return InstallResult.REJECTED;
+        ExternalSourceExtraction extraction = new ExternalSourceExtraction(handler, sourceSlot);
+        if (!extraction.simulateOne()) return InstallResult.REJECTED;
+        ItemStack oldAttachment = gun.getAttachment(player.registryAccess(), gunStack, expectedType).copy();
+        ItemStack physicalReturn = VirtualAttachmentData.isVirtual(oldAttachment) ? ItemStack.EMPTY : oldAttachment;
+        MainInventoryTransaction transaction = MainInventoryTransaction.begin(inventory);
+        try {
+            // Capacity failure must precede extraction, even when that would free a source slot.
+            if (!transaction.canFullyInsert(physicalReturn)) {
+                transaction.close();
+                sendNoSpace(player);
+                return InstallResult.NO_SPACE;
+            }
+            ItemStack extracted = extraction.extractOne();
+            gun.installAttachment(player.registryAccess(), gunStack, extracted);
+            if (!transaction.commitInsert(physicalReturn).isEmpty()) {
+                throw new IllegalStateException("Physical attachment return failed after preflight");
+            }
+            transaction.close();
+        } catch (RuntimeException exception) {
+            logInternalFailure("external-install", expectedId, exception);
+            try {
+                extraction.rollback();
+                source.markChanged();
+            } catch (RuntimeException recoveryException) {
+                LOGGER.error("CRITICAL: external source rollback failed at {} slot {}", source.pos(), sourceSlot, recoveryException);
+            }
+            handleRollbackOutcome(transaction, player, inventory, "external-install", expectedId);
+            return InstallResult.INTERNAL_FAILURE;
+        }
+        source.markChanged();
+        postChange(player, gunStack, expectedType, inventory);
+        return InstallResult.SUCCESS;
+    }
+
     public enum UnloadResult {
         SUCCESS,
         REJECTED,

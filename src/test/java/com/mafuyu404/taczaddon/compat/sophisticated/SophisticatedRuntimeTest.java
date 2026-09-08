@@ -339,7 +339,7 @@ class SophisticatedRuntimeTest {
     }
 
     @Test
-    void clientSyncRequiresInstalledPayloadHook() {
+    void clientSyncWorksWithInstalledPayloadHook() {
         SophisticatedPayloadContractState.reportPreflight(true);
         SophisticatedPayloadContractState.reportApplied(true);
 
@@ -362,7 +362,7 @@ class SophisticatedRuntimeTest {
     }
 
     @Test
-    void clientSyncPreflightAloneIsNotUsable() {
+    void payloadPreflightAloneDoesNotInstallOptionalHook() {
         SophisticatedPayloadContractState.reportPreflight(true);
 
         assertEquals(
@@ -376,42 +376,65 @@ class SophisticatedRuntimeTest {
     }
 
     @Test
-    void clientSyncWithoutPayloadContractVerdictStaysUnusable() {
+    void clientSyncDoesNotRequirePayloadMixinHook() {
         SophisticatedPayloadContractState.reset();
+        assertNativeClientSyncReady();
+    }
 
-        SophisticatedRuntime runtime =
-                readyRuntime(new StubIntegration());
+    @Test
+    void ineligiblePayloadHookDoesNotBlockNativeClientSync() {
+        SophisticatedPayloadContractState.reset();
+        SophisticatedPayloadContractState.reportPreflight(false);
+        assertNativeClientSyncReady();
+    }
 
-        assertEquals(
-                "fallback",
-                runtime.call(
-                        SophisticatedCapability.CLIENT_SYNC,
-                        () -> "fallback",
-                        integration -> "sync-result"
-                )
-        );
+    @Test
+    void failedPayloadHookDoesNotBlockNativeClientSync() {
+        SophisticatedPayloadContractState.reportPreflight(true);
+        SophisticatedPayloadContractState.reportApplied(false);
+        assertNativeClientSyncReady();
+    }
 
-        assertEquals(
-                SophisticatedCapabilityState.BROKEN,
-                runtime.stateOf(SophisticatedCapability.CLIENT_SYNC)
-        );
+    private static void assertNativeClientSyncReady() {
+        SophisticatedRuntime runtime = readyRuntime(new StubIntegration());
+        assertEquals("sync-result", runtime.call(SophisticatedCapability.CLIENT_SYNC,
+                () -> "fallback", integration -> "sync-result"));
+        assertEquals(SophisticatedCapabilityState.READY, runtime.stateOf(SophisticatedCapability.CLIENT_SYNC));
+    }
 
-        /*
-         * CLIENT_SYNC failure must not contaminate carried-backpack support.
-         */
-        assertEquals(
-                "carried-result",
-                runtime.call(
-                        SophisticatedCapability.CARRIED_BACKPACK,
-                        () -> "fallback",
-                        integration -> "carried-result"
-                )
-        );
+    @Test
+    void clientSyncProbeLinkageFailureLatchesOnlyClientSync() {
+        AtomicInteger probes = new AtomicInteger();
+        AtomicInteger calls = new AtomicInteger();
+        SophisticatedRuntime runtime = readyRuntime(new StubIntegration() {
+            @Override public boolean probeClientSync() {
+                probes.incrementAndGet();
+                throw new NoSuchMethodError("RequestLinkedStorageBackpackContentsPayload(UUID,long)");
+            }
+        });
+        for (int i = 0; i < 3; i++) {
+            assertEquals("fallback", runtime.call(SophisticatedCapability.CLIENT_SYNC,
+                    () -> "fallback", integration -> { calls.incrementAndGet(); return "sent"; }));
+        }
+        assertEquals(1, probes.get());
+        assertEquals(0, calls.get());
+        assertEquals(SophisticatedCapabilityState.BROKEN, runtime.stateOf(SophisticatedCapability.CLIENT_SYNC));
+        assertEquals("carried", runtime.call(SophisticatedCapability.CARRIED_BACKPACK, () -> "fallback", integration -> "carried"));
+        assertEquals("block", runtime.call(SophisticatedCapability.BLOCK_BACKPACK, () -> "fallback", integration -> "block"));
+    }
 
-        assertEquals(
-                SophisticatedCapabilityState.READY,
-                runtime.stateOf(SophisticatedCapability.CARRIED_BACKPACK)
-        );
+    @Test
+    void nativeRequestLinkageFailureIsNotRetried() {
+        SophisticatedRuntime runtime = readyRuntime(new StubIntegration());
+        AtomicInteger calls = new AtomicInteger();
+        for (int i = 0; i < 3; i++) {
+            assertEquals("fallback", runtime.call(SophisticatedCapability.CLIENT_SYNC, () -> "fallback", integration -> {
+                calls.incrementAndGet();
+                throw new NoClassDefFoundError("RequestLinkedStorageBackpackContentsPayload");
+            }));
+        }
+        assertEquals(1, calls.get());
+        assertEquals(SophisticatedCapabilityState.BROKEN, runtime.stateOf(SophisticatedCapability.CLIENT_SYNC));
     }
 
     @Test
@@ -507,7 +530,7 @@ class SophisticatedRuntimeTest {
         assertEquals(1, syncCalls.get());
     }
 
-    private static final class StubIntegration
+    private static class StubIntegration
             implements SophisticatedBackpacksIntegration {
 
         @Override
