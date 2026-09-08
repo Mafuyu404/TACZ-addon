@@ -76,6 +76,31 @@ public final class SophisticatedBackpacksCompat {
         }
     }
 
+    public static void refreshLinkedBackpackSnapshots(
+            Player player
+    ) {
+        if (!isUsable()
+                || player == null) {
+            return;
+        }
+
+        try {
+            SophisticatedBackpacksCompatInner
+                    .refreshLinkedBackpackSnapshots(
+                            player
+                    );
+        } catch (LinkageError linkageError) {
+            /*
+             * This means the stable ordinary Sophisticated API itself failed.
+             * Fail through the existing global circuit breaker.
+             *
+             * 3.26-only linked failures are already contained inside
+             * SophisticatedLinkedStorageCompat and never reach here.
+             */
+            breakLinkage(linkageError);
+        }
+    }
+
     private static boolean isUsable() {
         return isInstalled() && !linkageBroken;
     }

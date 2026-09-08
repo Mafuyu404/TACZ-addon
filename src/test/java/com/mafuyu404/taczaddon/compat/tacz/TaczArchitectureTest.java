@@ -56,8 +56,8 @@ class TaczArchitectureTest {
                 "src/main/resources/taczaddon.tacz.mixins.json"
         );
 
-        assertFalse(generic.contains("JAVA_17"));
-        assertFalse(tacz.contains("JAVA_17"));
+        assertTrue(generic.contains("\"compatibilityLevel\": \"JAVA_17\""));
+        assertTrue(tacz.contains("\"compatibilityLevel\": \"JAVA_17\""));
         assertTrue(tacz.contains(
                 "\"plugin\": \"com.mafuyu404.taczaddon.compat.tacz."
                         + "TaczAddonMixinPlugin\""

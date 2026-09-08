@@ -38,29 +38,29 @@ ordering="AFTER"
 side="BOTH"
 
 # Optional compatibility: Sophisticated Core
-# Tested/pinned project baseline: 1.20.1-1.3.80.2267.
+# Supported ordinary compatibility floor: 1.20.1-1.3.80.2267.
 [[dependencies.${mod_id}]]
 modId="sophisticatedcore"
 mandatory=false
-versionRange="[1.3.80.2267,)"
+versionRange="[1.3.80.2267,1.6)"
 ordering="AFTER"
 side="BOTH"
 
 # Optional compatibility: Sophisticated Backpacks
-# Tested/pinned project baseline: 1.20.1-3.24.66.2095.
+# Supported ordinary compatibility floor: 1.20.1-3.24.66.2095.
 [[dependencies.${mod_id}]]
 modId="sophisticatedbackpacks"
 mandatory=false
-versionRange="[3.24.66.2095,)"
+versionRange="[3.24.66.2095,3.27)"
 ordering="AFTER"
 side="BOTH"
 
 # Optional compatibility: Sophisticated Storage
-# Tested/pinned project baseline: 1.20.1-1.4.81.2086.
+# Supported ordinary compatibility floor: 1.20.1-1.4.81.2086.
 [[dependencies.${mod_id}]]
 modId="sophisticatedstorage"
 mandatory=false
-versionRange="[1.4.81.2086,)"
+versionRange="[1.4.81.2086,1.5)"
 ordering="AFTER"
 side="BOTH"
 

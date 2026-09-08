@@ -20,6 +20,8 @@ import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -29,6 +31,10 @@ import java.util.function.Predicate;
 
 public final class SophisticatedBackpacksCompatInner {
     private static final Logger LOGGER = LogUtils.getLogger();
+
+    private static final String LINKED_WRAPPER_CLASS =
+            "net.p3pp3rf1y.sophisticatedbackpacks.backpack.wrapper."
+                    + "LinkedStorageBackpackWrapper";
 
     private SophisticatedBackpacksCompatInner() {
     }
@@ -66,12 +72,55 @@ public final class SophisticatedBackpacksCompatInner {
         return stopped[0];
     }
 
+    private static boolean isLinkedStorageWrapper(
+            IBackpackWrapper wrapper
+    ) {
+        return wrapper != null
+                && LINKED_WRAPPER_CLASS.equals(
+                wrapper.getClass().getName()
+        );
+    }
+
     private static InventoryHandler getFreshInventoryHandler(
             Player player,
             IBackpackWrapper wrapper
     ) {
-        InventoryHandler handler = wrapper.getInventoryHandler();
-        if (player == null || !player.level().isClientSide) {
+        InventoryHandler handler =
+                wrapper.getInventoryHandler();
+
+        SophisticatedLinkedStorageCompat.EndpointResolution linked =
+                SophisticatedLinkedStorageCompat.resolve(
+                        wrapper.getBackpack()
+                );
+
+        /*
+         * Normal linked path.
+         */
+        if (linked.linked()) {
+            /*
+             * Linked wrappers delegate to
+             * ClientLinkedStorageBackpackContents.
+             *
+             * Never compare linked contents with ordinary BackpackStorage.
+             */
+            return handler;
+        }
+
+        /*
+         * If the optional linked bridge itself became ABI-incompatible, retain the
+         * same protection using only the runtime wrapper class name.
+         *
+         * This lets ordinary wrappers continue through BackpackStorage while
+         * preventing a genuine linked wrapper from being incorrectly treated as an
+         * ordinary backpack.
+         */
+        if (linked.bridgeUnavailable()
+                && isLinkedStorageWrapper(wrapper)) {
+            return handler;
+        }
+
+        if (player == null
+                || !player.level().isClientSide) {
             return handler;
         }
 
@@ -233,30 +282,132 @@ public final class SophisticatedBackpacksCompatInner {
         return stopped[0];
     }
 
-    public static void syncAllBackpack(Player player) {
-        PlayerInventoryProvider.get().runOnBackpacks(
-                player,
-                (ignoredBackpack, handlerName, identifier, slot) -> {
-                    BackpackContext.Item context =
-                            new BackpackContext.Item(
-                                    handlerName,
-                                    identifier,
-                                    slot
-                            );
-                    IBackpackWrapper wrapper =
-                            context.getBackpackWrapper(player);
-                    if (wrapper != IBackpackWrapper.Noop.INSTANCE) {
-                        wrapper.getContentsUuid().ifPresent(uuid ->
-                                SBPPacketHandler.INSTANCE.sendToServer(
-                                        new RequestBackpackInventoryContentsMessage(
-                                                uuid
+    public static void syncAllBackpack(
+            Player player
+    ) {
+        Set<UUID> requestedStorageUuids =
+                new HashSet<>();
+
+        Set<UUID> requestedLinkedGroups =
+                new HashSet<>();
+
+        PlayerInventoryProvider.get()
+                .runOnBackpacks(
+                        player,
+                        (
+                                backpack,
+                                handlerName,
+                                identifier,
+                                slot
+                        ) -> {
+                            SophisticatedLinkedStorageCompat
+                                    .EndpointResolution linked =
+                                    SophisticatedLinkedStorageCompat
+                                            .resolve(backpack);
+
+                            if (linked.linked()) {
+                                linked.groupIdOptional()
+                                        .filter(
+                                                requestedLinkedGroups::add
                                         )
-                                )
-                        );
-                    }
-                    return false;
-                }
-        );
+                                        .ifPresent(
+                                                SophisticatedLinkedStorageCompat
+                                                        ::requestSnapshot
+                                        );
+
+                                /*
+                                 * Includes malformed linked endpoints.
+                                 * Never let those fall through to ordinary
+                                 * BackpackStorage.
+                                 */
+                                return false;
+                            }
+
+                            BackpackContext.Item context =
+                                    new BackpackContext.Item(
+                                            handlerName,
+                                            identifier,
+                                            slot
+                                    );
+
+                            IBackpackWrapper wrapper =
+                                    context.getBackpackWrapper(
+                                            player
+                                    );
+
+                            if (wrapper
+                                    == IBackpackWrapper.Noop.INSTANCE) {
+                                return false;
+                            }
+
+                            /*
+                             * Runtime linked bridge failed after being detected.
+                             *
+                             * Preserve ordinary backpack bootstrap, but do not
+                             * accidentally route a real linked wrapper through the
+                             * ordinary UUID protocol.
+                             */
+                            if (linked.bridgeUnavailable()
+                                    && isLinkedStorageWrapper(
+                                    wrapper
+                            )) {
+                                return false;
+                            }
+
+                            wrapper.getContentsUuid()
+                                    .filter(
+                                            requestedStorageUuids::add
+                                    )
+                                    .ifPresent(uuid ->
+                                            SBPPacketHandler.INSTANCE
+                                                    .sendToServer(
+                                                            new RequestBackpackInventoryContentsMessage(
+                                                                    uuid
+                                                            )
+                                                    )
+                                    );
+
+                            return false;
+                        }
+                );
+    }
+
+    public static void refreshLinkedBackpackSnapshots(
+            Player player
+    ) {
+        Set<UUID> requestedLinkedGroups =
+                new HashSet<>();
+
+        PlayerInventoryProvider.get()
+                .runOnBackpacks(
+                        player,
+                        (
+                                backpack,
+                                handlerName,
+                                identifier,
+                                slot
+                        ) -> {
+                            SophisticatedLinkedStorageCompat
+                                    .EndpointResolution linked =
+                                    SophisticatedLinkedStorageCompat
+                                            .resolve(backpack);
+
+                            if (!linked.linked()) {
+                                return false;
+                            }
+
+                            linked.groupIdOptional()
+                                    .filter(
+                                            requestedLinkedGroups::add
+                                    )
+                                    .ifPresent(
+                                            SophisticatedLinkedStorageCompat
+                                                    ::refreshSnapshot
+                                    );
+
+                            return false;
+                        }
+                );
     }
 
     private static boolean mutateBackpackHandler(
@@ -311,18 +462,57 @@ public final class SophisticatedBackpacksCompatInner {
             ServerPlayer player,
             IBackpackWrapper wrapper
     ) {
-        wrapper.getContentsUuid().ifPresent(uuid -> {
-            CompoundTag backpackContent =
-                    BackpackStorage.get()
-                            .getOrCreateBackpackContents(uuid)
-                            .copy();
-            SBPPacketHandler.INSTANCE.sendToClient(
-                    player,
-                    new BackpackContentsMessage(
-                            uuid,
-                            backpackContent
-                    )
-            );
-        });
+        SophisticatedLinkedStorageCompat.EndpointResolution linked =
+                SophisticatedLinkedStorageCompat.resolve(
+                        wrapper.getBackpack()
+                );
+
+        if (linked.linked()) {
+            linked.groupIdOptional()
+                    .ifPresent(groupId ->
+                            SophisticatedLinkedStorageCompat
+                                    .sendSnapshot(
+                                            player,
+                                            groupId
+                                    )
+                    );
+
+            /*
+             * Includes malformed linked endpoints.
+             * Never publish them through BackpackContentsMessage.
+             */
+            return;
+        }
+
+        /*
+         * A linked bridge ABI failure must not disable ordinary backpacks.
+         *
+         * But if the wrapper itself is recognizably linked, fail closed instead
+         * of sending its canonical host UUID through the ordinary client-storage
+         * protocol.
+         */
+        if (linked.bridgeUnavailable()
+                && isLinkedStorageWrapper(wrapper)) {
+            return;
+        }
+
+        wrapper.getContentsUuid()
+                .ifPresent(uuid -> {
+                    CompoundTag backpackContent =
+                            BackpackStorage.get()
+                                    .getOrCreateBackpackContents(
+                                            uuid
+                                    )
+                                    .copy();
+
+                    SBPPacketHandler.INSTANCE
+                            .sendToClient(
+                                    player,
+                                    new BackpackContentsMessage(
+                                            uuid,
+                                            backpackContent
+                                    )
+                            );
+                });
     }
 }

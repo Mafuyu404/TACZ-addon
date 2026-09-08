@@ -119,11 +119,19 @@ dependencies {
 
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
-    compileOnly fg.deobf("curse.maven:sophisticated-core-618298:8656526")
-    runtimeOnly fg.deobf("curse.maven:sophisticated-core-618298:8656526")
-    compileOnly fg.deobf("curse.maven:sophisticated-backpacks-422301:8656555")
-    runtimeOnly fg.deobf("curse.maven:sophisticated-backpacks-422301:8656555")
-    runtimeOnly fg.deobf("curse.maven:sophisticated-storage-619320:8656633")
+    /*
+     * Compile/test baseline: Sophisticated Backpacks 3.26.0.2119 +
+     * Sophisticated Core 1.5.0.2316.
+     *
+     * Runtime metadata intentionally also permits the verified older
+     * 3.24/3.25 normal-backpack generations. New 3.26 linked-storage APIs
+     * must therefore remain behind a lazy optional bridge.
+     */
+    compileOnly fg.deobf("curse.maven:sophisticated-core-618298:8815743")
+    runtimeOnly fg.deobf("curse.maven:sophisticated-core-618298:8815743")
+    compileOnly fg.deobf("curse.maven:sophisticated-backpacks-422301:8817428")
+    runtimeOnly fg.deobf("curse.maven:sophisticated-backpacks-422301:8817428")
+    runtimeOnly fg.deobf("curse.maven:sophisticated-storage-619320:8719374")
 
 
     implementation fg.deobf("curse.maven:timeless-and-classics-zero-1028108:8141310")

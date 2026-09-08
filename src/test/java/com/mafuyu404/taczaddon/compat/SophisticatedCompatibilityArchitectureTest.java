@@ -58,15 +58,15 @@ class SophisticatedCompatibilityArchitectureTest {
         String gradle = read("build.gradle");
         assertTrue(gradle.contains(
                 "compileOnly fg.deobf(\"curse.maven:"
-                        + "sophisticated-core-618298:8656526\")"
+                        + "sophisticated-core-618298:8815743\")"
         ));
         assertTrue(gradle.contains(
                 "compileOnly fg.deobf(\"curse.maven:"
-                        + "sophisticated-backpacks-422301:8656555\")"
+                        + "sophisticated-backpacks-422301:8817428\")"
         ));
         assertTrue(gradle.contains(
                 "runtimeOnly fg.deobf(\"curse.maven:"
-                        + "sophisticated-storage-619320:8656633\")"
+                        + "sophisticated-storage-619320:8719374\")"
         ));
         assertFalse(gradle.contains(
                 "implementation fg.deobf(\"curse.maven:"
@@ -76,9 +76,9 @@ class SophisticatedCompatibilityArchitectureTest {
         String mods = read(
                 "src/main/resources/META-INF/mods.toml"
         );
-        assertTrue(mods.contains("[1.3.80.2267,)"));
-        assertTrue(mods.contains("[3.24.66.2095,)"));
-        assertTrue(mods.contains("[1.4.81.2086,)"));
+        assertTrue(mods.contains("[1.3.80.2267,1.6)"));
+        assertTrue(mods.contains("[3.24.66.2095,3.27)"));
+        assertTrue(mods.contains("[1.4.81.2086,1.5)"));
     }
 
     @Test
