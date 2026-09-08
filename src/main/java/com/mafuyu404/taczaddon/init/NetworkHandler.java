@@ -13,10 +13,10 @@ import java.util.Optional;
 
 public final class NetworkHandler {
     /*
-     * 2.8 adds the refit source snapshot and external-install protocol while
+     * 2.9 adds the attachment detail gamerule state while
      * preserving all existing packet assignments.
      */
-    private static final String PROTOCOL = "2.8";
+    private static final String PROTOCOL = "2.9";
 
     private static final int ID_PRIMITIVE_RESERVED = 0;
     private static final int ID_SWITCH_GUN = 1;
@@ -31,6 +31,7 @@ public final class NetworkHandler {
     private static final int ID_REFIT_SOURCE_REFRESH = 10;
     private static final int ID_REFIT_SOURCE_SNAPSHOT = 11;
     private static final int ID_REFIT_EXTERNAL_INSTALL = 12;
+    private static final int ID_ATTACHMENT_DETAIL_RULE_STATE = 13;
 
     public static final SimpleChannel CHANNEL =
             NetworkRegistry.newSimpleChannel(
@@ -156,6 +157,11 @@ public final class NetworkHandler {
                 RefitExternalAttachmentInstallPacket::handle,
                 Optional.of(NetworkDirection.PLAY_TO_SERVER)
         );
+
+        CHANNEL.registerMessage(
+                ID_ATTACHMENT_DETAIL_RULE_STATE, AttachmentDetailRuleStatePacket.class,
+                AttachmentDetailRuleStatePacket::encode, AttachmentDetailRuleStatePacket::decode,
+                AttachmentDetailRuleStatePacket::handle, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
     }
 
     public static void sendToClient(
@@ -173,6 +179,15 @@ public final class NetworkHandler {
                 player,
                 ServerFeatureConfigSyncPacket.fromServerConfig()
         );
+    }
+
+    public static void sendAttachmentDetailRuleState(ServerPlayer player) {
+        sendAttachmentDetailRuleState(player, player.level().getGameRules()
+                .getBoolean(RuleRegistry.SHOW_ATTACHMENT_DETAIL));
+    }
+
+    public static void sendAttachmentDetailRuleState(ServerPlayer player, boolean enabled) {
+        sendToClient(player, new AttachmentDetailRuleStatePacket(enabled));
     }
 
     public static void sendLiberateAttachmentState(

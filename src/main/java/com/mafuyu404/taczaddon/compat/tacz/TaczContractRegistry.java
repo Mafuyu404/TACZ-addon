@@ -315,6 +315,34 @@ public final class TaczContractRegistry {
                 )
         );
 
+        FeatureContract propertyFilter = versionBound(TaczFeature.GUNSMITH_PROPERTY_FILTER,
+                gunsmithPropertyFilterContract(),
+                new ClassContract("com.tacz.guns.resource.modifier.AttachmentPropertyManager")
+                        .withMethods(new MethodContract("getModifiers", "()Ljava/util/Map;")),
+                new ClassContract("com.tacz.guns.api.TimelessAPI")
+                        .withMethods(new MethodContract("getAllClientAttachmentIndex", "()Ljava/util/Set;")),
+                new ClassContract("com.tacz.guns.api.modifier.JsonProperty")
+                        .withMethods(new MethodContract("getComponents", "()Ljava/util/List;")),
+                new ClassContract("com.tacz.guns.resource.pojo.data.attachment.AttachmentData")
+                        .withMethods(new MethodContract("getModifier", "()Ljava/util/Map;")),
+                new ClassContract("com.tacz.guns.client.resource.index.ClientAttachmentIndex")
+                        .withMethods(new MethodContract("getData", "()Lcom/tacz/guns/resource/pojo/data/attachment/AttachmentData;")),
+                new ClassContract("com.tacz.guns.crafting.GunSmithTableRecipe")
+                        .withMethods(new MethodContract("getOutput", "()Lnet/minecraft/world/item/ItemStack;")),
+                new ClassContract("com.tacz.guns.api.item.IAttachment")
+                        .withMethods(new MethodContract("getAttachmentId", "(Lnet/minecraft/world/item/ItemStack;)Lnet/minecraft/resources/ResourceLocation;")));
+        featureContracts.put(TaczFeature.GUNSMITH_PROPERTY_FILTER, propertyFilter);
+        featureScopes.put(TaczFeature.GUNSMITH_PROPERTY_FILTER, CompatibilityScope.VERSION_BOUND);
+        mixinBindings.put(MIXIN_V1 + "GunSmithTablePropertyFilterMixin",
+                binding(MIXIN_V1 + "GunSmithTablePropertyFilterMixin", TaczFeature.GUNSMITH_PROPERTY_FILTER,
+                        propertyFilter, TaczFeature.GUNSMITH_SCREEN_ACCESS));
+
+        FeatureContract pageInfo = versionBound(TaczFeature.GUNSMITH_PAGE_INFO, gunsmithPageInfoContract());
+        featureContracts.put(TaczFeature.GUNSMITH_PAGE_INFO, pageInfo);
+        featureScopes.put(TaczFeature.GUNSMITH_PAGE_INFO, CompatibilityScope.VERSION_BOUND);
+        mixinBindings.put(MIXIN_V1 + "GunSmithTablePageInfoMixin",
+                binding(MIXIN_V1 + "GunSmithTablePageInfoMixin", TaczFeature.GUNSMITH_PAGE_INFO, pageInfo));
+
         FeatureContract ingredientInteraction = versionBound(
                 TaczFeature.GUNSMITH_INGREDIENT_INTERACTION,
                 gunsmithIngredientInteractionContract()
@@ -927,6 +955,34 @@ public final class TaczContractRegistry {
                 ),
                 FieldContract.of("typePage", "I")
         );
+    }
+
+    private static ClassContract gunsmithPropertyFilterContract() {
+        String screen = "com/tacz/guns/client/gui/GunSmithTableScreen";
+        return browseContract().withMethods(
+                new MethodContract("classifyRecipes", "()V", List.of(
+                        InvokeContract.exactlyOne("java/util/List", "add", "(Ljava/lang/Object;)Z"))),
+                new MethodContract("init", "()V", List.of(
+                        InvokeContract.exactlyOne(screen, "classifyRecipes", "()V"),
+                        InvokeContract.exactlyOne(screen, "updateSelectedRecipeAfterFiltering", "()V"),
+                        new InvokeContract(screen, "clearWidgets", "()V", 1, 1, List.of("m_169413_"))
+                )).withAliases("m_7856_"),
+                new MethodContract("updateIngredientCount", "()V", List.of(
+                        new InvokeContract(screen, "init", "()V", 1, 1, List.of("m_7856_")))),
+                new MethodContract("updateSelectedRecipeAfterFiltering", "()V"),
+                new MethodContract("getSelectedRecipe", "(Lnet/minecraft/resources/ResourceLocation;)Lcom/tacz/guns/crafting/GunSmithTableRecipe;"),
+                new MethodContract("mouseScrolled", "(DDD)Z").withAliases("m_6050_"));
+    }
+
+    private static ClassContract gunsmithPageInfoContract() {
+        return new ClassContract("com.tacz.guns.client.gui.GunSmithTableScreen").withMethods(
+                new MethodContract("render", "(Lnet/minecraft/client/gui/GuiGraphics;IIF)V", List.of(
+                        new InvokeContract("net/minecraft/client/gui/GuiGraphics", "drawString",
+                                "(Lnet/minecraft/client/gui/Font;Lnet/minecraft/network/chat/Component;IIIZ)I",
+                                3, 3, List.of("m_280614_"))
+                )).withAliases("m_88315_")).withFields(
+                FieldContract.of("selectedType", "Lnet/minecraft/resources/ResourceLocation;"),
+                FieldContract.of("selectedRecipeList", "Ljava/util/List;"), FieldContract.of("indexPage", "I"));
     }
 
     private static ClassContract gunsmithIngredientInteractionContract() {

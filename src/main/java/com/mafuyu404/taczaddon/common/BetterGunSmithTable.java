@@ -33,12 +33,24 @@ public final class BetterGunSmithTable {
             @Nullable ResourceLocation selectedType,
             @Nullable ResourceLocation selectedRecipeId,
             int typePage,
-            int indexPage
+            int indexPage,
+            int attachmentPropIndex
     ) {
+        public BrowseState(ResourceLocation selectedType, ResourceLocation selectedRecipeId,
+                           int typePage, int indexPage) {
+            this(selectedType, selectedRecipeId, typePage, indexPage, 0);
+        }
+
         public BrowseState {
             typePage = Math.max(0, typePage);
             indexPage = Math.max(0, indexPage);
+            attachmentPropIndex = Math.max(0, attachmentPropIndex);
         }
+    }
+
+    public static void saveBrowseState(ResourceLocation tableId, ResourceLocation type,
+                                       ResourceLocation recipe, int typePage, int indexPage) {
+        saveBrowseState(tableId, type, recipe, typePage, indexPage, 0);
     }
 
     public static synchronized void saveBrowseState(
@@ -46,7 +58,8 @@ public final class BetterGunSmithTable {
             @Nullable ResourceLocation selectedType,
             @Nullable ResourceLocation selectedRecipeId,
             int typePage,
-            int indexPage
+            int indexPage,
+            int attachmentPropIndex
     ) {
         if (tableDefinitionId == null) {
             return;
@@ -58,7 +71,8 @@ public final class BetterGunSmithTable {
                         selectedType,
                         selectedRecipeId,
                         typePage,
-                        indexPage
+                        indexPage,
+                        attachmentPropIndex
                 )
         );
     }

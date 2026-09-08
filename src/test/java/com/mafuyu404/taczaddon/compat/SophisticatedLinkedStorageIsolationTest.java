@@ -29,8 +29,17 @@ class SophisticatedLinkedStorageIsolationTest {
         assertEquals(true, invoke(facade, "supported", new Class<?>[0]));
         assertDoesNotThrow(() -> invoke(facade, "requestSnapshot",
                 new Class<?>[] {UUID.class}, UUID.randomUUID()));
+        assertEquals(false, invoke(facade, "supported", new Class<?>[0]));
         Object resolution = invoke(facade, "resolve", new Class<?>[] {ItemStack.class}, (Object) null);
         assertEquals(false, invoke(resolution.getClass(), resolution, "linked", new Class<?>[0]));
+        assertEquals(true, invoke(resolution.getClass(), resolution, "bridgeUnavailable", new Class<?>[0]));
+        assertEquals("BRIDGE_UNAVAILABLE", invoke(resolution.getClass(), resolution, "kind", new Class<?>[0]).toString());
+        assertDoesNotThrow(() -> invoke(facade, "requestSnapshot", new Class<?>[] {UUID.class}, UUID.randomUUID()));
+        assertEquals(false, invoke(facade, "supported", new Class<?>[0]));
+        // Linked failures must never latch the ordinary facade off.
+        var ordinaryLatch = SophisticatedBackpacksCompat.class.getDeclaredField("linkageBroken");
+        ordinaryLatch.setAccessible(true);
+        assertFalse(ordinaryLatch.getBoolean(null));
     }
 
     private static ClassLoader isolatedLoader(boolean oldGeneration) {

@@ -21,6 +21,8 @@ class TaczBinaryProbeTest {
             TaczFeature.GUNSMITH_EXTERNAL_SOURCE_VIEW,
             TaczFeature.GUNSMITH_CRAFT_BRIDGE,
             TaczFeature.GUNSMITH_BROWSE_MEMORY,
+            TaczFeature.GUNSMITH_PROPERTY_FILTER,
+            TaczFeature.GUNSMITH_PAGE_INFO,
             TaczFeature.GUNSMITH_INGREDIENT_INTERACTION,
             TaczFeature.FAST_SWAP,
             TaczFeature.SHOOT_WHILE_RELOADING,

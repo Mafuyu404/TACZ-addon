@@ -40,6 +40,7 @@ public final class ServerEvent {
 
         NetworkHandler.sendServerConfig(serverPlayer);
         NetworkHandler.sendLiberateAttachmentState(serverPlayer);
+        NetworkHandler.sendAttachmentDetailRuleState(serverPlayer);
     }
 
     @SubscribeEvent(
@@ -141,6 +142,7 @@ public final class ServerEvent {
                     serverPlayer.getUUID()
             );
             NetworkHandler.sendLiberateAttachmentState(serverPlayer);
+            NetworkHandler.sendAttachmentDetailRuleState(serverPlayer);
         }
     }
 
@@ -154,6 +156,7 @@ public final class ServerEvent {
             );
             NetworkHandler.sendServerConfig(serverPlayer);
             NetworkHandler.sendLiberateAttachmentState(serverPlayer);
+            NetworkHandler.sendAttachmentDetailRuleState(serverPlayer);
         }
     }
 

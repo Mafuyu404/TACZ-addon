@@ -13,6 +13,16 @@ class ClientSyncedConfigTest {
     }
 
     @Test
+    void attachmentDetailFailsClosedAndResetsBetweenServers() {
+        ClientSyncedConfig.resetToSafeDefaults();
+        assertFalse(ClientSyncedConfig.showAttachmentDetail());
+        ClientSyncedConfig.setShowAttachmentDetail(true);
+        assertTrue(ClientSyncedConfig.showAttachmentDetail());
+        ClientSyncedConfig.resetToSafeDefaults();
+        assertFalse(ClientSyncedConfig.showAttachmentDetail());
+    }
+
+    @Test
     void resetFailsClosedAcrossConnections() {
         ClientSyncedConfig.setLiberateAttachment(true);
         assertTrue(ClientSyncedConfig.liberateAttachment());

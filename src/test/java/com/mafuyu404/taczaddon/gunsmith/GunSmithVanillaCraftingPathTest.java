@@ -328,7 +328,8 @@ class GunSmithVanillaCraftingPathTest {
                         + "NetworkHandler.java"
         );
 
-        assertTrue(networkHandler.contains("PROTOCOL = \"2.8\""));
+        assertTrue(networkHandler.contains("ID_ATTACHMENT_DETAIL_RULE_STATE = 13"));
+        assertTrue(networkHandler.contains("PROTOCOL = \"2.9\""));
         assertPacketId(networkHandler, "ID_SWITCH_GUN", 1);
         assertPacketId(networkHandler, "ID_AMMO_BOX_COLLECT", 2);
         assertPacketId(networkHandler, "ID_SERVER_FEATURE_CONFIG", 3);
@@ -342,8 +343,9 @@ class GunSmithVanillaCraftingPathTest {
         assertPacketId(networkHandler, "ID_REFIT_SOURCE_SNAPSHOT", 11);
         assertPacketId(networkHandler, "ID_REFIT_EXTERNAL_INSTALL", 12);
 
+        assertPacketId(networkHandler, "ID_ATTACHMENT_DETAIL_RULE_STATE", 13);
         assertEquals(
-                12,
+                13,
                 countOccurrences(networkHandler, "CHANNEL.registerMessage("),
                 "all active addon packet types should be registered"
         );

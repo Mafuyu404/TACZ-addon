@@ -2,6 +2,8 @@ package com.mafuyu404.taczaddon.mixin.tacz.v1_1_8;
 
 import com.mafuyu404.taczaddon.compat.BeyondIntegrationCompat;
 import com.mafuyu404.taczaddon.common.BackpackAmmoService;
+import com.mafuyu404.taczaddon.common.CuriosAmmoService;
+import com.mafuyu404.taczaddon.compat.CuriosCompat;
 import com.mafuyu404.taczaddon.common.AmmoConsumptionOrchestrator;
 import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
 import com.tacz.guns.api.entity.IGunOperator;
@@ -62,7 +64,7 @@ public class ModernKineticGunScriptAPIMixin {
         }
 
         if (!(this.shooter instanceof ServerPlayer player)
-                || !SophisticatedBackpacksCompat.isInstalled()) {
+                || (!SophisticatedBackpacksCompat.isInstalled() && !CuriosCompat.isInstalled())) {
             return;
         }
 
@@ -87,11 +89,11 @@ public class ModernKineticGunScriptAPIMixin {
                                                 remaining
                                         )
                         : remaining -> 0,
-                remaining -> BackpackAmmoService.consumeBackpackAmmoRaw(
-                        player,
-                        gunStack,
-                        remaining
-                )
+                remaining -> {
+                    int backpackConsumed = BackpackAmmoService.consumeBackpackAmmoRaw(player, gunStack, remaining);
+                    // Preserve native -> Beyond -> Sophisticated priority, then consume Curios remainder.
+                    return backpackConsumed + CuriosAmmoService.consumeAmmo(player, gunStack, remaining - backpackConsumed);
+                }
         );
 
         if (cir.getReturnValueI() != finalConsumed) {

@@ -2,6 +2,7 @@ package com.mafuyu404.taczaddon.mixin.tacz.v1_1_8;
 
 import com.mafuyu404.taczaddon.client.AttachmentTooltipDiffService;
 import com.mafuyu404.taczaddon.init.Config;
+import com.mafuyu404.taczaddon.init.ClientSyncedConfig;
 import com.tacz.guns.client.tooltip.ClientAttachmentItemTooltip;
 import com.tacz.guns.inventory.tooltip.AttachmentItemTooltip;
 import net.minecraft.client.Minecraft;
@@ -68,7 +69,8 @@ public class ClientAttachmentItemTooltipMixin {
             AttachmentItemTooltip tooltip,
             CallbackInfo ci
     ) {
-        if (!Config.SHOW_ATTACHMENT_ATTRIBUTE.get()) {
+        if (!Config.SHOW_ATTACHMENT_ATTRIBUTE.get()
+                || !ClientSyncedConfig.showAttachmentDetail()) {
             return;
         }
 

@@ -46,6 +46,12 @@ minecraft {
         configureEach {
             workingDirectory project.file('run')
 
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
+
             property 'forge.logging.markers', 'REGISTRIES'
 
 

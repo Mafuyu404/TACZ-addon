@@ -111,12 +111,12 @@ class SophisticatedClientFreshnessTest {
         String clientEvent = read(
                 "src/main/java/com/mafuyu404/taczaddon/event/"
                         + "ClientEvent.java"
-        );
+        ).replaceAll("\\s+", "");
         int start = clientEvent.indexOf(
-                "if (!taczaddon$hudInitialSyncRequested)"
+                "if(!taczaddon$hudInitialSyncRequested)"
         );
         int end = clientEvent.indexOf(
-                "if (--taczaddon$hudTicksUntilRefresh > 0)"
+                "if(--taczaddon$hudTicksUntilRefresh>0)"
         );
         String initialBlock = clientEvent.substring(start, end);
 
@@ -127,7 +127,7 @@ class SophisticatedClientFreshnessTest {
                 "rebuildBackpackHudInventory(player)"
         ));
         assertTrue(initialBlock.contains(
-                "_virtualInventory = null"
+                "_virtualInventory=null"
         ));
     }
 

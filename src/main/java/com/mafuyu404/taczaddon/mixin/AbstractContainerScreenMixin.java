@@ -2,6 +2,7 @@ package com.mafuyu404.taczaddon.mixin;
 
 import com.mafuyu404.taczaddon.common.ItemRelationHelper;
 import com.mafuyu404.taczaddon.client.GunSmithIngredientScreenAccess;
+import com.mafuyu404.taczaddon.client.GunSmithPropertyFilterAccess;
 import com.mafuyu404.taczaddon.compat.SophisticatedStorageClientCompat;
 import com.mafuyu404.taczaddon.init.Config;
 import com.mafuyu404.taczaddon.init.crafting.GunSmithSourceScreenAccess;
@@ -119,6 +120,13 @@ public abstract class AbstractContainerScreenMixin extends Screen {
         )) {
             cir.setReturnValue(true);
         }
+    }
+
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true, require = 1)
+    private void taczaddon$handlePropertyDropdown(double x, double y, int button,
+                                                 CallbackInfoReturnable<Boolean> cir) {
+        if ((Object) this instanceof GunSmithPropertyFilterAccess filter
+                && filter.taczaddon$handlePropertyClick(x, y, button)) cir.setReturnValue(true);
     }
 
     @Inject(method = "renderSlot", at = @At("RETURN"))

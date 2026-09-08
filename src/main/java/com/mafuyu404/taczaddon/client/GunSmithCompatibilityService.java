@@ -92,8 +92,18 @@ public final class GunSmithCompatibilityService {
                 access.taczaddon$getSelectedType(),
                 recipeId,
                 access.taczaddon$getTypePage(),
-                access.taczaddon$getIndexPage()
+                access.taczaddon$getIndexPage(),
+                access instanceof GunSmithPropertyFilterAccess filter
+                        ? filter.taczaddon$getAttachmentPropertyIndex() : 0
         );
+    }
+
+    /** Called at init HEAD, before TaCZ classifies recipes. */
+    public static void restorePropertyFilter(GunSmithPropertyFilterAccess access,
+                                             @Nullable ResourceLocation tableId) {
+        BetterGunSmithTable.getBrowseState(tableId).ifPresent(state ->
+                access.taczaddon$setAttachmentPropertyIndex(clamp(state.attachmentPropIndex(),
+                        0, Math.max(0, access.taczaddon$getAttachmentPropertyCount() - 1))));
     }
 
     public static boolean restoreBrowseState(

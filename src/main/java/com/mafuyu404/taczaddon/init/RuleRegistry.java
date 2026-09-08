@@ -21,6 +21,16 @@ public final class RuleRegistry {
             )
     );
 
+    public static final GameRules.Key<GameRules.BooleanValue> SHOW_ATTACHMENT_DETAIL =
+            GameRules.register("showAttachmentDetail", GameRules.Category.PLAYER,
+                    GameRules.BooleanValue.create(false, RuleRegistry::onShowAttachmentDetailChanged));
+
+    private static void onShowAttachmentDetailChanged(
+            MinecraftServer server, GameRules.BooleanValue value) {
+        server.getPlayerList().getPlayers().forEach(player ->
+                NetworkHandler.sendAttachmentDetailRuleState(player, value.get()));
+    }
+
     private RuleRegistry() {
     }
 

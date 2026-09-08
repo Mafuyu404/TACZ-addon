@@ -1,6 +1,7 @@
 package com.mafuyu404.taczaddon.common;
 
 import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
+import com.mafuyu404.taczaddon.compat.CuriosCompat;
 import com.mafuyu404.taczaddon.init.VirtualInventory;
 import com.tacz.guns.api.DefaultAssets;
 import com.tacz.guns.api.item.IAmmo;
@@ -38,6 +39,10 @@ public final class BackpackAmmoService {
                         )
                 );
         if (foundInBackpack) {
+            return true;
+        }
+
+        if (CuriosCompat.visitHandlers(player, curios -> containsCompatibleAmmo(curios, gunStack))) {
             return true;
         }
 
@@ -110,6 +115,14 @@ public final class BackpackAmmoService {
                     return false;
                 }
         );
+
+        CuriosCompat.visitHandlers(player, curios -> {
+            for (int slot = 0; slot < curios.getSlots(); slot++) {
+                ItemStack stack = curios.getStackInSlot(slot);
+                if (!stack.isEmpty()) allItems.add(stack.copy());
+            }
+            return false;
+        });
 
         IItemHandler handler = vanillaHandler;
         if (handler == null && player != null) {
@@ -220,7 +233,7 @@ public final class BackpackAmmoService {
         return Math.max(0, Math.min(requested, consumed));
     }
 
-    private static boolean containsCompatibleAmmo(
+    static boolean containsCompatibleAmmo(
             IItemHandler handler,
             ItemStack gunStack
     ) {
