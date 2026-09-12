@@ -1,0 +1,5 @@
+{
+  "entrypoints": [
+    "com.mafuyu404.taczaddon.compat.shouldersurfing.TaczAddonShoulderSurfingPlugin"
+  ]
+}

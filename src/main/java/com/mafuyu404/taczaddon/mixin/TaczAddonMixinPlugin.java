@@ -159,6 +159,10 @@ public final class TaczAddonMixinPlugin
             String targetClassName,
             String mixinClassName
     ) {
+        if (mixinClassName.equals(PACKAGE + "LeawindAimModeResolverMixin")) {
+            // Soft target: inspect bytes only, never resolve an optional mod's classes.
+            return readClassBytes(targetClassName.replace('.', '/')) != null;
+        }
         if (mixinClassName.equals(BACKPACK_PAYLOAD_MIXIN)) {
             boolean valid =
                     isBackpackPayloadContractValid();

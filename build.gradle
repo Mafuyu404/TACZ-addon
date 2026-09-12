@@ -40,6 +40,11 @@ repositories {
     mavenCentral()
 }
 
+def cameraMods = providers.gradleProperty('cameraMods').getOrElse('none')
+if (!(cameraMods in ['none', 'shoulder', 'leawind', 'both'])) {
+    throw new GradleException('cameraMods must be none, shoulder, leawind, or both')
+}
+
 neoForge {
     version = project.neo_version
 
@@ -51,6 +56,7 @@ neoForge {
     runs {
         client {
             client()
+            gameDirectory = file("run/camera-compat/${cameraMods}")
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
@@ -100,15 +106,25 @@ configurations {
 dependencies {
     implementation "curse.maven:tacz-1-21-1-1353462:8547439"
 
-    implementation "curse.maven:shoulder-surfing-reloaded-243190:8495746"
+    compileOnly "curse.maven:shoulder-surfing-reloaded-243190:8725628"
 
 
     implementation "curse.maven:sophisticated-backpacks-422301:8817433"
     implementation "curse.maven:sophisticated-core-618298:8815718"
-//    implementation "curse.maven:sophisticated-core-618298:8503041"
-//    implementation "curse.maven:sophisticated-backpacks-422301:8569661"
-    implementation "curse.maven:jei-238222:8569044"
+
+    implementation "curse.maven:jei-238222:8829744"
     implementation "curse.maven:curios-309927:6529130"
+    // 8602835 is Leawind 3.0.3-beta and requires this Perspective API at runtime.
+    // The addon itself requires neither camera mod nor Perspective API.
+    compileOnly "curse.maven:perspective-api-1575322:8595570"
+    // Opt-in development matrix: none (default), shoulder, leawind, both.
+    if (cameraMods in ['shoulder', 'both']) {
+        localRuntime "curse.maven:shoulder-surfing-reloaded-243190:8725628"
+    }
+    if (cameraMods in ['leawind', 'both']) {
+        localRuntime "curse.maven:leawind-third-person-930880:8602835"
+        localRuntime "curse.maven:perspective-api-1575322:8595570"
+    }
 
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.2'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.2'

@@ -1,218 +1,120 @@
 package com.mafuyu404.taczaddon.common;
 
 import com.mafuyu404.taczaddon.TACZaddon;
-import com.mafuyu404.taczaddon.compat.ShoulderSurfingCompat;
 import com.mafuyu404.taczaddon.init.Config;
 import com.tacz.guns.api.client.gameplay.IClientPlayerGunOperator;
 import com.tacz.guns.api.item.IGun;
+import com.tacz.guns.client.input.AimKey;
 import com.tacz.guns.config.client.KeyConfig;
 import net.minecraft.Util;
-import net.minecraft.client.CameraType;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.InputEvent;
+import net.neoforged.neoforge.client.event.RenderFrameEvent;
 import org.lwjgl.glfw.GLFW;
 
 import static com.tacz.guns.util.InputExtraCheck.isInGame;
-import static net.minecraft.client.CameraType.FIRST_PERSON;
 
-@EventBusSubscriber(
-        modid = TACZaddon.MODID,
-        value = Dist.CLIENT
-)
+/** Observes TaCZ ADS; never changes the gun operator or a third-party camera. */
+@EventBusSubscriber(modid = TACZaddon.MODID, value = Dist.CLIENT)
 public final class BetterAimCamera {
-    private static final long AIM_CAMERA_SWITCH_DELAY_MS = 110L;
-
-    private static CameraType cameraBeforeAim;
-
-    private static boolean shoulderSurfingBeforeAim;
-
-    private static boolean pendingFirstPersonSwitch;
-    private static long pendingSwitchTimeMs;
-
-
+    private static final AimCameraState STATE = new AimCameraState();
+    private static final VanillaAimCamera VANILLA = new VanillaAimCamera();
+    private static LocalPlayer trackedPlayer;
+    private static ClientLevel trackedLevel;
+    private static ItemStack trackedGun;
     private static KeyMapping activeAimKey;
 
-    private BetterAimCamera() {
+    private BetterAimCamera() {}
+
+    public static boolean isAimActive() {
+        // Hooks may run before our tick, or during a paused/menu frame.
+        return STATE.isAimActive() && isTrackedAimValid(Minecraft.getInstance());
     }
 
-    public static void handleAfterAimPress(
-            InputEvent.MouseButton.Post event,
-            KeyMapping aimKey
-    ) {
-        if (!Config.enableBetterAimCamera()) {
-            return;
-        }
+    public static boolean isTemporaryFirstPersonRequested() {
+        return STATE.isTemporaryFirstPersonRequested()
+                && Config.enableBetterAimCamera() && isAimActive();
+    }
 
-        if (!isInGame()) {
-            return;
-        }
-
-        if (!aimKey.matchesMouse(event.getButton())) {
-            return;
-        }
-
-        Minecraft minecraft = Minecraft.getInstance();
-        LocalPlayer player = minecraft.player;
-
-        if (player == null || player.isSpectator()) {
-            clearAimCameraState();
-            return;
-        }
-
-        if (!(player instanceof IClientPlayerGunOperator operator)) {
-            clearAimCameraState();
-            return;
-        }
-
-        if (!IGun.mainHandHoldGun(player)) {
-            clearAimCameraState();
-            return;
-        }
-
+    public static void handleAfterAimPress(InputEvent.MouseButton.Post event, KeyMapping aimKey) {
+        if (!aimKey.matchesMouse(event.getButton())) return;
         boolean holdToAim = KeyConfig.HOLD_TO_AIM.get();
-        int mouseAction = event.getAction();
-
-        if (holdToAim) {
-            if (mouseAction != GLFW.GLFW_PRESS
-                    && mouseAction != GLFW.GLFW_RELEASE) {
-                return;
-            }
-        } else if (mouseAction != GLFW.GLFW_PRESS) {
-            return;
-        }
-
-        if (!operator.isAim()) {
-            restoreCameraAfterAim();
-            return;
-        }
-
-        CameraType currentCamera =
-                minecraft.options.getCameraType();
-
-        if (currentCamera == FIRST_PERSON) {
-            return;
-        }
-
-        beginDelayedFirstPersonSwitch(
-                currentCamera,
-                aimKey
-        );
+        if (event.getAction() != GLFW.GLFW_PRESS
+                && !(holdToAim && event.getAction() == GLFW.GLFW_RELEASE)) return;
+        activeAimKey = aimKey;
+        // RETURN of TaCZ's handler: operator.isAim() is the truth.
+        update();
     }
 
-    private static void beginDelayedFirstPersonSwitch(
-            CameraType currentCamera,
-            KeyMapping aimKey
-    ) {
-
-        if (cameraBeforeAim == null) {
-            cameraBeforeAim = currentCamera;
-            shoulderSurfingBeforeAim =
-                    ShoulderSurfingCompat.isShoulderSurfing();
-        }
-
-        activeAimKey = aimKey;
-        pendingFirstPersonSwitch = true;
-        pendingSwitchTimeMs =
-                Util.getMillis() + AIM_CAMERA_SWITCH_DELAY_MS;
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onClientTick(ClientTickEvent.Post event) {
+        update();
     }
 
     @SubscribeEvent
-    public static void onClientTick(
-            ClientTickEvent.Post event
-    ) {
-        if (cameraBeforeAim == null) {
-            return;
-        }
+    public static void onRenderFrame(RenderFrameEvent.Pre event) {
+        // Clear paused/menu state; avoid quantizing 110 ms to a 50 ms tick.
+        update();
+    }
 
+    @SubscribeEvent
+    public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
+        reset();
+    }
+
+    public static void reset() {
+        STATE.reset();
+        activeAimKey = null;
+        trackedPlayer = null;
+        trackedLevel = null;
+        trackedGun = null;
+        VANILLA.end(Minecraft.getInstance());
+    }
+
+    private static void update() {
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
-
-        if (player == null || player.isSpectator()) {
-            clearAimCameraState();
+        if (player != trackedPlayer || minecraft.level != trackedLevel
+                || (player != null && player.getMainHandItem() != trackedGun)) {
+            reset();
+            trackedPlayer = player;
+            trackedLevel = minecraft.level;
+            trackedGun = player == null ? null : player.getMainHandItem();
+        }
+        if (!isPlayerValid(minecraft)) {
+            reset();
             return;
         }
-
-        if (!Config.enableBetterAimCamera()
-                || !isInGame()
-                || !IGun.mainHandHoldGun(player)) {
-            restoreCameraAfterAim();
-            return;
-        }
-
-        if (!(player instanceof IClientPlayerGunOperator operator)) {
-            restoreCameraAfterAim();
-            return;
-        }
-
-        if (!isAimStillActive(operator)) {
-            restoreCameraAfterAim();
-            return;
-        }
-
-        if (!pendingFirstPersonSwitch) {
-            return;
-        }
-
-        if (Util.getMillis() < pendingSwitchTimeMs) {
-            return;
-        }
-
-        minecraft.options.setCameraType(FIRST_PERSON);
-
-        pendingFirstPersonSwitch = false;
-        pendingSwitchTimeMs = 0L;
-
+        if (activeAimKey == null) activeAimKey = AimKey.AIM_KEY;
+        IClientPlayerGunOperator operator = (IClientPlayerGunOperator) player;
+        STATE.update(Util.getMillis(), true, operator.isAim(),
+                KeyConfig.HOLD_TO_AIM.get(), activeAimKey.isDown(), Config.enableBetterAimCamera());
+        VANILLA.update(minecraft, STATE.isAimActive() && Config.enableBetterAimCamera(),
+                STATE.isTemporaryFirstPersonRequested());
+        if (!STATE.isAimActive()) activeAimKey = null;
     }
 
-    private static boolean isAimStillActive(
-            IClientPlayerGunOperator operator
-    ) {
-        if (!operator.isAim()) {
-            return false;
-        }
-
-        if (!KeyConfig.HOLD_TO_AIM.get()) {
-            return true;
-        }
-        
-        return activeAimKey != null
-                && activeAimKey.isDown();
+    private static boolean isPlayerValid(Minecraft minecraft) {
+        LocalPlayer player = minecraft.player;
+        return minecraft.level != null && player != null && player.isAlive()
+                && !player.isSpectator() && !minecraft.isPaused() && isInGame()
+                && player instanceof IClientPlayerGunOperator && IGun.mainHandHoldGun(player);
     }
 
-    private static void restoreCameraAfterAim() {
-        Minecraft minecraft = Minecraft.getInstance();
-
-        pendingFirstPersonSwitch = false;
-        pendingSwitchTimeMs = 0L;
-        activeAimKey = null;
-
-        if (cameraBeforeAim == null) {
-            shoulderSurfingBeforeAim = false;
-            return;
-        }
-
-        if (shoulderSurfingBeforeAim) {
-            ShoulderSurfingCompat.enableShoulderSurfing();
-        } else {
-            minecraft.options.setCameraType(cameraBeforeAim);
-        }
-
-        cameraBeforeAim = null;
-        shoulderSurfingBeforeAim = false;
-    }
-
-    private static void clearAimCameraState() {
-        pendingFirstPersonSwitch = false;
-        pendingSwitchTimeMs = 0L;
-        activeAimKey = null;
-
-        cameraBeforeAim = null;
-        shoulderSurfingBeforeAim = false;
+    private static boolean isTrackedAimValid(Minecraft minecraft) {
+        return minecraft.player == trackedPlayer && minecraft.level == trackedLevel
+                && isPlayerValid(minecraft) && minecraft.player.getMainHandItem() == trackedGun
+                && ((IClientPlayerGunOperator) minecraft.player).isAim()
+                && (!KeyConfig.HOLD_TO_AIM.get() || (activeAimKey != null && activeAimKey.isDown()));
     }
 }
