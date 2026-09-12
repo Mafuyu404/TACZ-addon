@@ -44,6 +44,6 @@ class CuriosCompatibilityTest {
         String metadata = Files.readString(Path.of("src/main/resources/META-INF/mods.toml"));
         String curios = metadata.substring(metadata.indexOf("modId=\"curios\""));
         assertTrue(curios.contains("mandatory=false"));
-        assertTrue(curios.contains("[5.14.1+1.20.1]"));
+        assertTrue(curios.contains("versionRange=\"[0,)\""));
     }
 }

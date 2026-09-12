@@ -1,10 +1,15 @@
 package com.mafuyu404.taczaddon.compat;
 
+import com.mafuyu404.taczaddon.common.AmmoConsumptionOrchestrator.IncompleteConsumptionException;
+import com.mojang.logging.LogUtils;
 import com.tacz.guns.api.item.gun.AbstractGunItem;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.items.wrapper.PlayerMainInvWrapper;
+
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.IntSupplier;
 
 /**
  * Deliberately narrow compatibility bridge for Beyond Integration.
@@ -21,6 +26,8 @@ import net.minecraftforge.items.wrapper.PlayerMainInvWrapper;
  */
 public final class BeyondIntegrationCompat {
     private static final String MOD_ID = "beyond_integration";
+    private static volatile boolean linkageBroken;
+    private static final AtomicBoolean LINKAGE_WARNING_LOGGED = new AtomicBoolean();
 
     private BeyondIntegrationCompat() {
     }
@@ -36,7 +43,7 @@ public final class BeyondIntegrationCompat {
             ItemStack gunStack,
             int requested
     ) {
-        if (!isInstalled()
+        if (linkageBroken || !isInstalled()
                 || player == null
                 || gun == null
                 || gunStack == null
@@ -45,18 +52,35 @@ public final class BeyondIntegrationCompat {
             return 0;
         }
 
-        PlayerMainInvWrapper playerMain =
-                new PlayerMainInvWrapper(
-                        player.getInventory()
-                );
+        return runGuarded(requested, () -> {
+            PlayerMainInvWrapper playerMain =
+                    new PlayerMainInvWrapper(player.getInventory());
 
-        int consumed = gun.findAndExtractInventoryAmmo(
-                playerMain,
-                gunStack,
-                requested
-        );
+            return gun.findAndExtractInventoryAmmo(
+                    playerMain,
+                    gunStack,
+                    requested
+            );
+        });
+    }
 
-        return clampConsumed(requested, consumed);
+    static int runGuarded(int requested, IntSupplier operation) {
+        if (linkageBroken || requested <= 0) {
+            return 0;
+        }
+        try {
+            return clampConsumed(requested, operation.getAsInt());
+        } catch (LinkageError error) {
+            linkageBroken = true;
+            if (LINKAGE_WARNING_LOGGED.compareAndSet(false, true)) {
+                LogUtils.getLogger().warn(
+                        "[TACZ-addon] Beyond Integration ammo bridge unavailable; disabled for this session. "
+                                + "Current supplemental consumption stopped because partial extraction is unknown", error);
+            }
+            // The external hook may already have changed inventory/network state.
+            // Do not claim zero consumption and trigger another source for the same deficit.
+            throw new IncompleteConsumptionException(error);
+        }
     }
 
     private static int clampConsumed(

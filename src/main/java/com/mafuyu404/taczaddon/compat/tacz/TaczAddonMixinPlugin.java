@@ -32,13 +32,8 @@ public final class TaczAddonMixinPlugin
         TaczMixinBinding binding =
                 TaczContractRegistry.bindingForMixin(mixinClassName);
         if (binding == null) {
-            LOGGER.error(
-                    "[TACZ-addon compatibility] "
-                            + "mixin={} status=UNREGISTERED_MIXIN "
-                            + "action=SKIPPED",
-                    mixinClassName
-            );
-            return false;
+            // Stable Vanilla/Forge mixins do not use TaCZ binary contracts.
+            return true;
         }
 
         if (TaczCompatibility.isMixinBindingAvailable(binding)) {

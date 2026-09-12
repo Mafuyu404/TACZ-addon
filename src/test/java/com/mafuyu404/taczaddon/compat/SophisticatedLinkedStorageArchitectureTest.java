@@ -110,9 +110,7 @@ class SophisticatedLinkedStorageArchitectureTest {
                 "mod_version=1.1.8.3"}) assertTrue(props.contains(declaration), declaration);
         String mods = Files.readString(Path.of("src/main/resources/META-INF/mods.toml"));
         assertTrue(mods.contains("versionRange=\"[1.1.8-hotfix]\""));
-        for (String config : new String[] {"taczaddon.mixins.json", "taczaddon.tacz.mixins.json"}) {
-            assertTrue(Files.readString(Path.of("src/main/resources", config)).replaceAll("\\s+", "")
-                    .contains("\"compatibilityLevel\":\"JAVA_17\""));
-        }
+        assertTrue(Files.readString(Path.of("src/main/resources/taczaddon.mixins.json"))
+                .replaceAll("\\s+", "").contains("\"compatibilityLevel\":\"JAVA_17\""));
     }
 }

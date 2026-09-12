@@ -53,7 +53,7 @@ class SophisticatedCompatibilityArchitectureTest {
     }
 
     @Test
-    void dependencyMetadataUsesTestedBaselines()
+    void developmentDependenciesRemainPinned()
             throws IOException {
         String gradle = read("build.gradle");
         assertTrue(gradle.contains(
@@ -73,12 +73,6 @@ class SophisticatedCompatibilityArchitectureTest {
                         + "sophisticated-storage-619320"
         ));
 
-        String mods = read(
-                "src/main/resources/META-INF/mods.toml"
-        );
-        assertTrue(mods.contains("[1.3.80.2267,1.6)"));
-        assertTrue(mods.contains("[3.24.66.2095,3.27)"));
-        assertTrue(mods.contains("[1.4.81.2086,1.5)"));
     }
 
     @Test

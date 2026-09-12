@@ -21,9 +21,9 @@ class GunSmithVanillaCraftingPathTest {
             Path.of("").toAbsolutePath().normalize();
 
     private static final List<String> NEARBY_CONTAINER_MIXINS = List.of(
-            "v1_1_8.GunSmithTableCraftBridgeMixin",
-            "v1_1_8.GunSmithTableMenuAccess",
-            "v1_1_8.GunSmithTableSourceViewMixin"
+            "tacz.v1_1_8.GunSmithTableCraftBridgeMixin",
+            "tacz.v1_1_8.GunSmithTableMenuAccess",
+            "tacz.v1_1_8.GunSmithTableSourceViewMixin"
     );
 
     private static final List<String> RESTORED_CLASSES = List.of(
@@ -54,7 +54,7 @@ class GunSmithVanillaCraftingPathTest {
     void forgeEventsReplaceCreateMenuMixinAndKeepBrowseMemory()
             throws IOException {
         String mixins = readProjectFile(
-                "src/main/resources/taczaddon.tacz.mixins.json"
+                "src/main/resources/taczaddon.mixins.json"
         );
         String removedMixin = "GunSmithTable" + "BlockEntityMixin";
 
@@ -71,7 +71,7 @@ class GunSmithVanillaCraftingPathTest {
         }
 
         assertTrue(
-                mixins.contains("v1_1_8.GunSmithTableBrowseMemoryMixin"),
+                mixins.contains("tacz.v1_1_8.GunSmithTableBrowseMemoryMixin"),
                 "browse memory remains independent of crafting ownership"
         );
 
@@ -289,21 +289,14 @@ class GunSmithVanillaCraftingPathTest {
 
     @Test
     void everyDeclaredMixinStillHasASourceClass() throws IOException {
-        String generic = readProjectFile(
+        String mixins = readProjectFile(
                 "src/main/resources/taczaddon.mixins.json"
         );
-        String tacz = readProjectFile(
-                "src/main/resources/taczaddon.tacz.mixins.json"
-        );
         int count = assertEntriesHaveSources(
-                generic,
+                mixins,
                 "com.mafuyu404.taczaddon.mixin"
         );
-        count += assertEntriesHaveSources(
-                tacz,
-                "com.mafuyu404.taczaddon.mixin.tacz"
-        );
-        assertTrue(count >= 28, "expected split Mixin configurations");
+        assertTrue(count >= 28, "expected all Mixins in the shared configuration");
     }
 
     @Test

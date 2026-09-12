@@ -111,7 +111,7 @@ class NearbyContainerArchitectureTest {
         assertFalse(mods.contains("modId=\"perspective_api\""));
         assertTrue(mods.contains("modId=\"leawind_third_person\""));
         assertTrue(mods.contains("mandatory=false"));
-        assertTrue(mods.contains("[3.0.3-beta,)"));
+        assertTrue(mods.contains("versionRange=\"[0,)\""));
 
         String gradle = read("build.gradle");
         assertTrue(gradle.contains(

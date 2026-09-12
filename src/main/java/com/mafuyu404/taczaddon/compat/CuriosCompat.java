@@ -4,12 +4,14 @@ import com.mojang.logging.LogUtils;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.items.IItemHandler;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 
 /** Optional Forge Curios boundary; linkage failure never disables another integration. */
 public final class CuriosCompat {
     private static volatile boolean linkageBroken;
+    private static final AtomicBoolean LINKAGE_WARNING_LOGGED = new AtomicBoolean();
     private CuriosCompat() {}
 
     public static boolean isInstalled() {
@@ -28,7 +30,9 @@ public final class CuriosCompat {
             return operation.getAsBoolean();
         } catch (LinkageError error) {
             linkageBroken = true;
-            LogUtils.getLogger().warn("[TACZ-addon] Curios API unavailable; Curios ammo disabled for this session", error);
+            if (LINKAGE_WARNING_LOGGED.compareAndSet(false, true)) {
+                LogUtils.getLogger().warn("[TACZ-addon] Curios API unavailable; Curios ammo disabled for this session", error);
+            }
             return false;
         }
     }

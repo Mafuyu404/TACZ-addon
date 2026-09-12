@@ -88,7 +88,6 @@ mixin {
     add sourceSets.main, "${mod_id}.refmap.json"
 
     config "${mod_id}.mixins.json"
-    config "${mod_id}.tacz.mixins.json"
 }
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
@@ -153,7 +152,7 @@ dependencies {
     implementation fg.deobf("curse.maven:rhino-416294:6186971")
     implementation fg.deobf("curse.maven:architectury-api-419699:5137938")
 
-    implementation fg.deobf("curse.maven:jei-238222:8367520")
+    implementation fg.deobf("curse.maven:jei-238222:8851009")
 
     implementation fg.deobf("curse.maven:curios-309927:6418456")
 

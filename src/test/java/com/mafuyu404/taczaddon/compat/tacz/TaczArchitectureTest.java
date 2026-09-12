@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TaczArchitectureTest {
@@ -47,28 +48,34 @@ class TaczArchitectureTest {
     }
 
     @Test
-    void mixinConfigsAreSplitAndUsePlatformCompatibility()
+    void singleMixinConfigUsesPlatformCompatibilityAndTaCZPlugin()
             throws IOException {
-        String generic = read(
+        String config = read(
                 "src/main/resources/taczaddon.mixins.json"
         );
-        String tacz = read(
-                "src/main/resources/taczaddon.tacz.mixins.json"
-        );
-
-        assertTrue(generic.contains("\"compatibilityLevel\": \"JAVA_17\""));
-        assertTrue(tacz.contains("\"compatibilityLevel\": \"JAVA_17\""));
-        assertTrue(tacz.contains(
+        try (Stream<Path> resources = Files.list(PROJECT_ROOT.resolve("src/main/resources"))) {
+            assertEquals(List.of("taczaddon.mixins.json"), resources
+                    .map(path -> path.getFileName().toString())
+                    .filter(name -> name.endsWith(".mixins.json"))
+                    .sorted().toList());
+        }
+        assertTrue(config.contains("\"compatibilityLevel\": \"JAVA_17\""));
+        assertTrue(config.contains("\"package\": \"com.mafuyu404.taczaddon.mixin\""));
+        assertTrue(config.contains("\"refmap\": \"taczaddon.refmap.json\""));
+        assertTrue(config.contains(
                 "\"plugin\": \"com.mafuyu404.taczaddon.compat.tacz."
                         + "TaczAddonMixinPlugin\""
         ));
-        assertTrue(generic.contains("SmithingMenuMixin"));
-        assertTrue(generic.contains("AbstractContainerScreenMixin"));
-        assertTrue(tacz.contains("v1_1_8.LocalPlayerDrawMixin"));
-        assertTrue(tacz.contains("v1_1_8.GunSmithTableSourceViewMixin"));
-        assertTrue(tacz.contains(
-                "v1_1_8.GunSmithTableIngredientInteractionMixin"
+        assertTrue(config.contains("SmithingMenuMixin"));
+        assertTrue(config.contains("AbstractContainerScreenMixin"));
+        assertTrue(config.contains("tacz.v1_1_8.LocalPlayerDrawMixin"));
+        assertTrue(config.contains("tacz.v1_1_8.GunSmithTableSourceViewMixin"));
+        assertTrue(config.contains(
+                "tacz.v1_1_8.GunSmithTableIngredientInteractionMixin"
         ));
+        assertEquals(List.of("config \"${mod_id}.mixins.json\""), read("build.gradle")
+                .lines().map(String::trim)
+                .filter(line -> line.startsWith("config ")).toList());
     }
 
     @Test
@@ -172,11 +179,14 @@ class TaczArchitectureTest {
     @Test
     void everyVersionAdapterIsMappedToAFeature()
             throws IOException {
-        String tacz = read(
-                "src/main/resources/taczaddon.tacz.mixins.json"
+        String config = read(
+                "src/main/resources/taczaddon.mixins.json"
         );
-        for (String entry : entries(tacz)) {
-            String mixinClass = "com.mafuyu404.taczaddon.mixin.tacz."
+        for (String entry : entries(config)) {
+            if (!entry.startsWith("tacz.")) {
+                continue;
+            }
+            String mixinClass = "com.mafuyu404.taczaddon.mixin."
                     + entry;
             assertTrue(
                     TaczContractRegistry.bindingForMixin(mixinClass)

@@ -4,13 +4,45 @@
   "compatibilityLevel": "JAVA_17",
   "package": "com.mafuyu404.taczaddon.mixin",
   "refmap": "taczaddon.refmap.json",
+  "plugin": "com.mafuyu404.taczaddon.compat.tacz.TaczAddonMixinPlugin",
   "mixins": [
     "InventoryAccessor",
-    "SmithingMenuMixin"
+    "SmithingMenuMixin",
+    "tacz.NoCrawlMixin",
+    "tacz.v1_1_8.AbstractGunItemMixin",
+    "tacz.v1_1_8.ClientMessageRefitGunAccess",
+    "tacz.v1_1_8.ClientMessageRefitGunMixin",
+    "tacz.v1_1_8.ClientMessageUnloadAttachmentAccess",
+    "tacz.v1_1_8.ClientMessageUnloadAttachmentMixin",
+    "tacz.v1_1_8.GunSmithTableMenuAccess",
+    "tacz.v1_1_8.LivingEntityShootMixin",
+    "tacz.v1_1_8.LivingEntityShootReloadInterruptMixin",
+    "tacz.v1_1_8.ModernKineticGunScriptAPIHasAmmoMixin",
+    "tacz.v1_1_8.ModernKineticGunScriptAPIMixin"
   ],
   "client": [
     "AbstractContainerScreenMixin",
-    "InventoryScreenMixin"
+    "InventoryScreenMixin",
+    "tacz.AimKeyMixin",
+    "tacz.ShoulderSurfingCompatMixin",
+    "tacz.v1_1_8.AnimateGeoItemRendererMixin",
+    "tacz.v1_1_8.ClientAttachmentItemTooltipMixin",
+    "tacz.v1_1_8.GunAnimationStateContextMixin",
+    "tacz.v1_1_8.GunHudOverlayMixin",
+    "tacz.v1_1_8.GunRefitScreenMixin",
+    "tacz.v1_1_8.GunSmithTableBrowseMemoryMixin",
+    "tacz.v1_1_8.GunSmithTablePropertyFilterMixin",
+    "tacz.v1_1_8.GunSmithTablePageInfoMixin",
+    "tacz.v1_1_8.GunSmithTableCraftBridgeMixin",
+    "tacz.v1_1_8.GunSmithTableIngredientInteractionMixin",
+    "tacz.v1_1_8.GunSmithTableScreenAccessMixin",
+    "tacz.v1_1_8.GunSmithTableSourceViewMixin",
+    "tacz.v1_1_8.InventoryAttachmentSlotAccess",
+    "tacz.v1_1_8.LivingEntityDrawGunMixin",
+    "tacz.v1_1_8.LocalPlayerBetterMeleeMixin",
+    "tacz.v1_1_8.LocalPlayerDrawMixin",
+    "tacz.v1_1_8.LocalPlayerShootReloadInterruptMixin",
+    "tacz.v1_1_8.LocalPlayerSlideShootMixin"
   ],
   "server": []
 }

@@ -14,6 +14,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TaczCompatibilityGateTest {
@@ -74,30 +75,42 @@ class TaczCompatibilityGateTest {
     }
 
     @Test
-    void unregisteredMixinFailsClosed() {
+    void unregisteredMixinAppliesWithoutTaCZBinding() {
         TaczAddonMixinPlugin plugin = new TaczAddonMixinPlugin();
-        assertFalse(plugin.shouldApplyMixin(
+        assertTrue(plugin.shouldApplyMixin(
                 "com.example.Target",
                 "com.example.UnregisteredMixin"
         ));
     }
 
     @Test
-    void everyTaCZMixinConfigEntryHasBinding() throws IOException {
+    void sharedConfigRoutesStableAndTaCZMixinsSeparately() throws IOException {
         String json = Files.readString(
                 PROJECT_ROOT.resolve(
-                        "src/main/resources/taczaddon.tacz.mixins.json"
+                        "src/main/resources/taczaddon.mixins.json"
                 ),
                 StandardCharsets.UTF_8
         );
+        TaczAddonMixinPlugin plugin = new TaczAddonMixinPlugin();
+        int stableCount = 0;
+        int taczCount = 0;
         for (String entry : entries(json)) {
-            String mixinClass = "com.mafuyu404.taczaddon.mixin.tacz."
+            String mixinClass = "com.mafuyu404.taczaddon.mixin."
                     + entry;
-            assertNotNull(
-                    TaczContractRegistry.bindingForMixin(mixinClass),
-                    mixinClass + " has no registry binding"
-            );
+            TaczMixinBinding binding = TaczContractRegistry.bindingForMixin(mixinClass);
+            if (entry.startsWith("tacz.")) {
+                taczCount++;
+                assertNotNull(binding, mixinClass + " has no registry binding");
+                assertEquals(TaczCompatibility.isMixinBindingAvailable(binding),
+                        plugin.shouldApplyMixin("com.example.Target", mixinClass), mixinClass);
+            } else {
+                stableCount++;
+                assertNull(binding, mixinClass + " must not use a TaCZ contract");
+                assertTrue(plugin.shouldApplyMixin("com.example.Target", mixinClass), mixinClass);
+            }
         }
+        assertEquals(4, stableCount);
+        assertTrue(taczCount > 0);
     }
 
     @Test

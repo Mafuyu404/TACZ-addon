@@ -54,10 +54,17 @@ public final class AmmoConsumptionOrchestrator {
         }
 
         int consumedBeforeExternal = current;
-        int beyondConsumed = clampConsumed(
-                remaining,
-                beyondCompat.applyAsInt(remaining)
-        );
+        int beyondConsumed;
+        try {
+            beyondConsumed = clampConsumed(
+                    remaining,
+                    beyondCompat.applyAsInt(remaining)
+            );
+        } catch (IncompleteConsumptionException incomplete) {
+            // Only consumption confirmed before the opaque external call is known.
+            // Stop this request; a disabled source contributes zero on future requests.
+            return current;
+        }
         current = clampConsumed(
                 requested,
                 current + beyondConsumed
@@ -97,6 +104,13 @@ public final class AmmoConsumptionOrchestrator {
             );
         }
         return current;
+    }
+
+    /** Signals an external mutation whose committed amount could not be reported. */
+    public static final class IncompleteConsumptionException extends RuntimeException {
+        public IncompleteConsumptionException(LinkageError cause) {
+            super("External ammo consumption did not complete", cause);
+        }
     }
 
     public static int clampConsumed(
