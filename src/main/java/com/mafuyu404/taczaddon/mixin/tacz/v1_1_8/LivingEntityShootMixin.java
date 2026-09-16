@@ -1,8 +1,8 @@
 package com.mafuyu404.taczaddon.mixin.tacz.v1_1_8;
 
+import com.mafuyu404.taczaddon.common.SlideShootService;
 import com.tacz.guns.api.entity.ShootResult;
 import com.tacz.guns.entity.shooter.LivingEntityShoot;
-import com.mafuyu404.taczaddon.common.SlideShootService;
 import net.minecraft.world.entity.LivingEntity;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;

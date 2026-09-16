@@ -14,14 +14,26 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.*;
 
 class GunSmithBrowseStateRestoreTest {
     private static final ResourceLocation TABLE =
             new ResourceLocation("test", "table");
+    private static final ResourceLocation ATTACHMENT_TABLE =
+            new ResourceLocation(
+                    "tacz",
+                    "attachment_workbench"
+            );
+    private static final ResourceLocation AMMO_TABLE =
+            new ResourceLocation(
+                    "tacz",
+                    "ammo_workbench"
+            );
+    private static final ResourceLocation GUN_SMITH_TABLE =
+            new ResourceLocation(
+                    "tacz",
+                    "gun_smith_table"
+            );
     private static final ResourceLocation TYPE_0 =
             new ResourceLocation("test", "type_0");
 
@@ -175,19 +187,95 @@ class GunSmithBrowseStateRestoreTest {
 
     @Test
     void filterRestoresBeforeClassificationAndSaveCarriesAllFiveFields() {
-        BetterGunSmithTable.saveBrowseState(TABLE, TYPE_0, null, 2, 3, 99);
+        BetterGunSmithTable.saveBrowseState(
+                ATTACHMENT_TABLE,
+                TYPE_0,
+                null,
+                2,
+                3,
+                99
+        );
         FakeAccess access = new FakeAccess();
-        GunSmithCompatibilityService.restorePropertyFilter(access, TABLE);
+        GunSmithCompatibilityService.restorePropertyFilter(
+                access,
+                ATTACHMENT_TABLE
+        );
         assertEquals(3, access.propertyIndex); // Catalog has four entries.
         access.selectedType = TYPE_0;
         access.typePage = 2;
         access.indexPage = 3;
-        GunSmithCompatibilityService.saveBrowseState(access, TABLE);
-        var saved = BetterGunSmithTable.getBrowseState(TABLE).orElseThrow();
+        GunSmithCompatibilityService.saveBrowseState(
+                access,
+                ATTACHMENT_TABLE
+        );
+        var saved = BetterGunSmithTable.getBrowseState(
+                ATTACHMENT_TABLE
+        ).orElseThrow();
         assertEquals(3, saved.attachmentPropIndex());
         assertEquals(2, saved.typePage());
         assertEquals(3, saved.indexPage());
         assertEquals(TYPE_0, saved.selectedType());
+    }
+
+    @Test
+    void nonAttachmentWorkbenchesSaveAndRestoreANeutralPropertyIndex() {
+        for (ResourceLocation tableId : List.of(
+                AMMO_TABLE,
+                GUN_SMITH_TABLE
+        )) {
+            BetterGunSmithTable.saveBrowseState(
+                    tableId,
+                    TYPE_0,
+                    null,
+                    1,
+                    2,
+                    99
+            );
+
+            FakeAccess access = new FakeAccess();
+            access.propertyIndex = 99;
+            GunSmithCompatibilityService.restorePropertyFilter(
+                    access,
+                    tableId
+            );
+            assertEquals(
+                    0,
+                    access.propertyIndex,
+                    tableId + " must not restore a property filter"
+            );
+
+            access.propertyIndex = 99;
+            access.selectedType = TYPE_0;
+            access.typePage = 1;
+            access.indexPage = 2;
+            GunSmithCompatibilityService.saveBrowseState(
+                    access,
+                    tableId
+            );
+            var saved = BetterGunSmithTable.getBrowseState(
+                    tableId
+            ).orElseThrow();
+            assertEquals(
+                    0,
+                    saved.attachmentPropIndex(),
+                    tableId + " must save a neutral property index"
+            );
+            assertEquals(
+                    TYPE_0,
+                    saved.selectedType(),
+                    "generic browse memory must remain available"
+            );
+            assertEquals(
+                    1,
+                    saved.typePage(),
+                    "generic browse memory must remain available"
+            );
+            assertEquals(
+                    2,
+                    saved.indexPage(),
+                    "generic browse memory must remain available"
+            );
+        }
     }
 
     @Test

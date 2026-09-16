@@ -24,6 +24,13 @@ public final class ClientSyncedConfig {
     private static volatile boolean enableShootWhileReloading =
             false;
 
+    /*
+     * Server-owned fast-swap policy. It stays false until the current server
+     * synchronizes it, so client-side cooldown prediction can never run ahead
+     * of the authoritative value.
+     */
+    private static volatile boolean enableFastSwapGun = false;
+
     private ClientSyncedConfig() {
     }
 
@@ -33,6 +40,7 @@ public final class ClientSyncedConfig {
         batchCraftMax = packet.batchCraftMax();
         enableShootWhileReloading =
                 packet.enableShootWhileReloading();
+        enableFastSwapGun = packet.enableFastSwapGun();
     }
 
     public static int batchCraftMax() {
@@ -41,6 +49,10 @@ public final class ClientSyncedConfig {
 
     public static boolean enableShootWhileReloading() {
         return enableShootWhileReloading;
+    }
+
+    public static boolean enableFastSwapGun() {
+        return enableFastSwapGun;
     }
 
     public static void setLiberateAttachment(boolean enabled) {
@@ -63,6 +75,7 @@ public final class ClientSyncedConfig {
         showAttachmentDetail = false;
         batchCraftMax = 1;
         enableShootWhileReloading = false;
+        enableFastSwapGun = false;
         liberateAttachment = false;
     }
 }

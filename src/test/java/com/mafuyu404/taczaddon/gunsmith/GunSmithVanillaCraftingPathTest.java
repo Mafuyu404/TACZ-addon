@@ -11,10 +11,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class GunSmithVanillaCraftingPathTest {
     private static final Path PROJECT_ROOT =
@@ -85,6 +82,18 @@ class GunSmithVanillaCraftingPathTest {
         assertTrue(bridge.contains("taczaddon$wrapCraftButton"));
         assertTrue(bridge.contains("require = 1"));
         assertTrue(bridge.contains("GunSmithCraftBridgeState"));
+        assertTrue(
+                bridge.contains(
+                        "this.taczaddon$craftState.requestCraft("
+                ),
+                "the screen Mixin must call the legacy void ABI entry "
+                        + "point that Beyond Integration intercepts"
+        );
+        assertFalse(
+                bridge.contains("tryRequestCraft("),
+                "the screen Mixin must not bypass the compatibility "
+                        + "entry point"
+        );
     }
 
     @Test
@@ -216,6 +225,21 @@ class GunSmithVanillaCraftingPathTest {
         assertTrue(transaction.contains("logSynchronizationFailure("));
         assertTrue(transaction.contains("catch (RuntimeException exception)"));
         assertTrue(transaction.contains("RollbackResult.PARTIALLY_COMPENSATED"));
+
+        /*
+         * An insertion that threw after a possible partial commit is not a
+         * known remainder; the rollback must stop and report the unknown
+         * state instead of retrying the pre-call stack.
+         */
+        assertTrue(transaction.contains(
+                "RollbackResult.UNKNOWN_MUTATION"
+        ));
+        assertTrue(transaction.contains(
+                "abortUnknownRollback("
+        ));
+        assertTrue(transaction.contains(
+                "SafeSourceInsert.commit("
+        ));
     }
 
     @Test
@@ -322,7 +346,12 @@ class GunSmithVanillaCraftingPathTest {
         );
 
         assertTrue(networkHandler.contains("ID_ATTACHMENT_DETAIL_RULE_STATE = 13"));
-        assertTrue(networkHandler.contains("PROTOCOL = \"2.9\""));
+        /*
+     * 2.10 appends the server-owned fast swap policy to the feature config
+         * payload and 2.11 extends the gunsmith source packet formats; every
+         * existing packet ID above stays unchanged.
+         */
+        assertTrue(networkHandler.contains("PROTOCOL = \"2.11\""));
         assertPacketId(networkHandler, "ID_SWITCH_GUN", 1);
         assertPacketId(networkHandler, "ID_AMMO_BOX_COLLECT", 2);
         assertPacketId(networkHandler, "ID_SERVER_FEATURE_CONFIG", 3);

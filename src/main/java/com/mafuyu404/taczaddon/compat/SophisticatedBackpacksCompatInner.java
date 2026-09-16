@@ -18,15 +18,7 @@ import net.p3pp3rf1y.sophisticatedbackpacks.util.PlayerInventoryProvider;
 import net.p3pp3rf1y.sophisticatedcore.inventory.InventoryHandler;
 import org.slf4j.Logger;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Predicate;
 
 public final class SophisticatedBackpacksCompatInner {
@@ -427,14 +419,71 @@ public final class SophisticatedBackpacksCompatInner {
             );
         }
 
-        boolean stop = visitor.test(inventoryHandler);
-        boolean changed = false;
+        boolean stop = false;
+        Throwable failure = null;
 
-        /*
-         * TaCZ mutates ammo-box ItemStacks in place through
-         * IAmmoBox#setAmmoCount. Push changed stacks back through the handler
-         * so Sophisticated Core refreshes its slot-NBT cache.
-         */
+        try {
+            stop = visitor.test(inventoryHandler);
+        } catch (LinkageError | RuntimeException visitorFailure) {
+            /*
+             * The visitor may already have extracted rounds from this
+             * backpack. Record the failure, finish the confirmed write-back
+             * below and rethrow the original failure afterwards.
+             */
+            failure = visitorFailure;
+            stop = true;
+        }
+
+        try {
+            boolean changed = pushChangedStacks(
+                    inventoryHandler,
+                    before
+            );
+
+            if (changed) {
+                inventoryHandler.saveInventory();
+                player.getInventory().setChanged();
+                player.containerMenu.broadcastChanges();
+                syncBackpackContents(player, wrapper);
+            }
+        } catch (RuntimeException finalizationFailure) {
+            if (failure == null) {
+                failure = finalizationFailure;
+            } else {
+                /*
+                 * The finalization problem must never hide the original
+                 * failure that already stopped the request.
+                 */
+                LOGGER.error(
+                        "[TACZ-addon/SophisticatedBackpacks] ammo write-back "
+                                + "failed while preserving the original "
+                                + "failure",
+                        finalizationFailure
+                );
+            }
+        }
+
+        if (failure instanceof LinkageError linkageError) {
+            throw linkageError;
+        }
+        if (failure != null) {
+            throw (RuntimeException) failure;
+        }
+        return stop;
+    }
+
+    /**
+     * TaCZ mutates ammo-box ItemStacks in place through
+     * {@code IAmmoBox#setAmmoCount}. Push changed stacks back through the
+     * handler so Sophisticated Core refreshes its slot-NBT cache.
+     *
+     * @return whether any slot changed
+     */
+    private static boolean pushChangedStacks(
+            InventoryHandler inventoryHandler,
+            List<ItemStack> before
+    ) {
+        boolean changed = false;
         for (int slot = 0;
              slot < inventoryHandler.getSlots();
              slot++) {
@@ -448,14 +497,7 @@ public final class SophisticatedBackpacksCompatInner {
                 changed = true;
             }
         }
-
-        if (changed) {
-            inventoryHandler.saveInventory();
-            player.getInventory().setChanged();
-            player.containerMenu.broadcastChanges();
-            syncBackpackContents(player, wrapper);
-        }
-        return stop;
+        return changed;
     }
 
     private static void syncBackpackContents(

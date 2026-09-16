@@ -7,8 +7,8 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -94,7 +94,7 @@ class SyntheticLambdaMixinCompatibilityTest {
         assertFalse(kinetic.contains("VirtualInventory"));
 
         assertTrue(helper.contains("hasCompatibleAmmo"));
-        assertTrue(helper.contains("consumeBackpackAmmoRaw"));
+        assertTrue(helper.contains("consumeBackpackAmmo("));
         assertTrue(helper.contains("extractCompatibleAmmoDirectly"));
         assertFalse(helper.contains("consumeCompatibleAmmo"));
         assertFalse(helper.contains("findAndExtractInventoryAmmo"));

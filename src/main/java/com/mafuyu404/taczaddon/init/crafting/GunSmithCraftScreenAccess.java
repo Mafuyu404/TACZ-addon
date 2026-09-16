@@ -13,4 +13,10 @@ public interface GunSmithCraftScreenAccess {
             ItemStack outputPerCraft,
             @Nullable CraftingTransaction.CraftFailure failure
     );
+
+    /**
+     * Advances the in-flight craft bookkeeping. A timed-out request is
+     * released without being re-sent.
+     */
+    void taczaddon$tickCraftState();
 }

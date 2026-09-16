@@ -1,6 +1,6 @@
 package com.mafuyu404.taczaddon.mixin.tacz.v1_1_8;
 
-import com.mafuyu404.taczaddon.common.FastSwapService;
+import com.mafuyu404.taczaddon.init.ClientSyncedConfig;
 import com.tacz.guns.client.gameplay.LocalPlayerDataHolder;
 import com.tacz.guns.client.gameplay.LocalPlayerDraw;
 import org.spongepowered.asm.mixin.Final;
@@ -28,7 +28,11 @@ public abstract class LocalPlayerDrawMixin {
             require = 1
     )
     private void taczaddon$fastSwapDrawStart(CallbackInfo ci) {
-        if (FastSwapService.enabled()) {
+        /*
+         * Client-side cooldown prediction only mirrors the value the current
+         * server synchronized; the local client option no longer decides it.
+         */
+        if (ClientSyncedConfig.enableFastSwapGun()) {
             this.data.clientDrawTimestamp =
                     System.currentTimeMillis();
         }

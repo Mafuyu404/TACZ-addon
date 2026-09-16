@@ -4,6 +4,14 @@
   "gui.taczaddon.gun_smith_table.page_index": "%s (Page-%s/%s)",
   "gui.taczaddon.gun_smith_table.default_prop": "Prop Filter",
   "gui.taczaddon.gun_smith_table.crafted": "Crafted %s",
+  "gui.taczaddon.gun_smith_table.failed": "Crafting stopped: %s",
+  "gui.taczaddon.gun_smith_table.failure.insufficient_materials": "not enough materials",
+  "gui.taczaddon.gun_smith_table.failure.invalid_recipe": "recipe is no longer valid",
+  "gui.taczaddon.gun_smith_table.failure.invalid_session": "the workbench session expired",
+  "gui.taczaddon.gun_smith_table.failure.invalid_menu": "the workbench menu is not open",
+  "gui.taczaddon.gun_smith_table.failure.duplicate_request": "the request was already handled",
+  "gui.taczaddon.gun_smith_table.failure.source_changed": "the used materials changed",
+  "gui.taczaddon.gun_smith_table.failure.transaction_failed": "the transaction was rejected",
   "tooltip.taczaddon.more_attachment_info": "Hold a gun to show more.",
   "tooltip.taczaddon.ammo_box": "Shift R-Click to collect all."
 }

@@ -1,8 +1,8 @@
 package com.mafuyu404.taczaddon.mixin;
 
-import com.mafuyu404.taczaddon.common.ItemRelationHelper;
 import com.mafuyu404.taczaddon.client.GunSmithIngredientScreenAccess;
 import com.mafuyu404.taczaddon.client.GunSmithPropertyFilterAccess;
+import com.mafuyu404.taczaddon.common.ItemRelationHelper;
 import com.mafuyu404.taczaddon.compat.SophisticatedStorageClientCompat;
 import com.mafuyu404.taczaddon.init.Config;
 import com.mafuyu404.taczaddon.init.crafting.GunSmithSourceScreenAccess;
@@ -56,6 +56,12 @@ public abstract class AbstractContainerScreenMixin extends Screen {
                 && screen
                 instanceof GunSmithSourceScreenAccess sourceAccess) {
             sourceAccess.taczaddon$tickSourceRefresh();
+        }
+        if (screen instanceof GunSmithTableScreen
+                && screen
+                instanceof com.mafuyu404.taczaddon.init.crafting
+                .GunSmithCraftScreenAccess craftAccess) {
+            craftAccess.taczaddon$tickCraftState();
         }
     }
 

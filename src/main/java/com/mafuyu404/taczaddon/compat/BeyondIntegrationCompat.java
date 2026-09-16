@@ -1,5 +1,6 @@
 package com.mafuyu404.taczaddon.compat;
 
+import com.mafuyu404.taczaddon.common.AmmoConsumptionOrchestrator.ConsumptionOutcome;
 import com.mafuyu404.taczaddon.common.AmmoConsumptionOrchestrator.IncompleteConsumptionException;
 import com.mojang.logging.LogUtils;
 import com.tacz.guns.api.item.gun.AbstractGunItem;
@@ -37,7 +38,18 @@ public final class BeyondIntegrationCompat {
         return modList != null && modList.isLoaded(MOD_ID);
     }
 
-    public static int consumeThroughTaczInventoryContract(
+    /**
+     * One TaCZ main-inventory extraction pass so Beyond Integration's own
+     * compatibility hook can consume the remaining network ammo before the
+     * backpack fallback.
+     *
+     * <p>A disabled or already tripped bridge reports a normal zero so the
+     * other independent sources still work. A linkage failure throws
+     * {@link IncompleteConsumptionException}: the opaque hook may already have
+     * changed state, so the orchestrator records the previously confirmed
+     * rounds and stops the request.
+     */
+    public static ConsumptionOutcome consumeThroughTaczInventoryContract(
             ServerPlayer player,
             AbstractGunItem gun,
             ItemStack gunStack,
@@ -49,19 +61,23 @@ public final class BeyondIntegrationCompat {
                 || gunStack == null
                 || gunStack.isEmpty()
                 || requested <= 0) {
-            return 0;
+            return ConsumptionOutcome.confirmed(0);
         }
 
-        return runGuarded(requested, () -> {
-            PlayerMainInvWrapper playerMain =
-                    new PlayerMainInvWrapper(player.getInventory());
+        return ConsumptionOutcome.confirmed(
+                runGuarded(requested, () -> {
+                    PlayerMainInvWrapper playerMain =
+                            new PlayerMainInvWrapper(
+                                    player.getInventory()
+                            );
 
-            return gun.findAndExtractInventoryAmmo(
-                    playerMain,
-                    gunStack,
-                    requested
-            );
-        });
+                    return gun.findAndExtractInventoryAmmo(
+                            playerMain,
+                            gunStack,
+                            requested
+                    );
+                })
+        );
     }
 
     static int runGuarded(int requested, IntSupplier operation) {

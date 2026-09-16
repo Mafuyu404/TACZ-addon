@@ -1,6 +1,6 @@
 package com.mafuyu404.taczaddon.mixin.tacz.v1_1_8;
 
-import com.mafuyu404.taczaddon.init.Config;
+import com.mafuyu404.taczaddon.init.ClientSyncedConfig;
 import com.tacz.guns.api.client.animation.statemachine.LuaAnimationStateMachine;
 import com.tacz.guns.client.animation.statemachine.ItemAnimationStateContext;
 import com.tacz.guns.client.renderer.item.AnimateGeoItemRenderer;
@@ -21,57 +21,65 @@ public abstract class AnimateGeoItemRendererMixin {
     public abstract LuaAnimationStateMachine getStateMachine(ItemStack stack);
 
     @Shadow
-    public abstract ItemAnimationStateContext initContext(ItemStack stack, Player player, float partialTick);
+    public abstract ItemAnimationStateContext initContext(
+            ItemStack stack,
+            Player player,
+            float partialTick
+    );
 
     /**
-     * This is the important extra fix.
+     * Fast-swap is server-owned.
      *
-     * Some outer first-person animation code asks the renderer:
-     * "how long should I wait before switching the displayed item?"
-     *
-     * If we only skip tryExit(), the animation disappears,
-     * but the outer item-switch delay can still remain.
+     * The client renderer only consumes the value synchronized from the
+     * currently connected server. It must not read the deprecated local
+     * FAST_SWAP_GUN config, otherwise animation timing and authoritative
+     * gameplay timing can diverge.
      */
-    @Inject(method = "getPutAwayDuration", at = @At("HEAD"), cancellable = true)
+    @Inject(
+            method = "getPutAwayDuration",
+            at = @At("HEAD"),
+            cancellable = true
+    )
     private void taczaddon$fastSwapPutAwayDuration(
             ItemStack stack,
             CallbackInfoReturnable<Long> cir
     ) {
-        if (Config.FAST_SWAP_GUN.get()) {
+        if (ClientSyncedConfig.enableFastSwapGun()) {
             cir.setReturnValue(0L);
         }
     }
 
-    /**
-     * Also force getPutAwayTime() to 0.
-     *
-     * createAnimationInstance().triggerPutAway() directly calls:
-     * AnimateGeoItemRenderer.this.getPutAwayTime(this.lastItem)
-     */
-    @Inject(method = "getPutAwayTime", at = @At("HEAD"), cancellable = true)
+    @Inject(
+            method = "getPutAwayTime",
+            at = @At("HEAD"),
+            cancellable = true
+    )
     private void taczaddon$fastSwapPutAwayTime(
             ItemStack stack,
             CallbackInfoReturnable<Long> cir
     ) {
-        if (Config.FAST_SWAP_GUN.get()) {
+        if (ClientSyncedConfig.enableFastSwapGun()) {
             cir.setReturnValue(0L);
         }
     }
 
-    /**
-     * Skip put-away animation.
-     */
-    @Inject(method = "tryExit", at = @At("HEAD"), cancellable = true)
+    @Inject(
+            method = "tryExit",
+            at = @At("HEAD"),
+            cancellable = true
+    )
     private void taczaddon$skipPutAwayAnimationWhenFastSwap(
             ItemStack stack,
             long putAwayTime,
             CallbackInfo ci
     ) {
-        if (!Config.FAST_SWAP_GUN.get()) {
+        if (!ClientSyncedConfig.enableFastSwapGun()) {
             return;
         }
 
-        LuaAnimationStateMachine stateMachine = this.getStateMachine(stack);
+        LuaAnimationStateMachine stateMachine =
+                this.getStateMachine(stack);
+
         if (stateMachine != null) {
             stateMachine.processContextIfExist(context -> {
                 if (context instanceof ItemAnimationStateContext itemContext) {
@@ -80,7 +88,6 @@ public abstract class AnimateGeoItemRendererMixin {
             });
 
             if (stateMachine.isInitialized()) {
-                // Exit immediately without triggering the put-away animation.
                 stateMachine.exit();
                 stateMachine.setExitingTime(0L);
             }

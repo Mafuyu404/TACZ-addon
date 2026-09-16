@@ -1,9 +1,11 @@
 package com.mafuyu404.taczaddon.mixin.tacz.v1_1_8;
 
 import com.mafuyu404.taczaddon.client.GunSmithCraftBridgeState;
+import com.mafuyu404.taczaddon.client.GunSmithCraftRouting;
 import com.mafuyu404.taczaddon.init.ClientSyncedConfig;
 import com.mafuyu404.taczaddon.init.crafting.CraftingTransaction;
 import com.mafuyu404.taczaddon.init.crafting.GunSmithCraftScreenAccess;
+import com.mafuyu404.taczaddon.init.crafting.GunSmithSourceScreenAccess;
 import com.tacz.guns.client.gui.GunSmithTableScreen;
 import com.tacz.guns.crafting.GunSmithTableRecipe;
 import com.tacz.guns.inventory.GunSmithTableMenu;
@@ -53,6 +55,15 @@ public abstract class GunSmithTableCraftBridgeMixin
         );
     }
 
+    @Override
+    public void taczaddon$tickCraftState() {
+        /*
+         * Releases a timed-out request without re-sending it, so the craft
+         * button can never stay permanently stuck in a waiting state.
+         */
+        this.taczaddon$craftState.tick();
+    }
+
     @ModifyArg(
             method = "addCraftButton()V",
             at = @At(
@@ -74,19 +85,49 @@ public abstract class GunSmithTableCraftBridgeMixin
             Button.OnPress originalOnPress
     ) {
         return button -> {
+            Minecraft minecraft = Minecraft.getInstance();
             if (this.selectedRecipe == null
-                    || Minecraft.getInstance().player == null
-                    || !(Minecraft.getInstance().player
-                    .containerMenu
+                    || minecraft.player == null
+                    || !(minecraft.player.containerMenu
                     instanceof GunSmithTableMenu menu)) {
+                /*
+                 * No routing information: keep TaCZ's own behaviour.
+                 */
+                originalOnPress.onPress(button);
                 return;
             }
+
             ResourceLocation recipeId =
                     this.selectedRecipe.getId();
+            boolean shiftDown = Screen.hasShiftDown();
+            boolean playerHasMaterials =
+                    GunSmithCraftRouting.playerInventorySatisfies(
+                            minecraft.player,
+                            this.selectedRecipe
+                    );
+            boolean extendedAuthorized =
+                    minecraft.screen
+                            instanceof GunSmithSourceScreenAccess sources
+                            && sources
+                            .taczaddon$externalSourcesAuthorized();
+
+            if (GunSmithCraftRouting.decide(
+                    shiftDown,
+                    playerHasMaterials,
+                    extendedAuthorized
+            ) == GunSmithCraftRouting.Route.NATIVE) {
+                originalOnPress.onPress(button);
+                return;
+            }
+
+            /*
+             * Exactly one path per press: once the extended request is sent it
+             * is never re-sent and never supplemented with a native craft.
+             */
             this.taczaddon$craftState.requestCraft(
                     menu.containerId,
                     recipeId,
-                    Screen.hasShiftDown(),
+                    shiftDown,
                     ClientSyncedConfig.batchCraftMax()
             );
         };

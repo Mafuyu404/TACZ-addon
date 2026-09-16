@@ -2,7 +2,6 @@ package com.mafuyu404.taczaddon.client;
 
 import com.mafuyu404.taczaddon.common.LiberateAttachmentService;
 import com.mafuyu404.taczaddon.init.NetworkHandler;
-import com.mafuyu404.taczaddon.mixin.tacz.v1_1_8.InventoryAttachmentSlotAccess;
 import com.mafuyu404.taczaddon.network.LiberateAttachmentInstallPacket;
 import com.tacz.guns.api.item.IAttachment;
 import com.tacz.guns.api.item.attachment.AttachmentType;

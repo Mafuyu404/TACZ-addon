@@ -1,13 +1,15 @@
 package com.mafuyu404.taczaddon.common;
 
+import com.mafuyu404.taczaddon.common.AmmoConsumptionOrchestrator.ConsumptionOutcome;
 import com.mafuyu404.taczaddon.compat.CuriosCompat;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraftforge.items.IItemHandlerModifiable;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+
 import static com.mafuyu404.taczaddon.common.BackpackAmmoServiceTest.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 class CuriosAmmoServiceTest {
     @BeforeAll static void prepare() throws Exception { BackpackAmmoServiceTest.bootstrap(); }
@@ -44,14 +46,20 @@ class CuriosAmmoServiceTest {
     @Test void nativeBeyondSophisticatedThenCuriosConsumeOnlyTheRemainder() {
         var sophisticated = new FakeHandler(new ItemStack(COMPATIBLE_AMMO, 4));
         var curios = new FakeHandler(new ItemStack(COMPATIBLE_AMMO, 20));
-        int total = AmmoConsumptionOrchestrator.consumeRemaining(15, 2, true,
-                remaining -> { assertEquals(13, remaining); return 3; },
+        var outcome = AmmoConsumptionOrchestrator.consumeRemaining(15, 2,
+                remaining -> { assertEquals(13, remaining); return ConsumptionOutcome.confirmed(3); },
                 remaining -> {
                     assertEquals(10, remaining);
-                    int fromBackpack = BackpackAmmoService.extractCompatibleAmmoDirectly(sophisticated, gun(), remaining);
-                    return fromBackpack + CuriosAmmoService.consumeHandler(curios, gun(), remaining - fromBackpack);
+                    return BackpackAmmoService.consumeThroughHandlers(
+                            remaining,
+                            gun(),
+                            visitor -> visitor.test(sophisticated));
+                },
+                remaining -> {
+                    assertEquals(6, remaining);
+                    return CuriosAmmoService.consumeHandlerOutcome(curios, gun(), remaining);
                 });
-        assertEquals(15, total);
+        assertEquals(15, outcome.consumed());
         assertEquals(14, curios.getStackInSlot(0).getCount());
     }
 
@@ -91,8 +99,8 @@ class CuriosAmmoServiceTest {
     @Test void absentCuriosIsNeutralAndOtherSourcesStillWork() {
         assertFalse(CuriosCompat.isInstalled());
         assertFalse(CuriosCompat.visitHandlers(null, handler -> { fail("absent Curios visited"); return true; }));
-        assertEquals(0, CuriosAmmoService.consumeAmmo(null, gun(), 8));
-        assertEquals(0, BackpackAmmoService.consumeBackpackAmmoRaw(null, gun(), 8));
+        assertEquals(0, CuriosAmmoService.consumeAmmo(null, gun(), 8).consumed());
+        assertEquals(0, BackpackAmmoService.consumeBackpackAmmo(null, gun(), 8).consumed());
         assertEquals(8, BackpackAmmoService.extractCompatibleAmmoDirectly(
                 new FakeHandler(new ItemStack(COMPATIBLE_AMMO, 10)), gun(), 8));
     }

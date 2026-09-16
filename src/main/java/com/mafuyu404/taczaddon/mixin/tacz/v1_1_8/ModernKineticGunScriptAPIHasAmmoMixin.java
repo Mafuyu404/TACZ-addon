@@ -4,7 +4,6 @@ import com.mafuyu404.taczaddon.common.BackpackAmmoService;
 import com.tacz.guns.item.ModernKineticGunScriptAPI;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.common.util.LazyOptional;
 import org.spongepowered.asm.mixin.Mixin;

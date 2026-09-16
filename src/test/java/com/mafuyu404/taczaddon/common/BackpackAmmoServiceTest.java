@@ -8,8 +8,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -20,9 +20,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class BackpackAmmoServiceTest {
     static FakeAmmoItem COMPATIBLE_AMMO;
@@ -167,15 +165,17 @@ class BackpackAmmoServiceTest {
                 "findAndExtractInventoryAmmo"
         ));
         assertTrue(service.contains(
-                "consumeBackpackAmmoRaw"
+                "consumeBackpackAmmo("
         ));
         assertTrue(service.contains(
                 "extractCompatibleAmmoDirectly"
         ));
 
-        int start = service.indexOf("consumeBackpackAmmoRaw");
+        int start = service.indexOf("public static ConsumptionOutcome "
+                + "consumeBackpackAmmo(");
         int end = service.indexOf("public static IItemHandler "
                 + "createQueryHandler");
+        assertTrue(start >= 0 && end > start);
         String rawMethod = service.substring(start, end);
         assertFalse(rawMethod.contains("ForgeCapabilities.ITEM_HANDLER"));
         assertFalse(rawMethod.contains("vanilla"));

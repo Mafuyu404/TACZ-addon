@@ -8,11 +8,11 @@ import com.tacz.guns.block.entity.GunSmithTableBlockEntity;
 import com.tacz.guns.inventory.GunSmithTableMenu;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.event.entity.player.PlayerContainerEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -141,6 +141,7 @@ public final class ServerEvent {
             GunSmithCraftingSessionManager.clearPlayerState(
                     serverPlayer.getUUID()
             );
+            NetworkHandler.sendServerConfig(serverPlayer);
             NetworkHandler.sendLiberateAttachmentState(serverPlayer);
             NetworkHandler.sendAttachmentDetailRuleState(serverPlayer);
         }

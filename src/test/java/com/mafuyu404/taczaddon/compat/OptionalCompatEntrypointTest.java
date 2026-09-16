@@ -4,7 +4,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.objectweb.asm.*;
-import org.objectweb.asm.tree.*;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.InsnNode;
+import org.objectweb.asm.tree.MethodInsnNode;
+import org.objectweb.asm.tree.MethodNode;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -48,7 +51,11 @@ public class OptionalCompatEntrypointTest {
         Class<?> facade = Class.forName(PACKAGE + simpleName, true, loader);
         if (simpleName.equals("JeiCompat")) facade.getMethod("init").invoke(null);
         Method entry = Stream.of(facade.getDeclaredMethods()).filter(m -> m.getName().equals(methodName)).findFirst().orElseThrow();
-        assertNeutral(entry);
+        if (propagatesLinkageToCaller(simpleName, methodName)) {
+            assertPropagatedLinkage(entry);
+        } else {
+            assertNeutral(entry);
+        }
         assertEquals(1, CALLS.get(), "The real entry must reach the failing API");
         var latch = facade.getDeclaredField("linkageBroken");
         latch.setAccessible(true);
@@ -69,16 +76,49 @@ public class OptionalCompatEntrypointTest {
         }
     }
 
+    /**
+     * The backpack mutation pass is the single deliberate exception to the
+     * "optional facades never escape" rule.
+     *
+     * <p>A mutation pass may already have changed slots before the failing
+     * call. Reporting "consumed nothing" by returning false would let the
+     * caller ask the next ammo source for the same rounds, so the real facade
+     * latches the linkage failure and rethrows it to the current operation.
+     * Every sibling entry must still be neutral after the latch.
+     */
+    private static boolean propagatesLinkageToCaller(
+            String simpleName,
+            String methodName
+    ) {
+        return simpleName.equals("SophisticatedBackpacksCompat")
+                && methodName.equals("mutateInventoryBackpacks");
+    }
+
     private static void assertNeutral(Method method) throws Exception {
+        Object[] args = argumentsFor(method);
+        Object result = assertDoesNotThrow(() -> method.invoke(null, args));
+        if (method.getReturnType() == boolean.class) assertEquals(false, result);
+        else assertNull(result);
+    }
+
+    private static void assertPropagatedLinkage(Method method)
+            throws Exception {
+        Object[] args = argumentsFor(method);
+        var thrown = assertThrows(
+                java.lang.reflect.InvocationTargetException.class,
+                () -> method.invoke(null, args)
+        );
+        assertInstanceOf(LinkageError.class, thrown.getCause());
+    }
+
+    private static Object[] argumentsFor(Method method) throws Exception {
         Object[] args = new Object[method.getParameterCount()];
         for (int i = 0; i < args.length; i++) {
             Class<?> type = method.getParameterTypes()[i];
             if (type == boolean.class) args[i] = true;
             else if (List.of(PLAYER, SERVER_PLAYER, STACK).contains(type.getName())) args[i] = type.getConstructor().newInstance();
         }
-        Object result = assertDoesNotThrow(() -> method.invoke(null, args));
-        if (method.getReturnType() == boolean.class) assertEquals(false, result);
-        else assertNull(result);
+        return args;
     }
 
     private ClassLoader fixtureLoader() {

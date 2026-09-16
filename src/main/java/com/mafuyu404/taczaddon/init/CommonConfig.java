@@ -18,6 +18,7 @@ public final class CommonConfig {
     public static final ForgeConfigSpec.IntValue CONTAINER_SCAN_RADIUS;
     public static final ForgeConfigSpec.IntValue BATCH_CRAFT_MAX;
     public static final ForgeConfigSpec.BooleanValue ENABLE_SHOOT_WHILE_RELOADING;
+    public static final ForgeConfigSpec.BooleanValue ENABLE_FAST_SWAP_GUN;
 
     static {
         ForgeConfigSpec.Builder builder =
@@ -71,6 +72,16 @@ public final class CommonConfig {
                 )
                 .define("enableShootWhileReloading", true);
 
+        ENABLE_FAST_SWAP_GUN = builder
+                .comment(
+                        "Skip TaCZ's put-away animation before the next draw.",
+                        "This is a gameplay policy owned by the server: the value",
+                        "is synchronized to every client, and client-side cooldown",
+                        "prediction uses the synchronized value. A dedicated server",
+                        "reads this file, never a client configuration."
+                )
+                .define("enableFastSwapGun", true);
+
         builder.pop();
 
         SPEC = builder.build();
@@ -107,5 +118,9 @@ public final class CommonConfig {
 
     public static boolean enableShootWhileReloading() {
         return ENABLE_SHOOT_WHILE_RELOADING.get();
+    }
+
+    public static boolean enableFastSwapGun() {
+        return ENABLE_FAST_SWAP_GUN.get();
     }
 }

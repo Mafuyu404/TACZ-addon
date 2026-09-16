@@ -61,7 +61,7 @@ class BeyondIntegrationArchitectureTest {
         );
 
         assertTrue(service.contains(
-                "consumeBackpackAmmoRaw"
+                "consumeBackpackAmmo("
         ));
         assertTrue(service.contains(
                 "extractCompatibleAmmoDirectly"

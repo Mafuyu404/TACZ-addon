@@ -4,13 +4,21 @@ import com.tacz.guns.api.item.IGun;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import org.junit.jupiter.api.Test;
-import org.objectweb.asm.*;
-import org.objectweb.asm.tree.*;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.FieldInsnNode;
+import org.objectweb.asm.tree.MethodInsnNode;
+import org.objectweb.asm.tree.MethodNode;
+
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /** Executes production method bytecode with only network and game-world boundaries substituted. */

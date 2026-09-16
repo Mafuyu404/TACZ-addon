@@ -1,17 +1,8 @@
 package com.mafuyu404.taczaddon.compat.tacz;
 
-import com.mafuyu404.taczaddon.compat.tacz.contract.ClassContract;
-import com.mafuyu404.taczaddon.compat.tacz.contract.FeatureContract;
-import com.mafuyu404.taczaddon.compat.tacz.contract.FieldAccessContract;
-import com.mafuyu404.taczaddon.compat.tacz.contract.FieldContract;
-import com.mafuyu404.taczaddon.compat.tacz.contract.InvokeContract;
-import com.mafuyu404.taczaddon.compat.tacz.contract.MethodContract;
+import com.mafuyu404.taczaddon.compat.tacz.contract.*;
 
-import java.util.Collections;
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public final class TaczContractRegistry {
     public static final String PROFILE_ID = "1.1.8-hotfix";
@@ -24,6 +15,37 @@ public final class TaczContractRegistry {
     private static final Map<TaczFeature, FeatureContract> FEATURE_CONTRACTS;
     private static final Map<TaczFeature, CompatibilityScope> FEATURE_SCOPES;
     private static final Map<String, TaczMixinBinding> MIXIN_BINDINGS;
+    private static final Map<TaczFeature, List<TaczFeature>>
+            FEATURE_DEPENDENCIES;
+
+    /**
+     * Version adapters that Mixin only ever loads for a physical client.
+     *
+     * <p>This mirrors the {@code client} array of the shared Mixin
+     * configuration so the runtime gate reports the same side distinction the
+     * configuration already applies.
+     */
+    private static final Set<String> CLIENT_MIXINS = Set.of(
+            "AimKeyMixin",
+            "ShoulderSurfingCompatMixin",
+            "AnimateGeoItemRendererMixin",
+            "ClientAttachmentItemTooltipMixin",
+            "GunAnimationStateContextMixin",
+            "GunHudOverlayMixin",
+            "GunRefitScreenMixin",
+            "GunSmithTableBrowseMemoryMixin",
+            "GunSmithTableCraftBridgeMixin",
+            "GunSmithTableIngredientInteractionMixin",
+            "GunSmithTablePageInfoMixin",
+            "GunSmithTablePropertyFilterMixin",
+            "GunSmithTableScreenAccessMixin",
+            "GunSmithTableSourceViewMixin",
+            "InventoryAttachmentSlotAccess",
+            "LocalPlayerBetterMeleeMixin",
+            "LocalPlayerDrawMixin",
+            "LocalPlayerShootReloadInterruptMixin",
+            "LocalPlayerSlideShootMixin"
+    );
 
     static {
         Map<TaczFeature, FeatureContract> featureContracts =
@@ -208,10 +230,7 @@ public final class TaczContractRegistry {
                 binding(
                         MIXIN_V1 + "ClientMessageRefitGunAccess",
                         TaczFeature.LIBERATED_REFIT,
-                        versionBound(
-                                TaczFeature.LIBERATED_REFIT,
-                                refitPacketFields()
-                        )
+                        refit
                 )
         );
         mixinBindings.put(
@@ -219,11 +238,7 @@ public final class TaczContractRegistry {
                 binding(
                         MIXIN_V1 + "ClientMessageRefitGunMixin",
                         TaczFeature.LIBERATED_REFIT,
-                        versionBound(
-                                TaczFeature.LIBERATED_REFIT,
-                                refitPacketFields(),
-                                refitPacketHandle()
-                        )
+                        refit
                 )
         );
         mixinBindings.put(
@@ -231,10 +246,7 @@ public final class TaczContractRegistry {
                 binding(
                         MIXIN_V1 + "ClientMessageUnloadAttachmentAccess",
                         TaczFeature.LIBERATED_REFIT,
-                        versionBound(
-                                TaczFeature.LIBERATED_REFIT,
-                                unloadPacketFields()
-                        )
+                        refit
                 )
         );
         mixinBindings.put(
@@ -242,22 +254,20 @@ public final class TaczContractRegistry {
                 binding(
                         MIXIN_V1 + "ClientMessageUnloadAttachmentMixin",
                         TaczFeature.LIBERATED_REFIT,
-                        versionBound(
-                                TaczFeature.LIBERATED_REFIT,
-                                unloadPacketFields(),
-                                unloadPacketHandle()
-                        )
+                        refit
                 )
         );
+        /*
+         * The refit screen consumes the attachment slot accessor. Both the
+         * accessor and every user must share the complete feature contract so
+         * a renamed field can never leave a half-applied injection behind.
+         */
         mixinBindings.put(
                 MIXIN_V1 + "GunRefitScreenMixin",
                 binding(
                         MIXIN_V1 + "GunRefitScreenMixin",
                         TaczFeature.LIBERATED_REFIT,
-                        versionBound(
-                                TaczFeature.LIBERATED_REFIT,
-                                refitScreenContract()
-                        )
+                        refit
                 )
         );
         mixinBindings.put(
@@ -265,10 +275,7 @@ public final class TaczContractRegistry {
                 binding(
                         MIXIN_V1 + "InventoryAttachmentSlotAccess",
                         TaczFeature.LIBERATED_REFIT,
-                        versionBound(
-                                TaczFeature.LIBERATED_REFIT,
-                                refitSlotContract()
-                        )
+                        refit
                 )
         );
 
@@ -637,6 +644,27 @@ public final class TaczContractRegistry {
                 Collections.unmodifiableMap(featureScopes);
         MIXIN_BINDINGS =
                 Collections.unmodifiableMap(mixinBindings);
+
+        Map<TaczFeature, List<TaczFeature>> dependencies =
+                new EnumMap<>(TaczFeature.class);
+        for (TaczMixinBinding mixinBinding
+                : mixinBindings.values()) {
+            if (mixinBinding.dependencies().isEmpty()) {
+                continue;
+            }
+            dependencies.merge(
+                    mixinBinding.feature(),
+                    mixinBinding.dependencies(),
+                    (left, right) -> {
+                        Set<TaczFeature> merged =
+                                new HashSet<>(left);
+                        merged.addAll(right);
+                        return List.copyOf(merged);
+                    }
+            );
+        }
+        FEATURE_DEPENDENCIES =
+                Collections.unmodifiableMap(dependencies);
     }
 
     private TaczContractRegistry() {
@@ -652,6 +680,27 @@ public final class TaczContractRegistry {
 
     public static TaczMixinBinding bindingForMixin(String mixinClassName) {
         return MIXIN_BINDINGS.get(mixinClassName);
+    }
+
+    /**
+     * Transitive dependency graph of the version adapters, derived from the
+     * bindings themselves so it cannot drift away from them.
+     */
+    public static List<TaczFeature> dependenciesOf(TaczFeature feature) {
+        return FEATURE_DEPENDENCIES.getOrDefault(feature, List.of());
+    }
+
+    public static TaczRuntimeSide sideForMixin(String mixinClassName) {
+        if (mixinClassName == null) {
+            return TaczRuntimeSide.COMMON;
+        }
+        int separator = mixinClassName.lastIndexOf('.');
+        String simpleName = separator < 0
+                ? mixinClassName
+                : mixinClassName.substring(separator + 1);
+        return CLIENT_MIXINS.contains(simpleName)
+                ? TaczRuntimeSide.CLIENT
+                : TaczRuntimeSide.COMMON;
     }
 
     public static TaczFeature featureForMixin(String mixinClassName) {
@@ -688,7 +737,8 @@ public final class TaczContractRegistry {
                 feature,
                 contract,
                 CompatibilityScope.VERSION_BOUND,
-                List.of(dependencies)
+                List.of(dependencies),
+                sideForMixin(mixinClassName)
         );
     }
 

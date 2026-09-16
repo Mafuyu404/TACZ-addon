@@ -17,20 +17,24 @@ import java.util.function.Supplier;
 public final class ServerFeatureConfigSyncPacket {
     private final int batchCraftMax;
     private final boolean enableShootWhileReloading;
+    private final boolean enableFastSwapGun;
 
-    private ServerFeatureConfigSyncPacket(
+    ServerFeatureConfigSyncPacket(
             int batchCraftMax,
-            boolean enableShootWhileReloading
+            boolean enableShootWhileReloading,
+            boolean enableFastSwapGun
     ) {
         this.batchCraftMax = batchCraftMax;
         this.enableShootWhileReloading =
                 enableShootWhileReloading;
+        this.enableFastSwapGun = enableFastSwapGun;
     }
 
     public static ServerFeatureConfigSyncPacket fromServerConfig() {
         return new ServerFeatureConfigSyncPacket(
                 CommonConfig.getBatchCraftMax(),
-                CommonConfig.enableShootWhileReloading()
+                CommonConfig.enableShootWhileReloading(),
+                CommonConfig.enableFastSwapGun()
         );
     }
 
@@ -42,6 +46,7 @@ public final class ServerFeatureConfigSyncPacket {
         buffer.writeBoolean(
                 message.enableShootWhileReloading
         );
+        buffer.writeBoolean(message.enableFastSwapGun);
     }
 
     public static ServerFeatureConfigSyncPacket decode(
@@ -61,9 +66,13 @@ public final class ServerFeatureConfigSyncPacket {
         boolean enableShootWhileReloading =
                 buffer.readBoolean();
 
+        boolean enableFastSwapGun =
+                buffer.readBoolean();
+
         return new ServerFeatureConfigSyncPacket(
                 batchCraftMax,
-                enableShootWhileReloading
+                enableShootWhileReloading,
+                enableFastSwapGun
         );
     }
 
@@ -92,5 +101,9 @@ public final class ServerFeatureConfigSyncPacket {
 
     public boolean enableShootWhileReloading() {
         return this.enableShootWhileReloading;
+    }
+
+    public boolean enableFastSwapGun() {
+        return this.enableFastSwapGun;
     }
 }

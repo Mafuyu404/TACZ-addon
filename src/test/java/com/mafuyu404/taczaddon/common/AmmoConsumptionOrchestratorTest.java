@@ -1,170 +1,250 @@
 package com.mafuyu404.taczaddon.common;
 
+import com.mafuyu404.taczaddon.common.AmmoConsumptionOrchestrator.ConsumptionOutcome;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 class AmmoConsumptionOrchestratorTest {
+
+    private static AmmoConsumptionOrchestrator.AmmoSource source(
+            List<Integer> calls,
+            ConsumptionOutcome outcome
+    ) {
+        return remaining -> {
+            calls.add(remaining);
+            return outcome.withConsumed(
+                    Math.min(remaining, outcome.consumed())
+            );
+        };
+    }
+
+    private static AmmoConsumptionOrchestrator.AmmoSource fixed(
+            List<Integer> calls,
+            int consumed
+    ) {
+        return remaining -> {
+            calls.add(remaining);
+            return ConsumptionOutcome.confirmed(
+                    Math.min(remaining, consumed)
+            );
+        };
+    }
+
     @Test
     void nativeAlreadySatisfiesRequestCallsNoSources() {
-        int consumed = AmmoConsumptionOrchestrator.consumeRemaining(
-                30,
-                30,
-                remaining -> {
-                    throw new AssertionError(
-                            "Beyond must not run when already satisfied"
-                    );
-                },
-                remaining -> {
-                    throw new AssertionError(
-                            "Backpack must not run when already satisfied"
-                    );
-                }
-        );
+        List<Integer> calls = new ArrayList<>();
 
-        assertEquals(30, consumed);
+        ConsumptionOutcome outcome =
+                AmmoConsumptionOrchestrator.consumeRemaining(
+                        30,
+                        30,
+                        source(calls, ConsumptionOutcome.confirmed(0)),
+                        source(calls, ConsumptionOutcome.confirmed(0))
+                );
+
+        assertEquals(30, outcome.consumed());
+        assertTrue(calls.isEmpty());
     }
 
     @Test
-    void beyondFullySatisfiesDeficitBeforeBackpack() {
+    void zeroConsumptionStillContinuesToTheNextSource() {
         List<Integer> calls = new ArrayList<>();
 
-        int consumed = AmmoConsumptionOrchestrator.consumeRemaining(
-                30,
-                10,
-                remaining -> {
-                    calls.add(remaining);
-                    return 20;
-                },
-                remaining -> {
-                    throw new AssertionError(
-                            "Backpack must not run after Beyond fills request"
-                    );
-                }
-        );
+        ConsumptionOutcome outcome =
+                AmmoConsumptionOrchestrator.consumeRemaining(
+                        10,
+                        0,
+                        fixed(calls, 0),
+                        fixed(calls, 6),
+                        fixed(calls, 4)
+                );
 
-        assertEquals(30, consumed);
-        assertEquals(List.of(20), calls);
+        assertEquals(10, outcome.consumed());
+        assertTrue(outcome.mayContinue());
+        assertEquals(List.of(10, 10, 4), calls);
     }
 
     @Test
-    void beyondPartiallySatisfiesThenBackpackFills() {
+    void priorityOrderReceivesTheRealRemainingAmount() {
         List<Integer> calls = new ArrayList<>();
 
-        int consumed = AmmoConsumptionOrchestrator.consumeRemaining(
-                30,
-                10,
-                remaining -> {
-                    calls.add(remaining);
-                    return 12;
-                },
-                remaining -> {
-                    calls.add(remaining);
-                    return 8;
-                }
-        );
+        ConsumptionOutcome outcome =
+                AmmoConsumptionOrchestrator.consumeRemaining(
+                        30,
+                        10,
+                        fixed(calls, 12),
+                        fixed(calls, 8),
+                        fixed(calls, 100)
+                );
 
-        assertEquals(30, consumed);
+        assertEquals(30, outcome.consumed());
         assertEquals(List.of(20, 8), calls);
     }
 
     @Test
-    void absentBeyondGoesDirectlyToBackpackFallback() {
+    void totalNeverExceedsTheRequest() {
         List<Integer> calls = new ArrayList<>();
 
-        int consumed = AmmoConsumptionOrchestrator.consumeRemaining(
-                30,
-                10,
-                remaining -> 0,
-                remaining -> {
-                    calls.add(remaining);
-                    return 20;
-                }
-        );
+        ConsumptionOutcome outcome =
+                AmmoConsumptionOrchestrator.consumeRemaining(
+                        10,
+                        3,
+                        fixed(calls, 100),
+                        fixed(calls, 100)
+                );
 
-        assertEquals(30, consumed);
-        assertEquals(List.of(20), calls);
+        assertEquals(10, outcome.consumed());
+        assertEquals(List.of(7), calls);
     }
 
     @Test
-    void bothSourcesPartiallySatisfy() {
-        int consumed = AmmoConsumptionOrchestrator.consumeRemaining(
-                30,
-                5,
-                remaining -> 7,
-                remaining -> 6
-        );
+    void knownPartialFailureKeepsConfirmedRoundsAndStopsLaterSources() {
+        List<Integer> calls = new ArrayList<>();
 
-        assertEquals(18, consumed);
+        ConsumptionOutcome outcome =
+                AmmoConsumptionOrchestrator.consumeRemaining(
+                        10,
+                        0,
+                        fixed(calls, 0),
+                        source(
+                                calls,
+                                ConsumptionOutcome.stoppedConfirmed(4)
+                        ),
+                        source(calls, ConsumptionOutcome.confirmed(6))
+                );
+
+        assertEquals(4, outcome.consumed());
+        assertEquals(
+                AmmoConsumptionOrchestrator.Status.STOPPED_CONFIRMED,
+                outcome.status()
+        );
+        assertFalse(outcome.mayContinue());
+        assertEquals(
+                List.of(10, 10),
+                calls,
+                "later sources must not be asked for the deficit"
+        );
     }
 
     @Test
-    void overReportingBeyondIsClampedAndBackpackSkips() {
-        int consumed = AmmoConsumptionOrchestrator.consumeRemaining(
-                30,
-                10,
-                remaining -> 100,
-                remaining -> {
-                    throw new AssertionError(
-                            "Backpack must not run after Beyond fills request"
-                    );
-                }
-        );
+    void unknownMutationKeepsEarlierRoundsAndStops() {
+        List<Integer> calls = new ArrayList<>();
 
-        assertEquals(30, consumed);
+        ConsumptionOutcome outcome =
+                AmmoConsumptionOrchestrator.consumeRemaining(
+                        10,
+                        2,
+                        source(calls, ConsumptionOutcome.stoppedUnknown()),
+                        remaining -> {
+                            calls.add(-1);
+                            return ConsumptionOutcome.confirmed(8);
+                        }
+                );
+
+        assertEquals(2, outcome.consumed());
+        assertEquals(
+                AmmoConsumptionOrchestrator.Status.STOPPED_UNKNOWN,
+                outcome.status()
+        );
+        assertEquals(
+                List.of(8),
+                calls,
+                "an unknown external mutation must not trigger more extraction"
+        );
     }
 
     @Test
-    void negativeBeyondReturnContributesZero() {
-        int consumed = AmmoConsumptionOrchestrator.consumeRemaining(
-                30,
-                10,
-                remaining -> -5,
-                remaining -> 0
-        );
+    void incompleteConsumptionExceptionIsTreatedAsUnknown() {
+        List<Integer> calls = new ArrayList<>();
 
-        assertEquals(10, consumed);
+        ConsumptionOutcome outcome =
+                AmmoConsumptionOrchestrator.consumeRemaining(
+                        10,
+                        3,
+                        remaining -> {
+                            calls.add(remaining);
+                            throw new AmmoConsumptionOrchestrator
+                                    .IncompleteConsumptionException(
+                                    new NoSuchMethodError("bridge")
+                            );
+                        },
+                        source(calls, ConsumptionOutcome.confirmed(7))
+                );
+
+        assertEquals(3, outcome.consumed());
+        assertEquals(
+                AmmoConsumptionOrchestrator.Status.STOPPED_UNKNOWN,
+                outcome.status()
+        );
+        assertEquals(List.of(7), calls);
+    }
+
+    @Test
+    void runtimeFailureAfterConfirmedRoundsKeepsThem() {
+        List<Integer> calls = new ArrayList<>();
+
+        ConsumptionOutcome outcome =
+                AmmoConsumptionOrchestrator.consumeRemaining(
+                        10,
+                        4,
+                        remaining -> {
+                            calls.add(remaining);
+                            throw new IllegalStateException(
+                                    "finalisation failed"
+                            );
+                        },
+                        source(calls, ConsumptionOutcome.confirmed(6))
+                );
+
+        assertEquals(4, outcome.consumed());
+        assertEquals(
+                AmmoConsumptionOrchestrator.Status.STOPPED_UNKNOWN,
+                outcome.status()
+        );
+        assertEquals(List.of(6), calls);
     }
 
     @Test
     void invalidRequestReturnsZeroWithoutSourceCalls() {
+        List<Integer> calls = new ArrayList<>();
+
         assertEquals(
                 0,
                 AmmoConsumptionOrchestrator.consumeRemaining(
                         0,
                         5,
-                        remaining -> {
-                            throw new AssertionError(
-                                    "Beyond must not run for invalid request"
-                            );
-                        },
-                        remaining -> {
-                            throw new AssertionError(
-                                    "Backpack must not run for invalid request"
-                            );
-                        }
-                )
+                        source(calls, ConsumptionOutcome.confirmed(1))
+                ).consumed()
         );
         assertEquals(
                 0,
                 AmmoConsumptionOrchestrator.consumeRemaining(
                         -1,
                         5,
-                        remaining -> {
-                            throw new AssertionError(
-                                    "Beyond must not run for invalid request"
-                            );
-                        },
-                        remaining -> {
-                            throw new AssertionError(
-                                    "Backpack must not run for invalid request"
-                            );
-                        }
-                )
+                        source(calls, ConsumptionOutcome.confirmed(1))
+                ).consumed()
         );
+        assertTrue(calls.isEmpty());
+    }
+
+    @Test
+    void virtualAndCreativeAmmoKeepNativeSemantics() {
+        assertTrue(AmmoConsumptionOrchestrator.usesNativeVirtualAmmo(
+                true, false, false
+        ));
+        assertTrue(AmmoConsumptionOrchestrator.usesNativeVirtualAmmo(
+                false, true, true
+        ));
+        assertFalse(AmmoConsumptionOrchestrator.usesNativeVirtualAmmo(
+                true, true, false
+        ));
+        assertFalse(AmmoConsumptionOrchestrator.usesNativeVirtualAmmo(
+                false, false, false
+        ));
     }
 
     @Test

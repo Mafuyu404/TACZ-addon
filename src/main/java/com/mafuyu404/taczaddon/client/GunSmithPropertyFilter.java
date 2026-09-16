@@ -4,6 +4,8 @@ import com.tacz.guns.api.item.IAttachment;
 import com.tacz.guns.crafting.GunSmithTableRecipe;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -12,7 +14,19 @@ import java.util.function.Predicate;
 
 /** Stateless catalog and matching logic; each screen owns its translated data snapshot. */
 public final class GunSmithPropertyFilter {
+    private static final ResourceLocation ATTACHMENT_WORKBENCH =
+            new ResourceLocation(
+                    "tacz",
+                    "attachment_workbench"
+            );
+
     private GunSmithPropertyFilter() {}
+
+    public static boolean supportsWorkbench(
+            @Nullable ResourceLocation tableId
+    ) {
+        return ATTACHMENT_WORKBENCH.equals(tableId);
+    }
 
     public static List<String> catalogKeys(Iterable<String> modifierIds, Predicate<String> hasTranslation) {
         List<String> keys = new ArrayList<>();

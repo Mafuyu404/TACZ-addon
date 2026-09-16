@@ -1,7 +1,10 @@
 package com.mafuyu404.taczaddon.compat;
 
 import org.junit.jupiter.api.Test;
-import java.nio.file.*;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class CuriosCompatibilityTest {
@@ -16,7 +19,12 @@ class CuriosCompatibilityTest {
             ordinaryLatch.setAccessible(true);
             assertFalse(ordinaryLatch.getBoolean(null));
             assertEquals(7, com.mafuyu404.taczaddon.common.AmmoConsumptionOrchestrator.consumeRemaining(
-                    7, 2, remaining -> 0, remaining -> remaining));
+                    7, 2,
+                    remaining -> com.mafuyu404.taczaddon.common.AmmoConsumptionOrchestrator
+                            .ConsumptionOutcome.confirmed(0),
+                    remaining -> com.mafuyu404.taczaddon.common.AmmoConsumptionOrchestrator
+                            .ConsumptionOutcome.confirmed(remaining)
+            ).consumed());
         } finally { latch.setBoolean(null, false); }
     }
 

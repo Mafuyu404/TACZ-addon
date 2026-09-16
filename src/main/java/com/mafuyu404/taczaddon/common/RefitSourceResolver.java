@@ -70,11 +70,10 @@ public final class RefitSourceResolver {
                         source,
                         candidates
                 );
-            } catch (RuntimeException exception) {
+            } catch (RuntimeException | LinkageError failure) {
                 LOGGER.warn(
-                        "Skipping unreadable refit source {}",
-                        source.key(),
-                        exception
+                        "Skipping unreadable or binary-incompatible refit source",
+                        failure
                 );
             }
         }

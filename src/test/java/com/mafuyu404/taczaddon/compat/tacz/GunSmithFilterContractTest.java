@@ -1,9 +1,13 @@
 package com.mafuyu404.taczaddon.compat.tacz;
 
 import org.junit.jupiter.api.Test;
-import org.objectweb.asm.*;
-import org.objectweb.asm.tree.*;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.MethodInsnNode;
+
 import java.util.function.Consumer;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class GunSmithFilterContractTest {

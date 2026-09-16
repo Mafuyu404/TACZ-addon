@@ -7,13 +7,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import org.slf4j.Logger;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.IdentityHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Shared server-side scanner for nearby loaded block inventories.
@@ -79,11 +73,12 @@ public final class NearbyInventorySourceResolver {
                 }
 
                 sources.add(source);
-            } catch (RuntimeException exception) {
+            } catch (RuntimeException | LinkageError failure) {
                 LOGGER.warn(
-                        "Skipping unreadable nearby container source at {}",
+                        "Skipping unreadable or binary-incompatible "
+                                + "nearby container source at {}",
                         pos,
-                        exception
+                        failure
                 );
             }
         }

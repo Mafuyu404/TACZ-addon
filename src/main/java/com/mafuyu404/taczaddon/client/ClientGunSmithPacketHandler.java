@@ -46,7 +46,10 @@ public final class ClientGunSmithPacketHandler {
                 message.containerId(),
                 message.requestId(),
                 message.sourceRevision(),
-                message.externalStacks()
+                message.externalStacks(),
+                message.externalSourcesAuthorized(),
+                message.displayTruncated(),
+                message.aggregateCounts()
         );
     }
 
@@ -94,6 +97,28 @@ public final class ClientGunSmithPacketHandler {
                     description,
                     output
             );
+        } else if (!message.success()) {
+            /*
+             * Surface the failure instead of leaving the click without any
+             * feedback; the request is finished and never re-sent.
+             */
+            String reason = message.failureReason() == null
+                    ? "unknown"
+                    : message.failureReason().name().toLowerCase(
+                    java.util.Locale.ROOT
+            );
+            if (minecraft.player != null) {
+                minecraft.player.displayClientMessage(
+                    Component.translatable(
+                            "gui.taczaddon.gun_smith_table.failed",
+                            Component.translatable(
+                                    "gui.taczaddon.gun_smith_table.failure."
+                                            + reason
+                            )
+                    ),
+                    true
+                );
+            }
         }
 
         if (screen instanceof GunSmithSourceScreenAccess sourceAccess) {

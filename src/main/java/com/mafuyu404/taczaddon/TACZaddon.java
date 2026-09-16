@@ -1,13 +1,9 @@
 package com.mafuyu404.taczaddon;
 
-import com.mafuyu404.taczaddon.init.CommonConfig;
-import com.mafuyu404.taczaddon.init.Config;
-import com.mafuyu404.taczaddon.init.ModRecipeSerializers;
-import com.mafuyu404.taczaddon.init.NetworkHandler;
-import com.mafuyu404.taczaddon.init.RuleRegistry;
-import com.mafuyu404.taczaddon.init.crafting.WorkbenchAnchorRegistry;
-import com.mafuyu404.taczaddon.compat.tacz.TaczWorkbenchAnchorProvider;
 import com.mafuyu404.taczaddon.compat.tacz.TaczCompatibility;
+import com.mafuyu404.taczaddon.compat.tacz.TaczWorkbenchAnchorProvider;
+import com.mafuyu404.taczaddon.init.*;
+import com.mafuyu404.taczaddon.init.crafting.WorkbenchAnchorRegistry;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;

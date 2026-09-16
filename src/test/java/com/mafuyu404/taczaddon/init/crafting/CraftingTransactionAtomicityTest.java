@@ -23,11 +23,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class CraftingTransactionAtomicityTest {
     @BeforeAll
@@ -347,32 +343,210 @@ class CraftingTransactionAtomicityTest {
     }
 
     @Test
-    void rollbackSourceThrowStillProcessesRemainingEntries()
+    void rollbackStopsWhenInsertMayHavePartiallyCommitted()
             throws Exception {
-        FakeSource player = FakeSource.player(5);
-        FakeSource chest = FakeSource.chest(
+        assertUnknownMutationNeverDuplicates(false);
+    }
+
+    @Test
+    void rollbackStopsWhenInsertLinkageFailsAfterMutation()
+            throws Exception {
+        assertUnknownMutationNeverDuplicates(true);
+    }
+
+    @Test
+    void exactFeasibilityDoesNotDoubleCountOverlappingIngredients() {
+        GunSmithTableRecipe recipe = new GunSmithTableRecipe(
+                Objects.requireNonNull(
+                        ResourceLocation.tryBuild(
+                                "taczaddon",
+                                "overlap_test"
+                        )
+                ),
+                null,
+                List.of(
+                        new GunSmithTableIngredient(
+                                Ingredient.of(
+                                        Items.IRON_INGOT,
+                                        Items.GOLD_INGOT
+                                ),
+                                1
+                        ),
+                        new GunSmithTableIngredient(
+                                Ingredient.of(
+                                        Items.IRON_INGOT
+                                ),
+                                1
+                        )
+                )
+        );
+
+        assertFalse(
+                CraftingTransaction.canSatisfyStacks(
+                        recipe,
+                        List.of(
+                                new ItemStack(
+                                        Items.IRON_INGOT,
+                                        1
+                                )
+                        )
+                ),
+                "one iron cannot satisfy two overlapping demands"
+        );
+
+        assertTrue(
+                CraftingTransaction.canSatisfyStacks(
+                        recipe,
+                        List.of(
+                                new ItemStack(
+                                        Items.IRON_INGOT,
+                                        1
+                                ),
+                                new ItemStack(
+                                        Items.GOLD_INGOT,
+                                        1
+                                )
+                        )
+                )
+        );
+    }
+
+    /*
+     * Two sources each supply half of the recipe. The first rollback entry is
+     * inserted back into a source whose handler commits part of the stack and
+     * only then throws. The whole rollback must stop: the remaining entries,
+     * the fallback slots and the drop path must never see the pre-call stack
+     * again, or the already committed part would be duplicated.
+     *
+     * The unit transaction has no real player, so the drop path cannot run
+     * here; the item total invariant below is the observable contract.
+     */
+    private static void assertUnknownMutationNeverDuplicates(
+            boolean linkageError
+    ) throws Exception {
+        FakeSource failing = FakeSource.chest(
                 new BlockPos(1, 0, 0),
+                new ItemStack(
+                        Items.IRON_INGOT,
+                        5
+                ),
+                ItemStack.EMPTY
+        );
+
+        FakeSource intact = FakeSource.chest(
+                new BlockPos(2, 0, 0),
                 5
         );
-        player.throwOnInsert = true;
 
-        CraftingTransaction transaction = transaction(
-                List.of(player, chest),
-                10
+        failing.insertBeforeThrow = 2;
+        failing.linkageErrorAfterInsert =
+                linkageError;
+
+        /*
+         * Commit order:
+         *
+         *     intact -> failing
+         *
+         * Rollback reverses that order:
+         *
+         *     failing -> UNKNOWN
+         *     intact  -> MUST NOT BE REINSERTED
+         *
+         * This ordering is intentional. It proves that UNKNOWN stops the entire
+         * remaining rollback, rather than merely happening on the last entry.
+         */
+        CraftingTransaction transaction =
+                transaction(
+                        List.of(
+                                intact,
+                                failing
+                        ),
+                        10
+                );
+
+        assertTrue(
+                invokeBoolean(
+                        transaction,
+                        "plan"
+                )
         );
-
-        assertTrue(invokeBoolean(transaction, "plan"));
-        assertTrue(invokeBoolean(transaction, "simulate"));
-        assertTrue(invokeBoolean(transaction, "commit"));
-        assertEquals(0, player.count());
-        assertEquals(0, chest.count());
+        assertTrue(
+                invokeBoolean(
+                        transaction,
+                        "simulate"
+                )
+        );
+        assertTrue(
+                invokeBoolean(
+                        transaction,
+                        "commit"
+                )
+        );
 
         assertEquals(
-                CraftingTransaction.RollbackResult.PARTIALLY_COMPENSATED,
+                0,
+                total(
+                        failing,
+                        intact
+                )
+        );
+
+        assertEquals(
+                CraftingTransaction.RollbackResult
+                        .UNKNOWN_MUTATION,
                 invokeRollback(transaction)
         );
-        assertEquals(0, player.count());
-        assertEquals(5, chest.count());
+
+        assertEquals(
+                2,
+                failing.count(),
+                "only the part already committed before the "
+                        + "exception may appear again"
+        );
+
+        assertTrue(
+                failing.stackAt(1).isEmpty(),
+                "the failing source must not receive another "
+                        + "fallback insertion"
+        );
+
+        assertEquals(
+                0,
+                intact.count(),
+                "rollback must stop before processing later "
+                        + "entries once mutation state is unknown"
+        );
+
+        assertTrue(
+                total(
+                        failing,
+                        intact
+                ) <= 10,
+                "an unknown mutation may lose items but must "
+                        + "never increase the total"
+        );
+
+        /*
+         * Both sources were already mutated by the successful commit.
+         * The untouched rollback entry must not be restored, but it still must
+         * be synchronized so its authoritative consumed state is persisted.
+         */
+        assertEquals(
+                1,
+                failing.markChangedCalls()
+        );
+        assertEquals(
+                1,
+                failing.synchronizeCalls()
+        );
+        assertEquals(
+                1,
+                intact.markChangedCalls()
+        );
+        assertEquals(
+                1,
+                intact.synchronizeCalls()
+        );
     }
 
     @Test
@@ -476,8 +650,12 @@ class CraftingTransactionAtomicityTest {
         private boolean throwOnInsert;
         private boolean throwOnSlotCount;
         private boolean shortSimulation;
+        private int insertBeforeThrow;
+        private boolean linkageErrorAfterInsert;
         private int rejectedInsertSlot = -1;
         private boolean alwaysRejectInsert;
+        private int markChangedCalls;
+        private int synchronizeCalls;
 
         private FakeSource(CraftingSourceKey key, ItemStack... slots) {
             this.key = key;
@@ -539,6 +717,13 @@ class CraftingTransactionAtomicityTest {
 
         ItemStack stackAt(int slot) {
             return this.stacks.get(slot).copy();
+        }
+        int markChangedCalls() {
+            return this.markChangedCalls;
+        }
+
+        int synchronizeCalls() {
+            return this.synchronizeCalls;
         }
 
         @Override
@@ -618,6 +803,52 @@ class CraftingTransactionAtomicityTest {
                 ItemStack stack,
                 boolean simulate
         ) {
+            if (!simulate
+                    && this.insertBeforeThrow > 0
+                    && slot >= 0
+                    && slot < this.stacks.size()) {
+                /*
+                 * Provoke the exact hazard this rollback must survive: the
+                 * handler commits part of the stack and only then fails. The
+                 * caller can no longer know how much was written.
+                 */
+                int inserted = Math.min(
+                        this.insertBeforeThrow,
+                        stack.getCount()
+                );
+
+                ItemStack current = this.stacks.get(slot);
+
+                if (current.isEmpty()) {
+                    this.stacks.set(
+                            slot,
+                            stack.copyWithCount(inserted)
+                    );
+                } else if (ItemStack.isSameItemSameTags(
+                        current,
+                        stack
+                )) {
+                    current.grow(inserted);
+                } else {
+                    this.stacks.set(
+                            slot,
+                            stack.copyWithCount(inserted)
+                    );
+                }
+
+                this.insertBeforeThrow = 0;
+
+                if (this.linkageErrorAfterInsert) {
+                    throw new NoSuchMethodError(
+                            "compat insert failed after mutation"
+                    );
+                }
+
+                throw new IllegalStateException(
+                        "insert failed after mutation"
+                );
+            }
+
             if (this.throwOnInsert) {
                 throw new IllegalStateException("insert failed");
             }
@@ -663,10 +894,14 @@ class CraftingTransactionAtomicityTest {
 
         @Override
         public void markChanged() {
+            this.markChangedCalls++;
         }
 
         @Override
-        public void synchronize(ServerPlayer player) {
+        public void synchronize(
+                ServerPlayer player
+        ) {
+            this.synchronizeCalls++;
         }
 
         private static ItemStack remainder(

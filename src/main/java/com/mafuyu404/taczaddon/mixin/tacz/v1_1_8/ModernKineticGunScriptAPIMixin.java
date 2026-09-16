@@ -1,10 +1,11 @@
 package com.mafuyu404.taczaddon.mixin.tacz.v1_1_8;
 
-import com.mafuyu404.taczaddon.compat.BeyondIntegrationCompat;
+import com.mafuyu404.taczaddon.common.AmmoConsumptionOrchestrator;
+import com.mafuyu404.taczaddon.common.AmmoConsumptionOrchestrator.ConsumptionOutcome;
 import com.mafuyu404.taczaddon.common.BackpackAmmoService;
 import com.mafuyu404.taczaddon.common.CuriosAmmoService;
+import com.mafuyu404.taczaddon.compat.BeyondIntegrationCompat;
 import com.mafuyu404.taczaddon.compat.CuriosCompat;
-import com.mafuyu404.taczaddon.common.AmmoConsumptionOrchestrator;
 import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
 import com.tacz.guns.api.entity.IGunOperator;
 import com.tacz.guns.api.item.gun.AbstractGunItem;
@@ -53,13 +54,16 @@ public class ModernKineticGunScriptAPIMixin {
             return;
         }
 
-        if (this.abstractGunItem.useInventoryAmmo(this.itemStack)
-                && !IGunOperator.fromLivingEntity(this.shooter)
-                .needCheckAmmo()) {
-            return;
-        }
-
-        if (this.abstractGunItem.useDummyAmmo(this.itemStack)) {
+        /*
+         * Creative/infinite ammo keeps TaCZ's native semantics: no
+         * supplemental source is consulted for such a gun.
+         */
+        if (AmmoConsumptionOrchestrator.usesNativeVirtualAmmo(
+                this.abstractGunItem.useInventoryAmmo(this.itemStack),
+                IGunOperator.fromLivingEntity(this.shooter)
+                        .needCheckAmmo(),
+                this.abstractGunItem.useDummyAmmo(this.itemStack)
+        )) {
             return;
         }
 
@@ -75,10 +79,16 @@ public class ModernKineticGunScriptAPIMixin {
                 neededAmount,
                 cir.getReturnValueI()
         );
-        int finalConsumed = AmmoConsumptionOrchestrator.consumeRemaining(
+        /*
+         * One orchestration layer owns the whole TaCZ -> Beyond ->
+         * Sophisticated -> Curios priority. Every source receives the real
+         * remaining amount and is skipped once the requirement is satisfied,
+         * so a finished path is never executed again.
+         */
+        ConsumptionOutcome outcome = AmmoConsumptionOrchestrator
+                .consumeRemaining(
                 neededAmount,
                 consumedSoFar,
-                beyondActive,
                 beyondActive
                         ? remaining ->
                                 BeyondIntegrationCompat
@@ -88,13 +98,20 @@ public class ModernKineticGunScriptAPIMixin {
                                                 gunStack,
                                                 remaining
                                         )
-                        : remaining -> 0,
-                remaining -> {
-                    int backpackConsumed = BackpackAmmoService.consumeBackpackAmmoRaw(player, gunStack, remaining);
-                    // Preserve native -> Beyond -> Sophisticated priority, then consume Curios remainder.
-                    return backpackConsumed + CuriosAmmoService.consumeAmmo(player, gunStack, remaining - backpackConsumed);
-                }
+                        : remaining -> ConsumptionOutcome.confirmed(0),
+                remaining -> BackpackAmmoService
+                        .consumeBackpackAmmo(
+                                player,
+                                gunStack,
+                                remaining
+                        ),
+                remaining -> CuriosAmmoService.consumeAmmo(
+                        player,
+                        gunStack,
+                        remaining
+                )
         );
+        int finalConsumed = outcome.consumed();
 
         if (cir.getReturnValueI() != finalConsumed) {
             cir.setReturnValue(finalConsumed);

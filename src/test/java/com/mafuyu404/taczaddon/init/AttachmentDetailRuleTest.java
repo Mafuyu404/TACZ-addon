@@ -5,12 +5,22 @@ import com.mafuyu404.taczaddon.testutil.MinecraftTestBootstrap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.GameRules;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.objectweb.asm.*;
-import org.objectweb.asm.tree.*;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.InvokeDynamicInsnNode;
+import org.objectweb.asm.tree.MethodInsnNode;
+import org.objectweb.asm.tree.MethodNode;
+
 import java.lang.reflect.Method;
-import java.nio.file.*;
-import java.util.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 public class AttachmentDetailRuleTest {
@@ -23,31 +33,31 @@ public class AttachmentDetailRuleTest {
     @BeforeAll static void prepare() throws Exception { MinecraftTestBootstrap.prepare(); }
     @AfterEach void reset() { ClientSyncedConfig.resetToSafeDefaults(); }
 
-    @Test void registeredRuleDefaultsToFalse() {
+    @Test
+    void registeredRuleDefaultsToTrue() {
         RuleRegistry.bootstrap();
-        assertFalse(new GameRules().getBoolean(RuleRegistry.SHOW_ATTACHMENT_DETAIL));
+
+        assertTrue(
+                new GameRules()
+                        .getBoolean(RuleRegistry.SHOW_ATTACHMENT_DETAIL)
+        );
     }
 
     @Test void actualTooltipEntryGateRequiresBothClientPreferenceAndSyncedRule() throws Exception {
-        ClassNode original = read("com/mafuyu404/taczaddon/mixin/tacz/v1_1_8/ClientAttachmentItemTooltipMixin");
-        MethodNode gate = original.methods.stream().filter(m -> m.name.equals("taczaddon$appendAttributeDifferences")).findFirst().orElseThrow();
-        // Stop immediately after the real entry guard, before accessing the rendered attachment.
-        var field = Arrays.stream(gate.instructions.toArray()).filter(i -> i instanceof FieldInsnNode f && f.name.equals("attachment")).findFirst().orElseThrow();
-        var cut = field.getPrevious();
-        while (cut != null) { var next = cut.getNext(); gate.instructions.remove(cut); cut = next; }
-        for (var insn : gate.instructions.toArray()) if (insn.getOpcode() == Opcodes.RETURN) {
-            gate.instructions.insertBefore(insn, new InsnNode(Opcodes.ICONST_0));
-            gate.instructions.set(insn, new InsnNode(Opcodes.IRETURN));
-        }
-        gate.instructions.add(new InsnNode(Opcodes.ICONST_1)); gate.instructions.add(new InsnNode(Opcodes.IRETURN));
-        gate.name = "enabled"; gate.desc = "()Z"; gate.access = Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC;
-        Method enabled = define(List.of(gate)).getMethod("enabled");
+        // The production gate is a real static method so the truth table below
+        // exercises the actual entry guard instead of a rewritten copy of it.
+        Class<?> mixin = Class.forName("com.mafuyu404.taczaddon.mixin.tacz.v1_1_8.ClientAttachmentItemTooltipMixin");
+        Method enabled = mixin.getDeclaredMethod("taczaddon$attributeDetailEnabled");
+        enabled.setAccessible(true);
         Config.SPEC.setConfig(CommentedConfig.inMemory());
         for (boolean server : new boolean[]{false, true}) for (boolean client : new boolean[]{false, true}) {
             ClientSyncedConfig.setShowAttachmentDetail(server); Config.SHOW_ATTACHMENT_ATTRIBUTE.set(client);
             assertEquals(server && client, enabled.invoke(null), "server=" + server + ",client=" + client);
         }
         Config.SHOW_ATTACHMENT_ATTRIBUTE.set(true);
+
+        String source = Files.readString(Path.of("src/main/java/com/mafuyu404/taczaddon/mixin/tacz/v1_1_8/ClientAttachmentItemTooltipMixin.java"));
+        assertTrue(source.contains("if (!taczaddon$attributeDetailEnabled())"));
     }
 
     @Test void ruleCallbackBroadcastsCurrentValueToEveryConnectedPlayer() throws Exception {
@@ -90,8 +100,11 @@ public class AttachmentDetailRuleTest {
             assertTrue(body.contains("sendAttachmentDetailRuleState(serverPlayer)"));
         }
         String tooltip = Files.readString(root.resolve("mixin/tacz/v1_1_8/ClientAttachmentItemTooltipMixin.java"));
-        assertTrue(tooltip.contains("!Config.SHOW_ATTACHMENT_ATTRIBUTE.get()"));
-        assertTrue(tooltip.contains("|| !ClientSyncedConfig.showAttachmentDetail()"));
+        assertTrue(tooltip.contains("taczaddon$attributeDetailEnabled()"));
+        int gate = tooltip.indexOf("private static boolean taczaddon$attributeDetailEnabled()");
+        String gateBody = tooltip.substring(gate, tooltip.indexOf("}", gate));
+        assertTrue(gateBody.contains("Config.SHOW_ATTACHMENT_ATTRIBUTE.get()"));
+        assertTrue(gateBody.contains("ClientSyncedConfig.showAttachmentDetail()"));
         String rule = Files.readString(root.resolve("init/RuleRegistry.java"));
         assertTrue(rule.contains("GameRules.Category.PLAYER"));
         String packet = Files.readString(root.resolve("network/AttachmentDetailRuleStatePacket.java"));

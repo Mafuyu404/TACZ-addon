@@ -111,7 +111,7 @@ public final class CraftingTransaction {
             transaction.phase = TransactionPhase.COMPLETE;
             transaction.finishBestEffort();
             return CraftResult.success(result);
-        } catch (RuntimeException exception) {
+        } catch (RuntimeException | LinkageError failure) {
             if (!transaction.outputSpawned
                     && (transaction.mutationStarted
                     || !transaction.extractedForRollback.isEmpty())) {
@@ -123,12 +123,169 @@ public final class CraftingTransaction {
                     player.getGameProfile().getName(),
                     recipe.getId(),
                     transaction.phase,
-                    exception
+                    failure
             );
             return CraftResult.fail(
                     CraftFailure.TRANSACTION_FAILED
             );
         }
+    }
+
+    /**
+     * Read-only feasibility check for the exact same allocation semantics the
+     * server transaction uses.
+     *
+     * <p>Independent per-ingredient counts are not a capacity allocation: a
+     * recipe whose inputs overlap can look satisfiable while the same physical
+     * stack is being counted twice. This runs the identical integral max-flow
+     * model over the supplied stacks without touching any live source.
+     */
+    public static boolean canSatisfyStacks(
+            @Nullable GunSmithTableRecipe recipe,
+            List<ItemStack> stacks
+    ) {
+        if (recipe == null || stacks == null) {
+            return false;
+        }
+
+        List<GunSmithTableIngredient> inputs =
+                recipe.getInputs();
+
+        if (inputs == null) {
+            return false;
+        }
+
+        ArrayList<IngredientDemand> demands =
+                new ArrayList<>();
+
+        long totalRequired = 0L;
+
+        for (GunSmithTableIngredient input : inputs) {
+            if (input == null) {
+                return false;
+            }
+
+            int required = input.getCount();
+            if (required <= 0) {
+                continue;
+            }
+
+            Ingredient ingredient = input.getIngredient();
+            if (ingredient == null) {
+                return false;
+            }
+
+            demands.add(
+                    new IngredientDemand(
+                            ingredient,
+                            required
+                    )
+            );
+            totalRequired += required;
+        }
+
+        if (totalRequired == 0L) {
+            return true;
+        }
+
+        ArrayList<ItemStack> candidates =
+                new ArrayList<>();
+
+        for (ItemStack stack : stacks) {
+            if (stack == null
+                    || stack.isEmpty()
+                    || stack.getCount() <= 0) {
+                continue;
+            }
+
+            boolean useful = false;
+            for (IngredientDemand demand : demands) {
+                if (demand.ingredient().test(stack)) {
+                    useful = true;
+                    break;
+                }
+            }
+
+            if (useful) {
+                candidates.add(stack);
+            }
+        }
+
+        if (candidates.isEmpty()) {
+            return false;
+        }
+
+        int demandCount = demands.size();
+        int candidateCount = candidates.size();
+
+        int sourceNode = 0;
+        int demandNodeBase = 1;
+        int candidateNodeBase =
+                demandNodeBase + demandCount;
+        int sinkNode =
+                candidateNodeBase + candidateCount;
+
+        FlowNetwork network =
+                new FlowNetwork(sinkNode + 1);
+
+        for (int demandIndex = 0;
+             demandIndex < demandCount;
+             demandIndex++) {
+            IngredientDemand demand =
+                    demands.get(demandIndex);
+
+            network.addEdge(
+                    sourceNode,
+                    demandNodeBase + demandIndex,
+                    demand.amount()
+            );
+        }
+
+        for (int candidateIndex = 0;
+             candidateIndex < candidateCount;
+             candidateIndex++) {
+            ItemStack candidate =
+                    candidates.get(candidateIndex);
+
+            network.addEdge(
+                    candidateNodeBase + candidateIndex,
+                    sinkNode,
+                    candidate.getCount()
+            );
+        }
+
+        for (int demandIndex = 0;
+             demandIndex < demandCount;
+             demandIndex++) {
+            IngredientDemand demand =
+                    demands.get(demandIndex);
+
+            for (int candidateIndex = 0;
+                 candidateIndex < candidateCount;
+                 candidateIndex++) {
+                ItemStack candidate =
+                        candidates.get(candidateIndex);
+
+                if (!demand.ingredient().test(candidate)) {
+                    continue;
+                }
+
+                network.addEdge(
+                        demandNodeBase + demandIndex,
+                        candidateNodeBase + candidateIndex,
+                        Math.min(
+                                (long) demand.amount(),
+                                (long) candidate.getCount()
+                        )
+                );
+            }
+        }
+
+        return network.maxFlow(
+                sourceNode,
+                sinkNode,
+                totalRequired
+        ) == totalRequired;
     }
 
     /**
@@ -499,28 +656,60 @@ public final class CraftingTransaction {
             ItemStack remainder = entry.stack().copy();
             affectedSources.add(entry.source());
 
-            remainder = insertItemSafely(
-                    entry.source(),
-                    entry.slot(),
-                    remainder,
-                    "original-slot"
-            );
+            SafeSourceInsert.Result insertion =
+                    insertItemSafely(
+                            entry.source(),
+                            entry.slot(),
+                            remainder,
+                            "original-slot"
+                    );
+
+            if (!insertion.known()) {
+                return abortUnknownRollback(
+                        affectedSources,
+                        entry,
+                        "original-slot"
+                );
+            }
+
+            remainder = insertion.remainder();
 
             if (!remainder.isEmpty()) {
-                remainder = insertIntoOtherSlots(
+                insertion = insertIntoOtherSlots(
                         entry.source(),
                         entry.slot(),
                         remainder
                 );
+
+                if (!insertion.known()) {
+                    return abortUnknownRollback(
+                            affectedSources,
+                            entry,
+                            "source-fallback"
+                    );
+                }
+
+                remainder = insertion.remainder();
             }
 
             if (!remainder.isEmpty() && playerFallback != null) {
                 affectedSources.add(playerFallback);
-                remainder = insertIntoOtherSlots(
+
+                insertion = insertIntoOtherSlots(
                         playerFallback,
                         -1,
                         remainder
                 );
+
+                if (!insertion.known()) {
+                    return abortUnknownRollback(
+                            affectedSources,
+                            entry,
+                            "player-fallback"
+                    );
+                }
+
+                remainder = insertion.remainder();
             }
 
             if (!remainder.isEmpty()) {
@@ -550,9 +739,54 @@ public final class CraftingTransaction {
                 : RollbackResult.PARTIALLY_COMPENSATED;
     }
 
+    private RollbackResult abortUnknownRollback(
+            Set<CraftingItemSource> affectedSources,
+            ExtractedEntry entry,
+            String operation
+    ) {
+        LOGGER.error(
+                "Gunsmith rollback mutation state became unknown for player {} "
+                        + "source {} slot {} during {}; refusing further "
+                        + "reinsertion or drop to avoid item duplication",
+                playerName(),
+                entry.source().key(),
+                entry.slot(),
+                operation
+        );
+
+        /*
+         * Every entry in extractedForRollback has already passed the real
+         * extraction phase. Once one rollback mutation becomes unknown we must
+         * never replay any remaining entry, but every already-mutated source must
+         * still be marked dirty and synchronized.
+         *
+         * Synchronization is not compensation: it only exposes/persists the
+         * authoritative partial state.
+         */
+        for (ExtractedEntry extracted
+                : this.extractedForRollback) {
+            affectedSources.add(
+                    extracted.source()
+            );
+        }
+
+        synchronizeSources(
+                affectedSources
+        );
+
+        /*
+         * Clearing prevents any later code from attempting to compensate these
+         * entries a second time.
+         */
+        this.extractedForRollback.clear();
+
+        return RollbackResult.UNKNOWN_MUTATION;
+    }
+
     private RollbackResult rollbackSafely() {
         try {
             RollbackResult result = rollback();
+
             if (result == RollbackResult.PARTIALLY_COMPENSATED) {
                 LOGGER.warn(
                         "Gunsmith transaction was only partially compensated "
@@ -560,9 +794,17 @@ public final class CraftingTransaction {
                         playerName(),
                         this.phase
                 );
+            } else if (result == RollbackResult.UNKNOWN_MUTATION) {
+                LOGGER.error(
+                        "Gunsmith rollback stopped because mutation state is "
+                                + "unknown for player {} phase {}",
+                        playerName(),
+                        this.phase
+                );
             }
+
             return result;
-        } catch (RuntimeException exception) {
+        } catch (RuntimeException | LinkageError failure) {
             /*
              * Individual source operations are already guarded inside
              * rollback(). This outer boundary is a final containment layer:
@@ -574,54 +816,65 @@ public final class CraftingTransaction {
              */
             LOGGER.error(
                     "Unexpected gunsmith rollback failure for player {} "
-                            + "recipe {} phase {}",
+                            + "recipe {} phase {}; mutation state is unknown",
                     playerName(),
                     this.recipe.getId(),
                     this.phase,
-                    exception
+                    failure
             );
-            return RollbackResult.PARTIALLY_COMPENSATED;
+            return RollbackResult.UNKNOWN_MUTATION;
         }
     }
 
-    private ItemStack insertItemSafely(
+    private SafeSourceInsert.Result insertItemSafely(
             CraftingItemSource source,
             int slot,
             ItemStack stack,
             String operation
     ) {
-        try {
-            return source.insertItem(slot, stack, false);
-        } catch (RuntimeException exception) {
+        SafeSourceInsert.Result result =
+                SafeSourceInsert.commit(
+                        source,
+                        slot,
+                        stack
+                );
+
+        if (!result.known()) {
             logRollbackOperation(
                     operation,
                     source,
                     slot,
                     stack,
-                    exception
+                    result.failure()
             );
-            return stack;
         }
+
+        return result;
     }
 
-    private ItemStack insertIntoOtherSlots(
+    private SafeSourceInsert.Result insertIntoOtherSlots(
             CraftingItemSource source,
             int excludedSlot,
             ItemStack stack
     ) {
-        ItemStack remainder = stack;
+        ItemStack remainder = stack.copy();
+
         int slots;
         try {
             slots = source.slotCount();
-        } catch (RuntimeException exception) {
+        } catch (RuntimeException | LinkageError failure) {
+            /*
+             * slotCount is read-only. No insertion happened, so the exact
+             * remainder is still known and a higher-level fallback is safe.
+             */
             logRollbackOperation(
                     "slot-count",
                     source,
                     -1,
                     stack,
-                    exception
+                    failure
             );
-            return remainder;
+            return SafeSourceInsert.Result.known(remainder);
         }
 
         for (int slot = 0;
@@ -630,15 +883,23 @@ public final class CraftingTransaction {
             if (slot == excludedSlot) {
                 continue;
             }
-            remainder = insertItemSafely(
-                    source,
-                    slot,
-                    remainder,
-                    "other-slot"
-            );
+
+            SafeSourceInsert.Result result =
+                    insertItemSafely(
+                            source,
+                            slot,
+                            remainder,
+                            "other-slot"
+                    );
+
+            if (!result.known()) {
+                return result;
+            }
+
+            remainder = result.remainder();
         }
 
-        return remainder;
+        return SafeSourceInsert.Result.known(remainder);
     }
 
     private void synchronizePlannedSources() {
@@ -666,24 +927,25 @@ public final class CraftingTransaction {
     private void synchronizeSources(
             Set<CraftingItemSource> sourcesToSynchronize
     ) {
-        for (CraftingItemSource source : sourcesToSynchronize) {
+        for (CraftingItemSource source
+                : sourcesToSynchronize) {
             try {
                 source.markChanged();
-            } catch (RuntimeException exception) {
+            } catch (RuntimeException | LinkageError failure) {
                 logSynchronizationFailure(
                         "mark-changed",
                         source,
-                        exception
+                        failure
                 );
             }
 
             try {
                 source.synchronize(this.player);
-            } catch (RuntimeException exception) {
+            } catch (RuntimeException | LinkageError failure) {
                 logSynchronizationFailure(
                         "synchronize",
                         source,
-                        exception
+                        failure
                 );
             }
         }
@@ -740,11 +1002,12 @@ public final class CraftingTransaction {
             CraftingItemSource source,
             int slot,
             ItemStack stack,
-            RuntimeException exception
+            @Nullable Throwable failure
     ) {
         LOGGER.error(
-                "Gunsmith rollback {} threw for player {} source {} "
-                        + "slot {} item {} amount {} phase {}",
+                "Gunsmith rollback {} entered unknown mutation state for "
+                        + "player {} source {} slot {} item {} amount {} "
+                        + "phase {}",
                 operation,
                 playerName(),
                 source.key(),
@@ -752,23 +1015,25 @@ public final class CraftingTransaction {
                 stack.getHoverName().getString(),
                 stack.getCount(),
                 this.phase,
-                exception
+                failure
         );
     }
 
     private void logSynchronizationFailure(
             String operation,
             @Nullable CraftingItemSource source,
-            RuntimeException exception
+            Throwable failure
     ) {
         LOGGER.error(
                 "Gunsmith post-commit {} failed for player {} source {} "
                         + "phase {}",
                 operation,
                 playerName(),
-                source == null ? "player-inventory" : source.key(),
+                source == null
+                        ? "player-inventory"
+                        : source.key(),
                 this.phase,
-                exception
+                failure
         );
     }
 
@@ -1067,7 +1332,18 @@ public final class CraftingTransaction {
 
     enum RollbackResult {
         FULLY_RESTORED,
-        PARTIALLY_COMPENSATED
+
+        /**
+         * Every mutation result was known, but one or more remainders could
+         * only be preserved through a fallback such as dropping them.
+         */
+        PARTIALLY_COMPENSATED,
+
+        /**
+         * At least one insertion threw or returned an invalid remainder after
+         * a possible mutation. Retrying that stack would risk duplication.
+         */
+        UNKNOWN_MUTATION
     }
 
     public enum CraftFailure {

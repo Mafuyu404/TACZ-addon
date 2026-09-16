@@ -23,19 +23,24 @@ class BeyondIntegrationCircuitBreakerTest {
     @Test
     void opaquePartialFailureStopsThisRequestThenOtherSourcesResume() {
         AtomicInteger externalMutations = new AtomicInteger();
-        int consumed = AmmoConsumptionOrchestrator.consumeRemaining(10, 2,
-                remaining -> BeyondIntegrationCompat.runGuarded(remaining, () -> {
-                    externalMutations.incrementAndGet();
-                    throw new NoSuchMethodError("failed after partial external mutation");
-                }),
-                remaining -> { fail("Unknown external consumption must not trigger more extraction"); return 0; });
-        assertEquals(2, consumed);
+        var outcome = AmmoConsumptionOrchestrator.consumeRemaining(10, 2,
+                remaining -> AmmoConsumptionOrchestrator.ConsumptionOutcome.confirmed(
+                        BeyondIntegrationCompat.runGuarded(remaining, () -> {
+                            externalMutations.incrementAndGet();
+                            throw new NoSuchMethodError("failed after partial external mutation");
+                        })),
+                remaining -> { fail("Unknown external consumption must not trigger more extraction"); return null; });
+        assertEquals(2, outcome.consumed());
+        assertEquals(AmmoConsumptionOrchestrator.Status.STOPPED_UNKNOWN, outcome.status());
         assertEquals(1, externalMutations.get());
 
         assertEquals(10, AmmoConsumptionOrchestrator.consumeRemaining(10, 2,
-                remaining -> BeyondIntegrationCompat.runGuarded(remaining, () -> {
-                    fail("Broken external bridge retried"); return 0;
-                }), remaining -> remaining));
+                remaining -> AmmoConsumptionOrchestrator.ConsumptionOutcome.confirmed(
+                        BeyondIntegrationCompat.runGuarded(remaining, () -> {
+                            fail("Broken external bridge retried"); return 0;
+                        })),
+                remaining -> AmmoConsumptionOrchestrator.ConsumptionOutcome
+                        .confirmed(remaining)).consumed());
         assertTrue(CuriosCompat.runGuarded(() -> true));
         assertTrue(JeiCompat.runGuarded(() -> true));
     }

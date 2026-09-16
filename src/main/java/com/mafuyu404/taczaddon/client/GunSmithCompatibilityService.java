@@ -6,10 +6,8 @@ import com.mafuyu404.taczaddon.init.GunSmithDisplayInventory;
 import com.tacz.guns.crafting.GunSmithTableIngredient;
 import com.tacz.guns.crafting.GunSmithTableRecipe;
 import it.unimi.dsi.fastutil.ints.Int2IntArrayMap;
-import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
@@ -55,26 +53,6 @@ public final class GunSmithCompatibilityService {
         return counts;
     }
 
-    public static void applyExternalIngredientCounts(
-            TaczGunSmithScreenAccess access,
-            List<ItemStack> externalStacks
-    ) {
-        GunSmithTableRecipe recipe =
-                access.taczaddon$getSelectedRecipe();
-        Player player = Minecraft.getInstance().player;
-        if (recipe == null || player == null) {
-            return;
-        }
-
-        Int2IntArrayMap combined =
-                computeCombinedIngredientCounts(
-                        recipe,
-                        player.getInventory(),
-                        externalStacks
-                );
-        access.taczaddon$setPlayerIngredientCount(combined);
-    }
-
     public static void saveBrowseState(
             TaczGunSmithScreenAccess access,
             @Nullable ResourceLocation tableId
@@ -87,20 +65,28 @@ public final class GunSmithCompatibilityService {
         ResourceLocation recipeId = recipe == null
                 ? null
                 : recipe.getId();
+        int attachmentPropertyIndex =
+                GunSmithPropertyFilter.supportsWorkbench(tableId)
+                        && access instanceof GunSmithPropertyFilterAccess filter
+                        ? filter.taczaddon$getAttachmentPropertyIndex()
+                        : 0;
         BetterGunSmithTable.saveBrowseState(
                 tableId,
                 access.taczaddon$getSelectedType(),
                 recipeId,
                 access.taczaddon$getTypePage(),
                 access.taczaddon$getIndexPage(),
-                access instanceof GunSmithPropertyFilterAccess filter
-                        ? filter.taczaddon$getAttachmentPropertyIndex() : 0
+                attachmentPropertyIndex
         );
     }
 
     /** Called at init HEAD, before TaCZ classifies recipes. */
     public static void restorePropertyFilter(GunSmithPropertyFilterAccess access,
                                              @Nullable ResourceLocation tableId) {
+        if (!GunSmithPropertyFilter.supportsWorkbench(tableId)) {
+            access.taczaddon$setAttachmentPropertyIndex(0);
+            return;
+        }
         BetterGunSmithTable.getBrowseState(tableId).ifPresent(state ->
                 access.taczaddon$setAttachmentPropertyIndex(clamp(state.attachmentPropIndex(),
                         0, Math.max(0, access.taczaddon$getAttachmentPropertyCount() - 1))));

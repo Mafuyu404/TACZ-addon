@@ -13,10 +13,20 @@ import java.util.Optional;
 
 public final class NetworkHandler {
     /*
-     * 2.9 adds the attachment detail gamerule state while
-     * preserving all existing packet assignments.
+     * 2.9 added the attachment detail gamerule state.
+     *
+     * 2.10 appends the server-owned fast swap policy to the feature config
+     * payload. The wire format changed, so the protocol version changed with
+     * it: an older peer is rejected by Forge's channel negotiation instead of
+     * mis-decoding a shorter payload. All existing packet ID assignments are
+     * unchanged.
+     *
+     * 2.11 adds the recipe id to the gunsmith source refresh request and the
+     * authorization/truncation/aggregate fields to the source snapshot. Both
+     * formats changed, so the protocol changed again while every packet ID
+     * stayed in place.
      */
-    private static final String PROTOCOL = "2.9";
+    private static final String PROTOCOL = "2.11";
 
     private static final int ID_PRIMITIVE_RESERVED = 0;
     private static final int ID_SWITCH_GUN = 1;

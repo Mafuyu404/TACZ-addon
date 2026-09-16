@@ -1,8 +1,8 @@
 package com.mafuyu404.taczaddon.compat;
 
-import org.junit.jupiter.api.Test;
 import net.minecraftforge.forgespi.language.MavenVersionAdapter;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.file.Files;

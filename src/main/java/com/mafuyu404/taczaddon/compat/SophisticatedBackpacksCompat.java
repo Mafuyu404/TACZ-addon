@@ -56,12 +56,21 @@ public final class SophisticatedBackpacksCompat {
         if (!isUsable() || player == null) {
             return false;
         }
+
         try {
             return SophisticatedBackpacksCompatInner
                     .mutateInventoryBackpacks(player, visitor);
         } catch (LinkageError linkageError) {
+            /*
+             * A mutation visitor may already have changed one or more slots.
+             *
+             * Record the integration as broken for future requests, but propagate
+             * this failure to the current consumption operation. Returning false
+             * here would incorrectly mean "consumed nothing, continue with the
+             * next source", which can double-consume ammunition.
+             */
             breakLinkage(linkageError);
-            return false;
+            throw linkageError;
         }
     }
 

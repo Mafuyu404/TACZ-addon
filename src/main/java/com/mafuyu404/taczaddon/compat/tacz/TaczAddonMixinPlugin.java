@@ -40,14 +40,28 @@ public final class TaczAddonMixinPlugin
             return true;
         }
 
+        if (!TaczCompatibility.sideAllows(binding)) {
+            LOGGER.info(
+                    "[TACZ-addon compatibility] "
+                            + "feature={} side={} mixin={} "
+                            + "status=SIDE_NOT_APPLICABLE",
+                    binding.feature(),
+                    binding.runtimeSide(),
+                    mixinClassName
+            );
+            return false;
+        }
+
         LOGGER.warn(
                 "[TACZ-addon compatibility] "
                         + "feature={} scope={} mixin={} "
-                        + "status=SKIPPED profile={}",
+                        + "status=SKIPPED profile={} binary={} reason={}",
                 binding.feature(),
                 binding.scope(),
                 mixinClassName,
-                TaczCompatibility.profile()
+                TaczCompatibility.profile(),
+                TaczCompatibility.binaryStatus(binding.feature()),
+                TaczCompatibility.reason(binding.feature())
         );
         return false;
     }
@@ -80,5 +94,10 @@ public final class TaczAddonMixinPlugin
             String mixinClassName,
             IMixinInfo mixinInfo
     ) {
+        /*
+         * Diagnostics only. Target classes load lazily, so an adapter that has
+         * not been applied yet must never be treated as a missing dependency.
+         */
+        TaczCompatibility.recordAppliedMixin(mixinClassName);
     }
 }

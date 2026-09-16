@@ -9,8 +9,18 @@ public record TaczMixinBinding(
         TaczFeature feature,
         FeatureContract contract,
         CompatibilityScope scope,
-        List<TaczFeature> dependencies
+        List<TaczFeature> dependencies,
+        TaczRuntimeSide runtimeSide
 ) {
+    public TaczMixinBinding {
+        dependencies = dependencies == null
+                ? List.of()
+                : List.copyOf(dependencies);
+        runtimeSide = runtimeSide == null
+                ? TaczRuntimeSide.COMMON
+                : runtimeSide;
+    }
+
     public TaczMixinBinding(
             String mixinClassName,
             TaczFeature feature,
@@ -22,7 +32,25 @@ public record TaczMixinBinding(
                 feature,
                 contract,
                 scope,
-                List.of()
+                List.of(),
+                TaczRuntimeSide.COMMON
+        );
+    }
+
+    public TaczMixinBinding(
+            String mixinClassName,
+            TaczFeature feature,
+            FeatureContract contract,
+            CompatibilityScope scope,
+            List<TaczFeature> dependencies
+    ) {
+        this(
+                mixinClassName,
+                feature,
+                contract,
+                scope,
+                dependencies,
+                TaczRuntimeSide.COMMON
         );
     }
 }

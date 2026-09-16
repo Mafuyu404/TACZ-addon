@@ -1,6 +1,8 @@
 package com.mafuyu404.taczaddon.common;
 
+import com.mafuyu404.taczaddon.common.AmmoConsumptionOrchestrator.ConsumptionOutcome;
 import com.mafuyu404.taczaddon.compat.CuriosCompat;
+import com.mojang.logging.LogUtils;
 import com.tacz.guns.api.DefaultAssets;
 import com.tacz.guns.api.item.IAmmo;
 import com.tacz.guns.api.item.IAmmoBox;
@@ -8,25 +10,142 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
+import org.slf4j.Logger;
 
 public final class CuriosAmmoService {
+    private static final Logger LOGGER = LogUtils.getLogger();
+
     private CuriosAmmoService() {}
 
-    public static int consumeAmmo(ServerPlayer player, ItemStack gun, int requested) {
-        if (player == null || gun == null || gun.isEmpty() || requested <= 0) return 0;
+    /**
+     * Consumes supplemental ammo from Curios slots.
+     *
+     * <p>Slots that were already committed stay recorded when a later handler
+     * loses linkage, and the request stops instead of continuing elsewhere.
+     */
+    public static ConsumptionOutcome consumeAmmo(
+            ServerPlayer player,
+            ItemStack gun,
+            int requested
+    ) {
+        if (player == null
+                || gun == null
+                || gun.isEmpty()
+                || requested <= 0) {
+            return ConsumptionOutcome.confirmed(0);
+        }
+
         int[] consumed = {0};
-        CuriosCompat.visitHandlers(player, handler -> {
-            consumeHandler(handler, gun, requested, consumed);
-            return consumed[0] >= requested;
-        });
-        // Keep already committed slot consumption even if a later handler loses linkage.
-        return consumed[0];
+
+        try {
+            CuriosCompat.mutateHandlers(
+                    player,
+                    handler -> {
+                        if (consumed[0] >= requested) {
+                            return true;
+                        }
+
+                        consumeHandler(
+                                handler,
+                                gun,
+                                requested,
+                                consumed
+                        );
+
+                        return consumed[0] >= requested;
+                    }
+            );
+        } catch (LinkageError linkageError) {
+            LOGGER.warn(
+                    "[TACZ-addon/AmmoFallback] Curios lost linkage after "
+                            + "{} confirmed rounds; stopping the request",
+                    consumed[0],
+                    linkageError
+            );
+
+            return stoppedUnknownFor(
+                    consumed[0]
+            );
+        } catch (RuntimeException exception) {
+            LOGGER.warn(
+                    "[TACZ-addon/AmmoFallback] Curios ammo mutation failed "
+                            + "after {} confirmed rounds; stopping the request",
+                    consumed[0],
+                    exception
+            );
+
+            return stoppedUnknownFor(
+                    consumed[0]
+            );
+        }
+
+        return ConsumptionOutcome.confirmed(
+                consumed[0]
+        );
     }
 
     static int consumeHandler(IItemHandler handler, ItemStack gun, int requested) {
         int[] consumed = {0};
         consumeHandler(handler, gun, requested, consumed);
         return consumed[0];
+    }
+
+    /**
+     * Outcome-reporting variant of one Curios handler consumption.
+     *
+     * <p>A handler that throws after already committing slots keeps the
+     * confirmed amount and stops the request; a linkage error never silently
+     * degrades into a normal zero.
+     */
+    public static ConsumptionOutcome consumeHandlerOutcome(
+            IItemHandler handler,
+            ItemStack gun,
+            int requested
+    ) {
+        int[] consumed = {0};
+
+        try {
+            consumeHandler(
+                    handler,
+                    gun,
+                    requested,
+                    consumed
+            );
+        } catch (LinkageError linkageError) {
+            LOGGER.warn(
+                    "[TACZ-addon/AmmoFallback] Curios handler lost linkage "
+                            + "after {} confirmed rounds",
+                    consumed[0],
+                    linkageError
+            );
+
+            return stoppedUnknownFor(
+                    consumed[0]
+            );
+        } catch (RuntimeException exception) {
+            LOGGER.warn(
+                    "[TACZ-addon/AmmoFallback] Curios handler mutation failed "
+                            + "after {} confirmed rounds",
+                    consumed[0],
+                    exception
+            );
+
+            return stoppedUnknownFor(
+                    consumed[0]
+            );
+        }
+
+        return ConsumptionOutcome.confirmed(
+                consumed[0]
+        );
+    }
+
+    private static ConsumptionOutcome stoppedUnknownFor(
+            int consumed
+    ) {
+        return ConsumptionOutcome
+                .stoppedUnknown()
+                .withConsumed(Math.max(0, consumed));
     }
 
     private static void consumeHandler(IItemHandler handler, ItemStack gun, int requested, int[] consumed) {

@@ -15,15 +15,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 
 import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.EnumMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.TreeMap;
+import java.util.*;
 
 /**
  * Builds short-lived liberated attachment catalogs from TaCZ's current common

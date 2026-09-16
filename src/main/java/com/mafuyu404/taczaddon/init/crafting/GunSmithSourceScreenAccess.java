@@ -15,8 +15,20 @@ public interface GunSmithSourceScreenAccess {
             int containerId,
             long requestId,
             long sourceRevision,
-            List<ItemStack> externalStacks
+            List<ItemStack> externalStacks,
+            boolean externalSourcesAuthorized,
+            boolean displayTruncated,
+            int[] aggregateCounts
     );
+
+    /**
+     * Server-confirmed authorization for external material sources on the
+     * currently open menu.
+     */
+    boolean taczaddon$externalSourcesAuthorized();
+
+    /** Aggregated per-input counts, complete regardless of display truncation. */
+    int[] taczaddon$aggregateIngredientCounts();
 
     void taczaddon$requestSourceRefresh();
 

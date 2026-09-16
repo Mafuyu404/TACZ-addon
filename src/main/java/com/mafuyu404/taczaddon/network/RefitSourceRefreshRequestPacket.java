@@ -64,12 +64,13 @@ public final class RefitSourceRefreshRequestPacket {
                                     .resolveExternalCandidates(player)
                     )
             );
-        } catch (RuntimeException exception) {
+        } catch (RuntimeException | LinkageError failure) {
             LOGGER.error(
                     "Refit source refresh failed for player {}",
                     player.getGameProfile().getName(),
-                    exception
+                    failure
             );
+
             NetworkHandler.sendToClient(
                     player,
                     new RefitSourceSnapshotPacket(

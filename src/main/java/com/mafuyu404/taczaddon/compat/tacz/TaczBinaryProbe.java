@@ -1,18 +1,8 @@
 package com.mafuyu404.taczaddon.compat.tacz;
 
-import com.mafuyu404.taczaddon.compat.tacz.contract.ClassContract;
-import com.mafuyu404.taczaddon.compat.tacz.contract.FieldAccessContract;
-import com.mafuyu404.taczaddon.compat.tacz.contract.FeatureContract;
-import com.mafuyu404.taczaddon.compat.tacz.contract.FieldContract;
-import com.mafuyu404.taczaddon.compat.tacz.contract.InvokeContract;
-import com.mafuyu404.taczaddon.compat.tacz.contract.MethodContract;
+import com.mafuyu404.taczaddon.compat.tacz.contract.*;
 import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.FieldInsnNode;
-import org.objectweb.asm.tree.FieldNode;
-import org.objectweb.asm.tree.MethodInsnNode;
-import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.*;
 
 import java.io.IOException;
 import java.io.InputStream;

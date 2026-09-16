@@ -49,8 +49,9 @@ public final class Config {
 
         MELEE_WEAPON_LIST = BUILDER
                 .comment(
-                        "列表里的枪械会作为近战武器使用，开火将被替换为近战攻击。",
-                        "可以通过 F3+H 查看物品的 GunId 标签。"
+                        "Guns in this list are treated as melee weapons. "
+                                + "Firing is replaced with a melee attack.",
+                        "Use F3+H to inspect the GunId tag."
                 )
                 .defineList(
                         "MeleeWeaponList",
@@ -65,9 +66,9 @@ public final class Config {
 
         SHOOT_WHILE_RELOADING = BUILDER
                 .comment(
-                        "允许在换弹过程中按下开火键。",
-                        "仅在枪械当前确实存在可发射弹药且其它射击冷却允许时取消换弹。",
-                        "实际射击仍由 TaCZ 客户端和服务端正常校验。"
+                        "Allow firing to interrupt a reload when the gun "
+                                + "still contains fireable ammunition.",
+                        "Normal TaCZ client and server firing checks still apply."
                 )
                 .define("enableShootWhileReloading", true);
 
@@ -76,7 +77,10 @@ public final class Config {
         BUILDER.push("GunSmithTable Presentation");
 
         GUNSMITHTABLE_CRAFT_TOAST = BUILDER
-                .comment("枪械工作台制作成功后显示物品提示。")
+                .comment(
+                        "Show an item toast after a successful craft at "
+                                + "a gun smith table."
+                )
                 .define("enableCraftToast", true);
 
         BUILDER.pop();
@@ -84,7 +88,10 @@ public final class Config {
         BUILDER.push("Attachment Setting");
 
         LESS_ALLOW_GUN = BUILDER
-                .comment("配件高级提示中最多显示的适用枪械数量。")
+                .comment(
+                        "Maximum number of compatible guns shown in "
+                                + "advanced attachment tooltips."
+                )
                 .defineInRange(
                         "allowGunDisplayCount",
                         16,
@@ -93,7 +100,18 @@ public final class Config {
                 );
 
         SHOW_ATTACHMENT_ATTRIBUTE = BUILDER
-                .comment("配件提示中显示详细属性变化。")
+                .comment(
+                        "Show detailed attachment stat changes in "
+                                + "attachment tooltips.",
+                        "This requires both the client option and the "
+                                + "server showAttachmentDetail gamerule.",
+                        "The main hand must also hold a gun that accepts "
+                                + "the attachment.",
+                        "The server rule defaults to true and is "
+                                + "authoritative; server operators can "
+                                + "disable detail tooltips with "
+                                + "/gamerule showAttachmentDetail false."
+                )
                 .define("enableAttachmentDetail", true);
 
         BUILDER.pop();
@@ -102,23 +120,37 @@ public final class Config {
 
         BETTER_AIM_CAMERA = BUILDER
                 .comment(
-                        "非第一人称视角瞄准时自动切换到第一人称，",
-                        "取消瞄准后恢复原视角。"
+                        "Automatically switch to first person while aiming "
+                                + "from another camera perspective.",
+                        "Restore the previous perspective after aiming ends."
                 )
                 .define("enableBetterAimCamera", true);
 
         FAST_SWAP_GUN = BUILDER
-                .comment("切枪时跳过收枪后摇。")
+                .comment(
+                        "Deprecated: this option no longer controls any "
+                                + "cooldown prediction.",
+                        "Fast swap behavior is decided by the server-side "
+                                + "config option enableFastSwapGun.",
+                        "The server value is synchronized to clients; "
+                                + "client prediction uses only that "
+                                + "synchronized value.",
+                        "This option is kept only to avoid errors in old "
+                                + "configuration files and has no effect."
+                )
                 .define("enableFastSwapGun", true);
 
         SHOW_ITEM_RELATION = BUILDER
-                .comment("悬停物品时高亮显示相关物品。")
+                .comment(
+                        "Highlight related items while hovering over an item."
+                )
                 .define("enableShowItemRelation", true);
 
         SHOW_ITEM_RELATION_IN_SOPHISTICATED_STORAGE = BUILDER
                 .comment(
-                        "是否在 Sophisticated Backpacks 和 Sophisticated Storage 界面中高亮相关物品。",
-                        "需要同时启用 enableShowItemRelation。"
+                        "Highlight related items in Sophisticated Backpacks "
+                                + "and Sophisticated Storage screens.",
+                        "This also requires enableShowItemRelation."
                 )
                 .define("enableShowItemRelationInSophisticatedStorage", true);
 

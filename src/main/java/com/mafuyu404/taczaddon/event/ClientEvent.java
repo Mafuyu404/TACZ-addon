@@ -2,8 +2,8 @@ package com.mafuyu404.taczaddon.event;
 
 import com.mafuyu404.taczaddon.TACZaddon;
 import com.mafuyu404.taczaddon.client.GunRefitScreenAccess;
-import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
 import com.mafuyu404.taczaddon.compat.CuriosCompat;
+import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
 import com.mafuyu404.taczaddon.compat.SophisticatedStorageClientCompat;
 import com.mafuyu404.taczaddon.init.DataStorage;
 import com.mafuyu404.taczaddon.init.KeyBindings;

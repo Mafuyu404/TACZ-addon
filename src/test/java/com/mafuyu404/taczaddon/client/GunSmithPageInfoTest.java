@@ -4,7 +4,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class GunSmithPageInfoTest {
     @Test void sixRecipesPerPageAndCustomCategoryNamePreserved() {

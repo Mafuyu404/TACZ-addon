@@ -1,10 +1,6 @@
 package com.mafuyu404.taczaddon.init;
 
-import com.mafuyu404.taczaddon.init.crafting.CraftingItemSource;
-import com.mafuyu404.taczaddon.init.crafting.CraftingSourceKey;
-import com.mafuyu404.taczaddon.init.crafting.NearbyInventorySourceResolver;
-import com.mafuyu404.taczaddon.init.crafting.PlayerInventorySource;
-import com.mafuyu404.taczaddon.init.crafting.WorkbenchAnchor;
+import com.mafuyu404.taczaddon.init.crafting.*;
 import com.mojang.logging.LogUtils;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
@@ -53,6 +49,7 @@ public final class GunSmithCraftingSources {
                 new LinkedHashSet<>();
         Set<Object> backendIdentities =
                 Collections.newSetFromMap(new IdentityHashMap<>());
+        boolean[] displayTruncated = {false};
 
         PlayerInventorySource playerSource =
                 new PlayerInventorySource(player);
@@ -81,13 +78,14 @@ public final class GunSmithCraftingSources {
                             backendIdentities,
                             source,
                             sourceDisplayStacks,
-                            MAX_EXTERNAL_STACKS
+                            MAX_EXTERNAL_STACKS,
+                            displayTruncated
                     );
-                } catch (RuntimeException exception) {
+                } catch (RuntimeException | LinkageError failure) {
                     LOGGER.warn(
-                            "Skipping unreadable gunsmith source {}",
-                            source.key(),
-                            exception
+                            "Skipping unreadable or binary-incompatible "
+                                    + "gunsmith source",
+                            failure
                     );
                 }
             }
@@ -108,7 +106,8 @@ public final class GunSmithCraftingSources {
                 ),
                 Collections.unmodifiableList(
                         new ArrayList<>(immutableKeys)
-                )
+                ),
+                displayTruncated[0]
         );
     }
 
@@ -121,6 +120,36 @@ public final class GunSmithCraftingSources {
             List<ItemStack> displayStacks,
             int maxExternalStacks
     ) {
+        return addUniqueSource(
+                sources,
+                externalStacks,
+                sourceKeys,
+                backendIdentities,
+                source,
+                displayStacks,
+                maxExternalStacks,
+                new boolean[1]
+        );
+    }
+
+    /**
+     * Registers one deduplicated external source.
+     *
+     * <p>The display budget only ever limits how many entries are sent to the
+     * client. It must never decide whether the source itself is usable: a
+     * player with more than {@link #MAX_EXTERNAL_STACKS} entries would
+     * otherwise lose materials they can legitimately craft with.
+     */
+    static boolean addUniqueSource(
+            List<CraftingItemSource> sources,
+            List<ItemStack> externalStacks,
+            Set<CraftingSourceKey> sourceKeys,
+            Set<Object> backendIdentities,
+            CraftingItemSource source,
+            List<ItemStack> displayStacks,
+            int maxExternalStacks,
+            boolean[] displayTruncated
+    ) {
         if (sourceKeys.contains(source.key())
                 || backendIdentities.contains(
                 source.backendIdentity()
@@ -128,16 +157,77 @@ public final class GunSmithCraftingSources {
             return false;
         }
 
-        if (externalStacks.size() + displayStacks.size()
-                > maxExternalStacks) {
-            return false;
-        }
-
         sourceKeys.add(source.key());
         backendIdentities.add(source.backendIdentity());
         sources.add(source);
-        externalStacks.addAll(displayStacks);
+
+        int budget = Math.max(
+                0,
+                maxExternalStacks - externalStacks.size()
+        );
+        int displayed = Math.min(budget, displayStacks.size());
+        for (int index = 0; index < displayed; index++) {
+            externalStacks.add(displayStacks.get(index));
+        }
+        if (displayed < displayStacks.size()) {
+            displayTruncated[0] = true;
+        }
         return true;
+    }
+
+    /**
+     * Aggregated per-ingredient material counts across every resolved source.
+     *
+     * <p>This is independent of the display budget: a truncated display list
+     * still yields complete counts, so a missing page can never look like a
+     * missing material.
+     */
+    public static int[] countIngredients(
+            com.tacz.guns.crafting.GunSmithTableRecipe recipe,
+            List<CraftingItemSource> sources
+    ) {
+        List<com.tacz.guns.crafting.GunSmithTableIngredient> inputs =
+                recipe.getInputs();
+        int[] counts = new int[inputs.size()];
+
+        for (CraftingItemSource source : sources) {
+            int slots;
+            try {
+                slots = source.slotCount();
+            } catch (RuntimeException exception) {
+                LOGGER.warn(
+                        "Skipping unreadable gunsmith source {} while "
+                                + "counting ingredients",
+                        source.key(),
+                        exception
+                );
+                continue;
+            }
+
+            for (int slot = 0; slot < slots; slot++) {
+                ItemStack stack;
+                try {
+                    stack = source.getStackInSlot(slot);
+                } catch (RuntimeException exception) {
+                    LOGGER.warn(
+                            "Skipping unreadable gunsmith slot {} of {}",
+                            slot,
+                            source.key(),
+                            exception
+                    );
+                    continue;
+                }
+                if (stack.isEmpty()) {
+                    continue;
+                }
+                for (int index = 0; index < inputs.size(); index++) {
+                    if (inputs.get(index).getIngredient().test(stack)) {
+                        counts[index] += stack.getCount();
+                    }
+                }
+            }
+        }
+        return counts;
     }
 
     private static ArrayList<ItemStack> copyStacks(
@@ -154,7 +244,8 @@ public final class GunSmithCraftingSources {
     public record ResolvedSources(
             List<CraftingItemSource> sources,
             List<ItemStack> externalStacks,
-            List<CraftingSourceKey> sourceKeys
+            List<CraftingSourceKey> sourceKeys,
+            boolean displayTruncated
     ) {
     }
 }

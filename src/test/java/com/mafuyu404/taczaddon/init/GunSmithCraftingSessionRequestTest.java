@@ -9,10 +9,7 @@ import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class GunSmithCraftingSessionRequestTest {
     private static final UUID PLAYER_ID =
