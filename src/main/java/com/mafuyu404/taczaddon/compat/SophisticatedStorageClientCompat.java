@@ -8,17 +8,23 @@ import net.minecraftforge.client.event.ContainerScreenEvent;
 import net.minecraftforge.fml.ModList;
 import org.slf4j.Logger;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @OnlyIn(Dist.CLIENT)
 public final class SophisticatedStorageClientCompat {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final String BACKPACKS_MOD_ID =
-            "sophisticatedbackpacks";
+            SophisticatedBackpackGeneration.BACKPACKS_MOD_ID;
     private static final String STORAGE_MOD_ID =
             "sophisticatedstorage";
+    private static final String STORAGE_SCREEN_BASE =
+            "net.p3pp3rf1y.sophisticatedcore.client.gui.StorageScreenBase";
+    private static final String STORAGE_MENU_BASE =
+            "net.p3pp3rf1y.sophisticatedcore.common.gui.StorageContainerMenuBase";
 
     private static volatile boolean linkageBroken;
+    private static volatile OptionalAbiStatus status;
     private static final AtomicBoolean LINKAGE_WARNING_LOGGED =
             new AtomicBoolean();
 
@@ -30,6 +36,49 @@ public final class SophisticatedStorageClientCompat {
         return modList != null
                 && (modList.isLoaded(BACKPACKS_MOD_ID)
                 || modList.isLoaded(STORAGE_MOD_ID));
+    }
+
+    /**
+     * Verified storage-screen shape the highlighting backend links against.
+     */
+    public static OptionalAbiStatus status() {
+        OptionalAbiStatus current = status;
+        if (current != null) {
+            return current;
+        }
+        ApiShapeProbe.ClassBytes source =
+                ApiShapeProbe.sourceFor(
+                        SophisticatedStorageClientCompat.class
+                );
+        OptionalAbiStatus resolved = OptionalAbiStatus.of(
+                ApiShapeProbe.hasClass(source, STORAGE_SCREEN_BASE),
+                ApiShapeProbe.satisfies(
+                        source,
+                        STORAGE_MENU_BASE,
+                        List.of(
+                                ApiShapeProbe.method(
+                                        "isStorageInventorySlot",
+                                        "(I)Z"
+                                ),
+                                ApiShapeProbe.method(
+                                        "isInaccessibleSlot",
+                                        "(I)Z"
+                                )
+                        )
+                )
+        );
+        status = resolved;
+        return resolved;
+    }
+
+    public static boolean isSupported() {
+        return status().supported();
+    }
+
+    public static boolean isUsable() {
+        return isAnySophisticatedStorageLoaded()
+                && isSupported()
+                && !linkageBroken;
     }
 
     public static boolean isStorageScreen(
@@ -59,11 +108,6 @@ public final class SophisticatedStorageClientCompat {
         } catch (LinkageError linkageError) {
             breakLinkage(linkageError);
         }
-    }
-
-    private static boolean isUsable() {
-        return isAnySophisticatedStorageLoaded()
-                && !linkageBroken;
     }
 
     private static void breakLinkage(LinkageError linkageError) {

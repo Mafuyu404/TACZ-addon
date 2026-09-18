@@ -13,13 +13,25 @@ import java.util.function.Predicate;
 /**
  * Optional Sophisticated Backpacks facade.
  *
- * The outer class contains no Sophisticated API types. If the installed
- * Backpacks version changes incompatibly, the backend is disabled for the
- * rest of the session instead of crashing the client.
+ * <p>The outer class contains no Sophisticated API types. State is split into
+ * three independent questions:
+ *
+ * <ul>
+ *     <li>{@link #isInstalled()} - Forge reports the mod as loaded;</li>
+ *     <li>{@link #isSupported()} - the installed generation exposes the
+ *     ordinary backpack API this facade links against;</li>
+ *     <li>{@link #isUsable()} - supported and the ordinary backend has not
+ *     tripped its linkage circuit breaker.</li>
+ * </ul>
+ *
+ * <p>Linked storage is a separate generation-isolated capability owned by
+ * {@code SophisticatedLinkedStorageCompat}; ordinary backpack support stays
+ * available when that backend is absent or ABI-broken.
  */
 public final class SophisticatedBackpacksCompat {
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final String MOD_ID = "sophisticatedbackpacks";
+    private static final String MOD_ID =
+            SophisticatedBackpackGeneration.BACKPACKS_MOD_ID;
 
     private static volatile boolean linkageBroken;
     private static final AtomicBoolean LINKAGE_WARNING_LOGGED =
@@ -31,6 +43,22 @@ public final class SophisticatedBackpacksCompat {
     public static boolean isInstalled() {
         ModList modList = ModList.get();
         return modList != null && modList.isLoaded(MOD_ID);
+    }
+
+    /** Verified ordinary-backpack API generation. */
+    public static boolean isSupported() {
+        return SophisticatedLinkedStorageCompat.generation()
+                .ordinaryBackpacksSupported();
+    }
+
+    /**
+     * Supported generation with a healthy ordinary backend.
+     *
+     * <p>This - not {@link #isInstalled()} - is the only valid gate before
+     * calling the Sophisticated backend.
+     */
+    public static boolean isUsable() {
+        return isInstalled() && isSupported() && !linkageBroken;
     }
 
     public static boolean visitInventoryBackpacks(
@@ -108,10 +136,6 @@ public final class SophisticatedBackpacksCompat {
              */
             breakLinkage(linkageError);
         }
-    }
-
-    private static boolean isUsable() {
-        return isInstalled() && !linkageBroken;
     }
 
     private static void breakLinkage(LinkageError linkageError) {

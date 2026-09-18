@@ -9,12 +9,23 @@ import net.minecraftforge.fml.ModList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 
-/** Optional boundary: no JEI types are resolved until an installed backend is used. */
+/**
+ * Optional boundary: no JEI types are resolved until a verified backend is
+ * used.
+ *
+ * <p>{@link #isSupported()} verifies the JEI runtime shape the recipe bridge
+ * links against ({@code IJeiRuntime#getIngredientManager},
+ * {@code getRecipesGui}, {@code getJeiHelpers}); an unknown JEI ABI therefore
+ * disables only recipe navigation.
+ */
 @OnlyIn(Dist.CLIENT)
 public final class JeiCompat {
     private static final String MOD_ID = "jei";
+    private static final String JEI_RUNTIME =
+            "mezz.jei.api.runtime.IJeiRuntime";
     private static boolean installed;
     private static volatile boolean linkageBroken;
+    private static volatile OptionalAbiStatus status;
     private static final AtomicBoolean LINKAGE_WARNING_LOGGED = new AtomicBoolean();
 
     private JeiCompat() {
@@ -25,8 +36,50 @@ public final class JeiCompat {
         installed = mods != null && mods.isLoaded(MOD_ID);
     }
 
+    public static boolean isInstalled() {
+        return installed;
+    }
+
+    public static OptionalAbiStatus status() {
+        OptionalAbiStatus current = status;
+        if (current != null) {
+            return current;
+        }
+        ApiShapeProbe.ClassBytes source =
+                ApiShapeProbe.sourceFor(JeiCompat.class);
+        OptionalAbiStatus resolved = OptionalAbiStatus.of(
+                ApiShapeProbe.hasClass(source, JEI_RUNTIME),
+                ApiShapeProbe.hasMethod(
+                        source,
+                        JEI_RUNTIME,
+                        "getIngredientManager",
+                        "()Lmezz/jei/api/runtime/IIngredientManager;"
+                ) && ApiShapeProbe.hasMethod(
+                        source,
+                        JEI_RUNTIME,
+                        "getRecipesGui",
+                        "()Lmezz/jei/api/runtime/IRecipesGui;"
+                ) && ApiShapeProbe.hasMethod(
+                        source,
+                        JEI_RUNTIME,
+                        "getJeiHelpers",
+                        "()Lmezz/jei/api/helpers/IJeiHelpers;"
+                )
+        );
+        status = resolved;
+        return resolved;
+    }
+
+    public static boolean isSupported() {
+        return status().supported();
+    }
+
+    public static boolean isUsable() {
+        return installed && isSupported() && !linkageBroken;
+    }
+
     public static boolean showRecipes(ItemStack itemStack) {
-        if (!installed || itemStack == null || itemStack.isEmpty()) {
+        if (!isUsable() || itemStack == null || itemStack.isEmpty()) {
             return false;
         }
         return runGuarded(() -> JeiPlugin.showRecipes(itemStack));

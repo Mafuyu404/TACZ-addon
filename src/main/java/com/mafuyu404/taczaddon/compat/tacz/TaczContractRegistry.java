@@ -112,6 +112,17 @@ public final class TaczContractRegistry {
                 )
         );
 
+        /*
+         * TaCZ-side capability only.
+         *
+         * This contract proves that TaCZ 1.1.8-hotfix still exposes
+         * ShoulderSurfingCompat#showCrosshair, which is what the injection
+         * point needs. It says nothing about the installed Shoulder Surfing
+         * API generation: whether the addon may replace that method's result
+         * is decided at runtime by ShoulderSurfing5Compat's structural
+         * generation probe, and only a verified 5.x generation takes over.
+         * Legacy 4.x installations keep TaCZ's own compatibility path.
+         */
         FeatureContract taczSsr5Crosshair = versionBound(
                 TaczFeature.TACZ_SSR5_CROSSHAIR,
                 new ClassContract(

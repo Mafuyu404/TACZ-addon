@@ -67,14 +67,19 @@ public class ModernKineticGunScriptAPIMixin {
             return;
         }
 
+        /*
+         * Cheap capability pre-filter only: an installed but unsupported or
+         * ABI-broken integration must not enter this path, and every facade
+         * re-checks its own usable state before the backend is called.
+         */
         if (!(this.shooter instanceof ServerPlayer player)
-                || (!SophisticatedBackpacksCompat.isInstalled() && !CuriosCompat.isInstalled())) {
+                || (!SophisticatedBackpacksCompat.isUsable() && !CuriosCompat.isUsable())) {
             return;
         }
 
         AbstractGunItem gun = this.abstractGunItem;
         ItemStack gunStack = this.itemStack;
-        boolean beyondActive = BeyondIntegrationCompat.isInstalled();
+        boolean beyondActive = BeyondIntegrationCompat.isUsable();
         int consumedSoFar = AmmoConsumptionOrchestrator.clampConsumed(
                 neededAmount,
                 cir.getReturnValueI()

@@ -2,6 +2,11 @@ package com.mafuyu404.taczaddon.compat;
 
 import com.mafuyu404.taczaddon.common.AmmoConsumptionOrchestrator.ConsumptionOutcome;
 import com.mafuyu404.taczaddon.common.AmmoConsumptionOrchestrator.IncompleteConsumptionException;
+import com.mafuyu404.taczaddon.compat.tacz.TaczBinaryProbe;
+import com.mafuyu404.taczaddon.compat.tacz.TaczFeature;
+import com.mafuyu404.taczaddon.compat.tacz.contract.ClassContract;
+import com.mafuyu404.taczaddon.compat.tacz.contract.FeatureContract;
+import com.mafuyu404.taczaddon.compat.tacz.contract.MethodContract;
 import com.mojang.logging.LogUtils;
 import com.tacz.guns.api.item.gun.AbstractGunItem;
 import net.minecraft.server.level.ServerPlayer;
@@ -24,10 +29,16 @@ import java.util.function.IntSupplier;
  * expose exactly one player-main extraction pass here so its existing TaCZ
  * compatibility hook can consume the remaining network ammo before our
  * backpack fallback.
+ *
+ * <p>Installed and usable stay separate: this bridge needs both the Beyond
+ * Integration mod and TaCZ's verified
+ * {@code AbstractGunItem#findAndExtractInventoryAmmo} hook. The TaCZ side is a
+ * capability check, not a mod-presence check.
  */
 public final class BeyondIntegrationCompat {
     private static final String MOD_ID = "beyond_integration";
     private static volatile boolean linkageBroken;
+    private static volatile Boolean taczHookPresent;
     private static final AtomicBoolean LINKAGE_WARNING_LOGGED = new AtomicBoolean();
 
     private BeyondIntegrationCompat() {
@@ -36,6 +47,39 @@ public final class BeyondIntegrationCompat {
     public static boolean isInstalled() {
         ModList modList = ModList.get();
         return modList != null && modList.isLoaded(MOD_ID);
+    }
+
+    /**
+     * TaCZ binary capability this bridge depends on.
+     *
+     * <p>The hook is not part of the other TaCZ feature contracts, so it is
+     * probed explicitly here instead of being inferred from the TaCZ version.
+     */
+    public static boolean isSupported() {
+        Boolean cached = taczHookPresent;
+        if (cached != null) {
+            return cached;
+        }
+        boolean present = TaczBinaryProbe.inspect(
+                new FeatureContract(
+                        TaczFeature.BACKPACK_AMMO_QUERY,
+                        "beyond-integration-hook",
+                        new ClassContract(
+                                "com.tacz.guns.api.item.gun.AbstractGunItem"
+                        ).withMethods(new MethodContract(
+                                "findAndExtractInventoryAmmo",
+                                "(Lnet/minecraftforge/items/IItemHandler;"
+                                        + "Lnet/minecraft/world/item/"
+                                        + "ItemStack;I)I"
+                        ))
+                )
+        ).passed();
+        taczHookPresent = present;
+        return present;
+    }
+
+    public static boolean isUsable() {
+        return isInstalled() && isSupported() && !linkageBroken;
     }
 
     /**
@@ -55,7 +99,7 @@ public final class BeyondIntegrationCompat {
             ItemStack gunStack,
             int requested
     ) {
-        if (linkageBroken || !isInstalled()
+        if (!isUsable()
                 || player == null
                 || gun == null
                 || gunStack == null

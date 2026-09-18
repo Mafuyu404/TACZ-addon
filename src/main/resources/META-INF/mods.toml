@@ -38,9 +38,16 @@ ordering="AFTER"
 side="BOTH"
 
 # Optional dependencies below declare ordering and sides only.
-# Open-ended Maven ranges accept normal non-negative mod versions.
-# An empty string is rejected by Forge 47.4.20's dependency version check.
-# Addon integration is isolated in runtime facades, independently per feature.
+#
+# These are loader-tolerant ranges, NOT support declarations:
+#   - an open-ended range keeps Forge 47.4.20 from rejecting an installed
+#     optional mod whose version this addon has never seen (an empty range
+#     string is rejected outright by that Forge version);
+#   - runtime API compatibility is capability-gated per integration by
+#     structural generation detection in the compatibility facades;
+#   - unknown/unverified generations disable only that integration. They are
+#     neither supported nor assumed to be equivalent to a known one.
+# See the compatibility report in README.md for the verified generations.
 
 # Optional compatibility: Sophisticated Core
 [[dependencies.${mod_id}]]

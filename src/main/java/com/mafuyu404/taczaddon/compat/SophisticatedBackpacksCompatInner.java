@@ -19,14 +19,14 @@ import net.p3pp3rf1y.sophisticatedcore.inventory.InventoryHandler;
 import org.slf4j.Logger;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 
 public final class SophisticatedBackpacksCompatInner {
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    private static final String LINKED_WRAPPER_CLASS =
-            "net.p3pp3rf1y.sophisticatedbackpacks.backpack.wrapper."
-                    + "LinkedStorageBackpackWrapper";
+    private static final AtomicBoolean CLASSIFICATION_WARNING_LOGGED =
+            new AtomicBoolean();
 
     private SophisticatedBackpacksCompatInner() {
     }
@@ -50,6 +50,17 @@ public final class SophisticatedBackpacksCompatInner {
                     if (wrapper == IBackpackWrapper.Noop.INSTANCE) {
                         return false;
                     }
+                    SophisticatedBackpackClassifier.Access access =
+                            accessFor(wrapper);
+                    if (!access.readable()) {
+                        /*
+                         * Fail closed for this backpack only. Counting ammo
+                         * that can never be consumed would leave the HUD and
+                         * the consumption path disagreeing.
+                         */
+                        warnBlockedWrapper(access, wrapper);
+                        return false;
+                    }
                     InventoryHandler handler = getFreshInventoryHandler(
                             player,
                             wrapper
@@ -64,13 +75,41 @@ public final class SophisticatedBackpacksCompatInner {
         return stopped[0];
     }
 
-    private static boolean isLinkedStorageWrapper(
+    /**
+     * Storage access policy for one wrapper: ordinary contents, known healthy
+     * linked contents, or a blocked state for anything unverified.
+     */
+    private static SophisticatedBackpackClassifier.Access accessFor(
             IBackpackWrapper wrapper
     ) {
-        return wrapper != null
-                && LINKED_WRAPPER_CLASS.equals(
-                wrapper.getClass().getName()
+        if (wrapper == null) {
+            return SophisticatedBackpackClassifier.Access.UNKNOWN;
+        }
+        return SophisticatedBackpackClassifier.resolveAccess(
+                SophisticatedBackpackClassifier.classify(wrapper),
+                SophisticatedLinkedStorageCompat.resolve(
+                        wrapper.getBackpack()
+                ),
+                SophisticatedLinkedStorageCompat.generation()
         );
+    }
+
+    private static void warnBlockedWrapper(
+            SophisticatedBackpackClassifier.Access access,
+            IBackpackWrapper wrapper
+    ) {
+        if (CLASSIFICATION_WARNING_LOGGED.compareAndSet(
+                false,
+                true
+        )) {
+            LOGGER.warn(
+                    "[TACZ-addon/SophisticatedBackpacks] backpack wrapper "
+                            + "{} is not usable ({}); it is skipped by both "
+                            + "the ammo query and the ammo mutation path",
+                    wrapper.getClass().getName(),
+                    access
+            );
+        }
     }
 
     private static InventoryHandler getFreshInventoryHandler(
@@ -99,15 +138,17 @@ public final class SophisticatedBackpacksCompatInner {
         }
 
         /*
-         * If the optional linked bridge itself became ABI-incompatible, retain the
-         * same protection using only the runtime wrapper class name.
-         *
-         * This lets ordinary wrappers continue through BackpackStorage while
-         * preventing a genuine linked wrapper from being incorrectly treated as an
-         * ordinary backpack.
+         * Never route a linked or unclassified wrapper through the ordinary
+         * BackpackStorage sync. Classification is structural, so it also
+         * covers linked generations whose concrete wrapper class name the
+         * addon has never seen. Ordinary wrappers keep working even when the
+         * optional linked backend itself is ABI-broken.
          */
-        if (linked.bridgeUnavailable()
-                && isLinkedStorageWrapper(wrapper)) {
+        if (!SophisticatedBackpackClassifier.resolveAccess(
+                SophisticatedBackpackClassifier.classify(wrapper),
+                linked,
+                SophisticatedLinkedStorageCompat.generation()
+        ).ordinaryContents()) {
             return handler;
         }
 
@@ -257,6 +298,19 @@ public final class SophisticatedBackpacksCompatInner {
                     if (wrapper == IBackpackWrapper.Noop.INSTANCE) {
                         return false;
                     }
+                    SophisticatedBackpackClassifier.Access access =
+                            accessFor(wrapper);
+                    if (!access.mutationAllowed()) {
+                        /*
+                         * Fail closed: an unknown, malformed or ABI-broken
+                         * wrapper must not be mutated through assumptions about
+                         * either storage family. A known healthy linked wrapper
+                         * stays mutable: its inventory handler proxies to the
+                         * canonical linked contents.
+                         */
+                        warnBlockedWrapper(access, wrapper);
+                        return false;
+                    }
                     InventoryHandler handler =
                             wrapper.getInventoryHandler();
                     boolean stop = mutateBackpackHandler(
@@ -333,16 +387,18 @@ public final class SophisticatedBackpacksCompatInner {
                             }
 
                             /*
-                             * Runtime linked bridge failed after being detected.
-                             *
-                             * Preserve ordinary backpack bootstrap, but do not
-                             * accidentally route a real linked wrapper through the
-                             * ordinary UUID protocol.
+                             * Preserve ordinary backpack bootstrap, but never
+                             * route a linked or unclassified wrapper through
+                             * the ordinary UUID protocol.
                              */
-                            if (linked.bridgeUnavailable()
-                                    && isLinkedStorageWrapper(
-                                    wrapper
-                            )) {
+                            if (!SophisticatedBackpackClassifier.resolveAccess(
+                                    SophisticatedBackpackClassifier.classify(
+                                            wrapper
+                                    ),
+                                    linked,
+                                    SophisticatedLinkedStorageCompat
+                                            .generation()
+                            ).ordinaryContents()) {
                                 return false;
                             }
 
@@ -529,12 +585,15 @@ public final class SophisticatedBackpacksCompatInner {
         /*
          * A linked bridge ABI failure must not disable ordinary backpacks.
          *
-         * But if the wrapper itself is recognizably linked, fail closed instead
-         * of sending its canonical host UUID through the ordinary client-storage
+         * A linked or unclassified wrapper still fails closed instead of
+         * sending its canonical host UUID through the ordinary client-storage
          * protocol.
          */
-        if (linked.bridgeUnavailable()
-                && isLinkedStorageWrapper(wrapper)) {
+        if (!SophisticatedBackpackClassifier.resolveAccess(
+                SophisticatedBackpackClassifier.classify(wrapper),
+                linked,
+                SophisticatedLinkedStorageCompat.generation()
+        ).ordinaryContents()) {
             return;
         }
 

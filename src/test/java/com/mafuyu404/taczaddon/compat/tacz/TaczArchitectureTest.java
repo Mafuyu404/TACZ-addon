@@ -194,6 +194,76 @@ class TaczArchitectureTest {
         }
     }
 
+    /**
+     * The physical side of every TaCZ adapter must match the side registry the
+     * runtime gate reports, and the server-visible fast-swap adapter must stay
+     * on the common side.
+     */
+    @Test
+    void mixinSideSemanticsMatchTheRuntimeSideRegistry()
+            throws IOException {
+        String config = read(
+                "src/main/resources/taczaddon.mixins.json"
+        );
+        List<String> common = arrayEntries(config, "\"mixins\"");
+        List<String> client = arrayEntries(config, "\"client\"");
+
+        assertTrue(
+                common.contains("tacz.v1_1_8.LivingEntityDrawGunMixin"),
+                "server-visible fast-swap adapter must stay in the common "
+                        + "array"
+        );
+        assertFalse(
+                client.contains("tacz.v1_1_8.LivingEntityDrawGunMixin"),
+                "server-visible fast-swap adapter must not be client-only"
+        );
+        for (String entry : client) {
+            assertFalse(common.contains(entry), entry + " listed twice");
+            if (!entry.startsWith("tacz.")) {
+                continue;
+            }
+            assertEquals(
+                    TaczRuntimeSide.CLIENT,
+                    TaczContractRegistry.sideForMixin(
+                            "com.mafuyu404.taczaddon.mixin." + entry
+                    ),
+                    entry
+            );
+        }
+        for (String entry : common) {
+            if (!entry.startsWith("tacz.")) {
+                continue;
+            }
+            assertEquals(
+                    TaczRuntimeSide.COMMON,
+                    TaczContractRegistry.sideForMixin(
+                            "com.mafuyu404.taczaddon.mixin." + entry
+                    ),
+                    entry
+            );
+        }
+    }
+
+    private static List<String> arrayEntries(String json, String key) {
+        int start = json.indexOf(key);
+        assertTrue(start >= 0, key);
+        int open = json.indexOf('[', start);
+        int close = json.indexOf(']', open);
+        assertTrue(open >= 0 && close > open, key);
+        List<String> result = new ArrayList<>();
+        for (String line : json.substring(open + 1, close).split("\\R")) {
+            String trimmed = line.trim();
+            if (!trimmed.startsWith("\"")) {
+                continue;
+            }
+            result.add(trimmed.substring(
+                    1,
+                    trimmed.lastIndexOf('"')
+            ));
+        }
+        return result;
+    }
+
     @Test
     void noMixinCallbackImportsOutsideMixinOrBootstrapPackages()
             throws IOException {

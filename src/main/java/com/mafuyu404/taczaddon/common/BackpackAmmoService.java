@@ -123,7 +123,7 @@ public final class BackpackAmmoService {
             ItemStack gunStack,
             int requested
     ) {
-        if (!SophisticatedBackpacksCompat.isInstalled()
+        if (!SophisticatedBackpacksCompat.isUsable()
                 || player == null
                 || gunStack == null
                 || gunStack.isEmpty()

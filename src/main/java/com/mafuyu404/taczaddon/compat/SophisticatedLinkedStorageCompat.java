@@ -3,6 +3,7 @@ package com.mafuyu404.taczaddon.compat;
 import com.mojang.logging.LogUtils;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.fml.ModList;
 import org.slf4j.Logger;
 
 import java.util.Optional;
@@ -11,9 +12,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 final class SophisticatedLinkedStorageCompat {
     private static final Logger LOGGER = LogUtils.getLogger();
-
-    private static final String REQUIRED_CLASS =
-            "net.p3pp3rf1y.sophisticatedcore.linkedstorage.LinkedStorageStackLifecycle";
 
     private static final String IMPL_CLASS =
             "com.mafuyu404.taczaddon.compat.SophisticatedLinkedStorageCompat326";
@@ -32,7 +30,33 @@ final class SophisticatedLinkedStorageCompat {
      */
     private static volatile Bridge BRIDGE = loadBridge();
 
+    /**
+     * Structural generation, resolved once from optional class bytes. Loader
+     * presence is reported separately by {@link #isInstalled()}.
+     */
+    private static final SophisticatedBackpackGeneration GENERATION =
+            SophisticatedBackpackGeneration.detect(
+                    ApiShapeProbe.sourceFor(
+                            SophisticatedLinkedStorageCompat.class
+                    )
+            );
+
     private SophisticatedLinkedStorageCompat() {
+    }
+
+    /**
+     * Loader-level presence only. Never used as a "safe to call" gate.
+     */
+    static boolean isInstalled() {
+        ModList modList = ModList.get();
+        return modList != null
+                && modList.isLoaded(
+                SophisticatedBackpackGeneration.CORE_MOD_ID
+        );
+    }
+
+    static SophisticatedBackpackGeneration generation() {
+        return GENERATION;
     }
 
     static EndpointResolution resolve(ItemStack stack) {
@@ -95,24 +119,46 @@ final class SophisticatedLinkedStorageCompat {
     }
 
     private static Bridge loadBridge() {
+        /*
+         * Detect the generation before touching any 3.26 class. A generation
+         * that is not the verified one must never load the linked backend.
+         */
+        SophisticatedBackpackGeneration generation =
+                SophisticatedBackpackGeneration.detect(
+                        ApiShapeProbe.sourceFor(
+                                SophisticatedLinkedStorageCompat.class
+                        )
+                );
+        if (!generation.linkedStorageSupported()) {
+            if (generation
+                    == SophisticatedBackpackGeneration.UNKNOWN) {
+                logBroken(new IllegalStateException(
+                        "unknown Sophisticated linked-storage generation"
+                ));
+                return BrokenBridge.INSTANCE;
+            }
+            /*
+             * Expected on the verified Sophisticated 3.24.x ordinary-only
+             * generation. This is NOT an error and must not disable ordinary
+             * backpack compatibility.
+             */
+            return NoopBridge.INSTANCE;
+        }
+
         ClassLoader loader =
                 SophisticatedLinkedStorageCompat.class
                         .getClassLoader();
 
         try {
             Class.forName(
-                    REQUIRED_CLASS,
+                    "net.p3pp3rf1y.sophisticatedcore.linkedstorage."
+                            + "LinkedStorageStackLifecycle",
                     false,
                     loader
             );
         } catch (ClassNotFoundException absent) {
-            /*
-             * Expected on Sophisticated 3.24 / 3.25.
-             *
-             * This is NOT an error and must not disable ordinary backpack
-             * compatibility.
-             */
-            return NoopBridge.INSTANCE;
+            logBroken(absent);
+            return BrokenBridge.INSTANCE;
         } catch (LinkageError error) {
             logBroken(error);
             return BrokenBridge.INSTANCE;

@@ -45,6 +45,24 @@ class OptionalCompatibilityIsolationTest {
                     return loaded;
                 }
             }
+
+            /**
+             * Absent really means absent: the structural generation probe reads
+             * optional class bytes, so resource lookups must hide the same
+             * packages that {@link #loadClass(String, boolean)} hides.
+             */
+            @Override
+            public java.io.InputStream getResourceAsStream(String name) {
+                if (name != null && name.endsWith(".class")) {
+                    String binaryName = name
+                            .replace('/', '.');
+                    if (OPTIONAL_PACKAGES.stream()
+                            .anyMatch(binaryName::startsWith)) {
+                        return null;
+                    }
+                }
+                return super.getResourceAsStream(name);
+            }
         };
         for (String name : List.of("CuriosCompat", "JeiCompat", "ShoulderSurfing5Compat",
                 "PerspectiveApiCompat", "SophisticatedBackpacksCompat", "SophisticatedStorageClientCompat",
@@ -65,7 +83,7 @@ class OptionalCompatibilityIsolationTest {
     }
 
     @Test
-    void optionalMetadataAcceptsInstalledVersionsWithoutAnUpperBound() throws IOException {
+    void optionalMetadataDoesNotRejectUnknownInstalledVersions() throws IOException {
         String metadata = Files.readString(Path.of("src/main/resources/META-INF/mods.toml"));
         int optionalCount = 0;
         for (String dependency : metadata.split("\\[\\[dependencies\\.")) {
@@ -81,10 +99,23 @@ class OptionalCompatibilityIsolationTest {
             for (String version : List.of("1.5.0.2316", "3.26.0.2119", "1.4.86.2131",
                     "5.14.1+1.20.1", "3.0.3-beta+forge-1.20.1", "0.1-alpha", "999.0")) {
                 assertTrue(range.containsVersion(new DefaultArtifactVersion(version)),
-                        () -> "Optional dependency rejects installed version " + version + ": " + dependency);
+                        () -> "Forge loader would reject installed version " + version + ": " + dependency);
             }
             assertTrue(dependency.contains("ordering=\"AFTER\""), dependency);
         }
         assertEquals(6, optionalCount);
+        /*
+         * Loader tolerance is not a support claim: the runtime capability
+         * gates decide what is actually usable, and the metadata comment has to
+         * say so.
+         */
+        assertTrue(
+                metadata.contains("loader-tolerant"),
+                "mods.toml must document the loader-tolerant optional ranges"
+        );
+        assertTrue(
+                metadata.contains("capability-gated"),
+                "mods.toml must document runtime capability gating"
+        );
     }
 }

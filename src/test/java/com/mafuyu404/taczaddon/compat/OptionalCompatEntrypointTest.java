@@ -9,8 +9,12 @@ import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
+import com.mafuyu404.taczaddon.testutil.SyntheticOptionalApis;
+
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.util.Map;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
@@ -122,10 +126,19 @@ public class OptionalCompatEntrypointTest {
     }
 
     private ClassLoader fixtureLoader() {
+        Map<String, byte[]> generatedAnchors =
+                SyntheticOptionalApis.shoulderSurfingApiV5();
         return new ClassLoader(getClass().getClassLoader()) {
             @Override
             protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
                 if (name.equals(OptionalCompatEntrypointTest.class.getName())) return getParent().loadClass(name);
+                if (generatedAnchors.containsKey(name)) {
+                    return define(
+                            name,
+                            generatedAnchors.get(name),
+                            resolve
+                    );
+                }
                 boolean stub = List.of(PLAYER, SERVER_PLAYER, STACK, "net.minecraftforge.fml.ModList").contains(name);
                 if (!stub && !name.startsWith(PACKAGE)) return super.loadClass(name, resolve);
                 synchronized (getClassLoadingLock(name)) {
@@ -139,6 +152,41 @@ public class OptionalCompatEntrypointTest {
                         }
                     }
                     if (resolve) resolveClass(loaded);
+                    return loaded;
+                }
+            }
+
+            /**
+             * The generation probe reads optional classes as bytes, so the
+             * synthesised 5.x anchors have to be visible as resources too.
+             */
+            @Override
+            public java.io.InputStream getResourceAsStream(String name) {
+                if (name != null && name.endsWith(".class")) {
+                    String binaryName = name
+                            .substring(0, name.length() - ".class".length())
+                            .replace('/', '.');
+                    byte[] bytes = generatedAnchors.get(binaryName);
+                    if (bytes != null) {
+                        return new ByteArrayInputStream(bytes);
+                    }
+                }
+                return super.getResourceAsStream(name);
+            }
+
+            private Class<?> define(
+                    String name,
+                    byte[] bytes,
+                    boolean resolve
+            ) {
+                synchronized (getClassLoadingLock(name)) {
+                    Class<?> loaded = findLoadedClass(name);
+                    if (loaded == null) {
+                        loaded = defineClass(name, bytes, 0, bytes.length);
+                    }
+                    if (resolve) {
+                        resolveClass(loaded);
+                    }
                     return loaded;
                 }
             }
