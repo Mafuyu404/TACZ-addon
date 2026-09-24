@@ -10,6 +10,7 @@
     "SmithingMenuMixin",
     "tacz.NoCrawlMixin",
     "tacz.v1_1_8.AbstractGunItemMixin",
+    "tacz.v1_1_8.AbstractGunItemInventoryFeedMixin",
     "tacz.v1_1_8.ClientMessageRefitGunAccess",
     "tacz.v1_1_8.ClientMessageRefitGunMixin",
     "tacz.v1_1_8.ClientMessageUnloadAttachmentAccess",

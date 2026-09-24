@@ -2,6 +2,7 @@ package com.mafuyu404.taczaddon.compat.tacz;
 
 public enum TaczFeature {
     BACKPACK_AMMO_QUERY,
+    BACKPACK_INVENTORY_FEED_QUERY,
     BACKPACK_AMMO_CONSUME,
     LIBERATED_REFIT,
     GUNSMITH_SESSION,
