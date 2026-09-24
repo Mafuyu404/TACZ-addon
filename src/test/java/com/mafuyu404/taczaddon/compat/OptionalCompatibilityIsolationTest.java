@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class OptionalCompatibilityIsolationTest {
     private static final String PACKAGE = "com.mafuyu404.taczaddon.compat.";
     private static final List<String> OPTIONAL_PACKAGES = List.of(
+            "com.solr98.beyondintegration.",
             "mezz.jei.", "top.theillusivec4.curios.", "net.p3pp3rf1y.sophisticated",
             "com.github.exopandora.shouldersurfing.", "io.github.leawind.perspectiveapi.");
 
@@ -66,7 +67,7 @@ class OptionalCompatibilityIsolationTest {
         };
         for (String name : List.of("CuriosCompat", "JeiCompat", "ShoulderSurfing5Compat",
                 "PerspectiveApiCompat", "SophisticatedBackpacksCompat", "SophisticatedStorageClientCompat",
-                "BeyondIntegrationCompat")) {
+                "BeyondIntegrationCompat", "BeyondAmmoClientCompat")) {
             Class<?> facade = Class.forName(PACKAGE + name, true, loader);
             for (var method : facade.getDeclaredMethods()) {
                 if (java.lang.reflect.Modifier.isPublic(method.getModifiers())) {

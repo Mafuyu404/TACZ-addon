@@ -3,9 +3,11 @@ package com.mafuyu404.taczaddon.common;
 import com.mafuyu404.taczaddon.init.CommonConfig;
 import com.tacz.guns.api.entity.IGunOperator;
 import com.tacz.guns.api.entity.ReloadState;
+import com.tacz.guns.api.item.IGun;
 import com.tacz.guns.entity.shooter.ShooterDataHolder;
 import com.tacz.guns.entity.sync.ModSyncedEntityData;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
 
 public final class ShootWhileReloadService {
     private ShootWhileReloadService() {
@@ -24,8 +26,18 @@ public final class ShootWhileReloadService {
             return false;
         }
         ShooterDataHolder data = operator.getDataHolder();
-        return data != null
-                && data.reloadStateType.isReloading();
+        if (data == null
+                || data.currentGunItem == null
+                || !data.reloadStateType.isReloading()) {
+            return false;
+        }
+
+        ItemStack gunStack = data.currentGunItem.get();
+        if (gunStack == null || gunStack.isEmpty()) {
+            return false;
+        }
+        IGun gun = IGun.getIGunOrNull(gunStack);
+        return gun != null && !gun.useInventoryAmmo(gunStack);
     }
 
     public static void commitReloadCancellation(

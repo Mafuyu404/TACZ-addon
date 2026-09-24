@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class TaczBinaryProbeTest {
     private static final List<TaczFeature> FRAGILE_FEATURES = List.of(
             TaczFeature.BACKPACK_AMMO_QUERY,
+            TaczFeature.BACKPACK_INVENTORY_FEED_QUERY,
             TaczFeature.BACKPACK_AMMO_CONSUME,
             TaczFeature.LIBERATED_REFIT,
             TaczFeature.GUNSMITH_SESSION,

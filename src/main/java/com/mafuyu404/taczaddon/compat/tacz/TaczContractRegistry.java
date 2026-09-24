@@ -186,6 +186,28 @@ public final class TaczContractRegistry {
                         )
                 )
         );
+
+        FeatureContract inventoryFeedQuery = versionBound(
+                TaczFeature.BACKPACK_INVENTORY_FEED_QUERY,
+                abstractGunHasInventoryAmmoContract()
+        );
+        featureContracts.put(
+                TaczFeature.BACKPACK_INVENTORY_FEED_QUERY,
+                inventoryFeedQuery
+        );
+        featureScopes.put(
+                TaczFeature.BACKPACK_INVENTORY_FEED_QUERY,
+                CompatibilityScope.VERSION_BOUND
+        );
+        mixinBindings.put(
+                MIXIN_V1 + "AbstractGunItemInventoryFeedMixin",
+                binding(
+                        MIXIN_V1 + "AbstractGunItemInventoryFeedMixin",
+                        TaczFeature.BACKPACK_INVENTORY_FEED_QUERY,
+                        inventoryFeedQuery,
+                        TaczFeature.BACKPACK_AMMO_CONSUME
+                )
+        );
         mixinBindings.put(
                 MIXIN_V1 + "GunAnimationStateContextMixin",
                 binding(
@@ -760,6 +782,17 @@ public final class TaczContractRegistry {
                 "canReload",
                 "(Lnet/minecraft/world/entity/LivingEntity;"
                         + "Lnet/minecraft/world/item/ItemStack;)Z",
+                List.of(livingEntityGetCapability())
+        ));
+    }
+
+    private static ClassContract abstractGunHasInventoryAmmoContract() {
+        return new ClassContract(
+                "com.tacz.guns.api.item.gun.AbstractGunItem"
+        ).withMethods(new MethodContract(
+                "hasInventoryAmmo",
+                "(Lnet/minecraft/world/entity/LivingEntity;"
+                        + "Lnet/minecraft/world/item/ItemStack;Z)Z",
                 List.of(livingEntityGetCapability())
         ));
     }

@@ -77,7 +77,7 @@ public final class ShootWhenReload {
         IGun gun =
                 IGun.getIGunOrNull(gunStack);
 
-        if (gun == null) {
+        if (gun == null || gun.useInventoryAmmo(gunStack)) {
             return false;
         }
 

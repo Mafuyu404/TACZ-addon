@@ -182,6 +182,11 @@ class TaczMixinDependencyTest {
     void productionDependencyGraphMatchesTheDeclaredBindings() {
         assertTrue(
                 TaczContractRegistry.dependenciesOf(
+                        TaczFeature.BACKPACK_INVENTORY_FEED_QUERY
+                ).contains(TaczFeature.BACKPACK_AMMO_CONSUME)
+        );
+        assertTrue(
+                TaczContractRegistry.dependenciesOf(
                         TaczFeature.GUNSMITH_BROWSE_MEMORY
                 ).contains(TaczFeature.GUNSMITH_SCREEN_ACCESS)
         );
@@ -204,6 +209,23 @@ class TaczMixinDependencyTest {
                             + "exact TaCZ jar"
             );
         }
+    }
+
+    @Test
+    void inventoryFeedQueryFallsBackWhenBackpackConsumptionIsUnavailable() {
+        Map<TaczFeature, TaczCompatibility.ResolvedState> states =
+                TaczCompatibility.resolveGraph(
+                        List.of(TaczFeature.values()),
+                        feature -> feature == TaczFeature.BACKPACK_AMMO_CONSUME
+                                ? TaczFeatureStatus.BINARY_CONTRACT_MISMATCH
+                                : TaczFeatureStatus.SUPPORTED,
+                        TaczContractRegistry::dependenciesOf
+                );
+
+        assertEquals(
+                TaczFeatureStatus.DISABLED,
+                states.get(TaczFeature.BACKPACK_INVENTORY_FEED_QUERY).status()
+        );
     }
 
     @Test
