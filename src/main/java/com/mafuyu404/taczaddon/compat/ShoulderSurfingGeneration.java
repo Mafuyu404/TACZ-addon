@@ -9,7 +9,7 @@ import java.util.List;
  *
  * <ul>
  * <li>The verified 5.x releases, including 5.0.10 and the current
- * 5.0.11 Minecraft 1.20.1 release, expose
+ * 5.1.1 Minecraft 1.20.1 release, expose
  * {@code api/client/Perspective} and the corresponding
  * {@code IShoulderSurfing#changePerspective(api.client.Perspective)}
  * contract. Legacy compatibility adapters may also be present, so legacy

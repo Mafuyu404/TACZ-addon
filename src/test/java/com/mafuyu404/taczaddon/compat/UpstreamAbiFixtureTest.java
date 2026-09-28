@@ -133,7 +133,7 @@ class UpstreamAbiFixtureTest {
         assertEquals(
                 ShoulderSurfingGeneration.API_V5,
                 ShoulderSurfingGeneration.detect(true, source),
-                "5.0.11 must remain in the verified v5 API generation"
+                "5.1.1 must remain in the verified v5 API generation"
         );
 
         assertEquals(
@@ -142,7 +142,7 @@ class UpstreamAbiFixtureTest {
                         ShoulderSurfingGeneration.detect(true, source),
                         false
                 ),
-                "5.0.11 must use the addon v5 backend"
+                "5.1.1 must use the addon v5 backend"
         );
     }
 

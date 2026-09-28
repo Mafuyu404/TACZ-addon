@@ -115,20 +115,12 @@ class NearbyContainerArchitectureTest {
 
         String gradle = read("build.gradle");
         assertTrue(gradle.contains(
-                "compileOnly fg.deobf(\"curse.maven:"
-                        + "leawind-third-person-930880:8602826\")"
-        ));
-        assertTrue(gradle.contains(
-                "runtimeOnly fg.deobf(\"curse.maven:"
+                "implementation fg.deobf(\"curse.maven:"
                         + "leawind-third-person-930880:8602826\")"
         ));
         assertTrue(gradle.contains(
                 "compileOnly fg.deobf(\"maven.modrinth:"
                         + "LIqveQm1:1.5.0-beta+forge-1.20.1\")"
-        ));
-        assertFalse(gradle.contains(
-                "implementation fg.deobf(\"curse.maven:"
-                        + "leawind-third-person"
         ));
         assertFalse(gradle.contains(
                 "implementation fg.deobf(\"maven.modrinth:"

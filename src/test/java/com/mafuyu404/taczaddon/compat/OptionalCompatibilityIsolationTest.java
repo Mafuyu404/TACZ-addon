@@ -104,7 +104,7 @@ class OptionalCompatibilityIsolationTest {
             }
             assertTrue(dependency.contains("ordering=\"AFTER\""), dependency);
         }
-        assertEquals(6, optionalCount);
+        assertEquals(7, optionalCount);
         /*
          * Loader tolerance is not a support claim: the runtime capability
          * gates decide what is actually usable, and the metadata comment has to

@@ -81,6 +81,14 @@ versionRange="[0,)"
 ordering="AFTER"
 side="CLIENT"
 
+# Optional compatibility: JEI recipe navigation
+[[dependencies.${mod_id}]]
+modId="jei"
+mandatory=false
+versionRange="[0,)"
+ordering="AFTER"
+side="CLIENT"
+
 # Optional compatibility: Leawind Third Person.
 # Perspective API is checked at runtime; its dependency belongs to Leawind.
 [[dependencies.${mod_id}]]

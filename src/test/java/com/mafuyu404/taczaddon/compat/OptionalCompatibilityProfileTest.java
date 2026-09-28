@@ -393,7 +393,7 @@ class OptionalCompatibilityProfileTest {
 
     /**
      * Shoulder Surfing is compile-only on the development classpath, so the
-     * real 4.1.5 legacy jar, the pinned 5.0.10 v5 jar, and the current 5.0.11
+     * real 4.1.5 legacy jar, the pinned 5.0.10 v5 jar, and the current 5.1.1
      * v5 jar are verified separately by {@code UpstreamAbiFixtureTest}.
      *
      * <p>The Sophisticated development baseline must report the verified
