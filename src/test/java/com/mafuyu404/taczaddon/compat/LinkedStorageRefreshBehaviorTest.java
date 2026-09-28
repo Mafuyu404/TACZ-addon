@@ -32,7 +32,8 @@ public class LinkedStorageRefreshBehaviorTest {
     private static Object packet;
 
     public static Optional<Long> getRevision(UUID group) { queriedGroup = group; return revision; }
-    public static void send(Object message) { packet = message; }
+    public record Request(UUID groupId, long knownRevision) { }
+    public static void request(UUID group, long knownRevision) { packet = new Request(group, knownRevision); }
     public static ItemStack mainHand(Player player) { return null; }
     public static IGun gun(ItemStack stack) {
         return gunHeld ? (IGun) Proxy.newProxyInstance(IGun.class.getClassLoader(), new Class<?>[]{IGun.class},
@@ -44,13 +45,11 @@ public class LinkedStorageRefreshBehaviorTest {
         Method method = replay("com/mafuyu404/taczaddon/compat/SophisticatedLinkedStorageCompat326",
                 "refreshSnapshot", node -> {
                     for (var insn : node.instructions.toArray()) {
-                        if (insn instanceof FieldInsnNode field && field.owner.endsWith("/SBPPacketHandler")) {
-                            node.instructions.remove(insn);
-                        } else if (insn instanceof MethodInsnNode call && call.name.equals("getRevision")) {
+                        if (insn instanceof MethodInsnNode call && call.name.equals("getRevision")) {
                             assertEquals("(Ljava/util/UUID;)Ljava/util/Optional;", call.desc);
                             call.owner = SELF;
-                        } else if (insn instanceof MethodInsnNode call && call.name.equals("sendToServer")) {
-                            call.setOpcode(Opcodes.INVOKESTATIC); call.owner = SELF; call.name = "send";
+                        } else if (insn instanceof MethodInsnNode call && call.name.equals("request")) {
+                            call.owner = SELF;
                         }
                     }
                 }, UUID.class);

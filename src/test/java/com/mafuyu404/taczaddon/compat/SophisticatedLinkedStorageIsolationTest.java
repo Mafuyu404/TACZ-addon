@@ -49,7 +49,8 @@ class SophisticatedLinkedStorageIsolationTest {
                 if (oldGeneration && name.startsWith("net.p3pp3rf1y.sophisticatedcore.linkedstorage.")) {
                     throw new ClassNotFoundException(name);
                 }
-                if (name.endsWith(".RequestLinkedStorageBackpackContentsMessage")) {
+                if (name.endsWith(".RequestLinkedStorageBackpackContentsMessage")
+                        || name.endsWith(".RequestLinkedStorageContentsMessage")) {
                     throw new ClassNotFoundException(name);
                 }
                 if (!name.startsWith(FACADE)) return super.loadClass(name, resolve);

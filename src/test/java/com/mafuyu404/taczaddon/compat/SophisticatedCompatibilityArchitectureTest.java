@@ -57,12 +57,12 @@ class SophisticatedCompatibilityArchitectureTest {
             throws IOException {
         String gradle = read("build.gradle");
         assertTrue(gradle.contains(
-                "compileOnly fg.deobf(\"curse.maven:"
-                        + "sophisticated-core-618298:8815743\")"
+                "implementation fg.deobf(\"curse.maven:"
+                        + "sophisticated-core-618298:8985880\")"
         ));
         assertTrue(gradle.contains(
-                "compileOnly fg.deobf(\"curse.maven:"
-                        + "sophisticated-backpacks-422301:8817428\")"
+                "implementation fg.deobf(\"curse.maven:"
+                        + "sophisticated-backpacks-422301:8992941\")"
         ));
         assertTrue(gradle.contains(
                 "runtimeOnly fg.deobf(\"curse.maven:"

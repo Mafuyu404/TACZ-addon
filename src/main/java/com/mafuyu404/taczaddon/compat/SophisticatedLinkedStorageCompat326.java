@@ -2,10 +2,6 @@ package com.mafuyu404.taczaddon.compat;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
-import net.p3pp3rf1y.sophisticatedbackpacks.backpack.wrapper.ClientLinkedStorageBackpackContents;
-import net.p3pp3rf1y.sophisticatedbackpacks.network.LinkedStorageBackpackContentsMessage;
-import net.p3pp3rf1y.sophisticatedbackpacks.network.RequestLinkedStorageBackpackContentsMessage;
-import net.p3pp3rf1y.sophisticatedbackpacks.network.SBPPacketHandler;
 import net.p3pp3rf1y.sophisticatedcore.linkedstorage.LinkedStorageEndpointData;
 import net.p3pp3rf1y.sophisticatedcore.linkedstorage.LinkedStorageEndpointStackState;
 import net.p3pp3rf1y.sophisticatedcore.linkedstorage.LinkedStorageStackData;
@@ -68,13 +64,7 @@ final class SophisticatedLinkedStorageCompat326
          * Always request a complete snapshot because Sophisticated clears its
          * client linked-storage cache when leaving a world.
          */
-        SBPPacketHandler.INSTANCE
-                .sendToServer(
-                        new RequestLinkedStorageBackpackContentsMessage(
-                                groupId,
-                                -1L
-                        )
-                );
+        SophisticatedLinkedStorageCompatNetwork.request(groupId, -1L);
     }
 
     @Override
@@ -95,17 +85,11 @@ final class SophisticatedLinkedStorageCompat326
          * behavior.
          */
         long knownRevision =
-                ClientLinkedStorageBackpackContents
+                SophisticatedLinkedStorageCompatNetwork
                         .getRevision(groupId)
                         .orElse(-1L);
 
-        SBPPacketHandler.INSTANCE
-                .sendToServer(
-                        new RequestLinkedStorageBackpackContentsMessage(
-                                groupId,
-                                knownRevision
-                        )
-                );
+        SophisticatedLinkedStorageCompatNetwork.request(groupId, knownRevision);
     }
 
     @Override
@@ -118,14 +102,6 @@ final class SophisticatedLinkedStorageCompat326
             return;
         }
 
-        SBPPacketHandler.INSTANCE
-                .sendToClient(
-                        player,
-                        LinkedStorageBackpackContentsMessage
-                                .createSnapshot(
-                                        player.serverLevel(),
-                                        groupId
-                                )
-                );
+        SophisticatedLinkedStorageCompatNetwork.sendSnapshot(player.serverLevel(), player, groupId);
     }
 }

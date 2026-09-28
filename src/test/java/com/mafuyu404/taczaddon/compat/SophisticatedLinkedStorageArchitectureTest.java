@@ -90,7 +90,7 @@ class SophisticatedLinkedStorageArchitectureTest {
         assertTrue(ordinary.contains("newRequestBackpackInventoryContentsMessage(uuid)"));
         assertFalse(ordinary.contains("requestSnapshot"));
         String impl = source("SophisticatedLinkedStorageCompat326");
-        assertTrue(impl.replaceAll("\\s+", "").contains("newRequestLinkedStorageBackpackContentsMessage(groupId,-1L)"));
+        assertTrue(impl.contains("SophisticatedLinkedStorageCompatNetwork.request(groupId,-1L)"));
         assertTrue(impl.contains("endpoint==null||endpoint.groupId()==null"));
         assertTrue(impl.contains("EndpointResolution.malformedLinked()"));
     }
@@ -171,7 +171,7 @@ class SophisticatedLinkedStorageArchitectureTest {
         assertTrue(mutation.indexOf("return;") < mutation.indexOf("wrapper.getContentsUuid()"));
         assertTrue(mutation.contains("newBackpackContentsMessage("));
         assertTrue(source("SophisticatedLinkedStorageCompat326").contains(
-                "LinkedStorageBackpackContentsMessage.createSnapshot(player.serverLevel(),groupId)"));
+                "SophisticatedLinkedStorageCompatNetwork.sendSnapshot(player.serverLevel(),player,groupId)"));
         String freshness = method(inner, "private static InventoryHandler getFreshInventoryHandler(");
         assertTrue(freshness.contains("resolve(wrapper.getBackpack())"));
         assertTrue(method(freshness, "if (linked.linked())").contains("returnhandler;"));
@@ -184,16 +184,16 @@ class SophisticatedLinkedStorageArchitectureTest {
     void metadataAndMixinMatchJava17Forge1201() throws Exception {
         String props = Files.readString(Path.of("gradle.properties"));
         /*
-         * Authoritative baseline: Minecraft 1.20.1, Forge 47.4.20 with an open
-         * lower bound, loader range [47,), mod version 1.1.8.2. Every build
+         * Authoritative baseline: Minecraft 1.20.1, Forge 47.4.20 with a
+         * supported range [47.3.19,), loader range [47,48), mod version 1.1.8.2. Every build
          * artifact derives from these single declarations, so the test pins the
          * declared constants and checks that mods.toml and the archive name
          * consume them rather than restating a second copy that can drift.
          */
         String forgeVersion = "47.4.20";
         String minecraftRange = "[1.20.1]";
-        String forgeRange = "[" + forgeVersion + ",)";
-        String loaderRange = "[47,)";
+        String forgeRange = "[47.3.19,)";
+        String loaderRange = "[47,48)";
         String modVersion = "1.1.8.2";
         for (String declaration : new String[] {
                 "minecraft_version=1.20.1",
@@ -209,8 +209,8 @@ class SophisticatedLinkedStorageArchitectureTest {
          * Guard against silently weakening this test: the declarations must
          * still be the pinned baseline, not arbitrary values.
          */
-        assertFalse(props.contains("forge_version_range=[47.3.19,)"));
-        assertFalse(props.contains("loader_version_range=[47,48)"));
+        assertFalse(props.contains("forge_version_range=[47.4.20,)"));
+        assertFalse(props.contains("loader_version_range=[47,)"));
         String mods = Files.readString(Path.of("src/main/resources/META-INF/mods.toml"));
         assertTrue(mods.contains("versionRange=\"[1.1.8-hotfix]\""));
         assertTrue(mods.contains("versionRange=\"${forge_version_range}\""));

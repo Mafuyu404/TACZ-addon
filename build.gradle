@@ -201,7 +201,7 @@ def compatibilityFixtureSpecs = [
 
         [
                 group      : "sophisticated",
-                generation : "3.26.current",
+                generation : "3.26.3",
                 kind       : "backpacks",
                 version    : "3.26.3.2157",
                 artifact   :
@@ -209,11 +209,28 @@ def compatibilityFixtureSpecs = [
         ],
         [
                 group      : "sophisticated",
-                generation : "3.26.current",
+                generation : "3.26.3",
                 kind       : "core",
                 version    : "1.5.1.2335",
                 artifact   :
                         "curse.maven:sophisticated-core-618298:8839328"
+        ],
+
+        [
+                group      : "sophisticated",
+                generation : "3.26.current",
+                kind       : "backpacks",
+                version    : "3.26.4.2172",
+                artifact   :
+                        "curse.maven:sophisticated-backpacks-422301:8992941"
+        ],
+        [
+                group      : "sophisticated",
+                generation : "3.26.current",
+                kind       : "core",
+                version    : "1.5.2.2346",
+                artifact   :
+                        "curse.maven:sophisticated-core-618298:8985880"
         ],
 
         // ---------------- Shoulder Surfing generations
@@ -437,8 +454,8 @@ dependencies {
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
     /*
-    * Compile/test baseline: Sophisticated Backpacks 3.26.0.2119 +
-    * Sophisticated Core 1.5.0.2316.
+    * Compile/test baseline: Sophisticated Backpacks 3.26.4.2172 +
+    * Sophisticated Core 1.5.2.2346.
     *
     * Runtime metadata deliberately remains loader-tolerant for optional
     * dependency versions. Functional support is determined by structural
@@ -449,10 +466,8 @@ dependencies {
     * linked-storage generation, whose APIs must remain behind the lazy
     * optional bridge.
     */
-    compileOnly fg.deobf("curse.maven:sophisticated-core-618298:8815743")
-    runtimeOnly fg.deobf("curse.maven:sophisticated-core-618298:8815743")
-    compileOnly fg.deobf("curse.maven:sophisticated-backpacks-422301:8817428")
-    runtimeOnly fg.deobf("curse.maven:sophisticated-backpacks-422301:8817428")
+    implementation fg.deobf("curse.maven:sophisticated-core-618298:8985880")
+    implementation fg.deobf("curse.maven:sophisticated-backpacks-422301:8992941")
     runtimeOnly fg.deobf("curse.maven:sophisticated-storage-619320:8719374")
 
 

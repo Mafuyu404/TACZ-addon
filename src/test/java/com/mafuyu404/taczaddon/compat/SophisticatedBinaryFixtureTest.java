@@ -84,6 +84,11 @@ class SophisticatedBinaryFixtureTest {
             ),
             new Fixture(
                     "3.26.3.2157",
+                    "3.26.3",
+                    SophisticatedBackpackGeneration.LINKED_STORAGE
+            ),
+            new Fixture(
+                    "3.26.4.2172",
                     "3.26.current",
                     SophisticatedBackpackGeneration.LINKED_STORAGE
             )
@@ -254,6 +259,13 @@ class SophisticatedBinaryFixtureTest {
 
         if (fixture.expected()
                 == SophisticatedBackpackGeneration.LINKED_STORAGE) {
+            assertEquals(
+                    fixture.generation().equals("3.26.current")
+                            ? SophisticatedLinkedStorageCompatNetwork.Protocol.CORE
+                            : SophisticatedLinkedStorageCompatNetwork.Protocol.BACKPACKS,
+                    SophisticatedLinkedStorageCompatNetwork.Protocol.detect(source),
+                    "The complete reflected network contract must match " + fixture.label()
+            );
             Set<String> backendAbsentClasses = new TreeSet<>();
             Map<String, Set<String>> backendAbsentMembers =
                     new TreeMap<>();
