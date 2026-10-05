@@ -39,6 +39,7 @@ class UpstreamAbiFixtureTest {
                 new String[] {"shouldersurfing", "legacy", "shouldersurfing"},
                 new String[] {"shouldersurfing", "v5", "shouldersurfing"},
                 new String[] {"shouldersurfing", "v5.current", "shouldersurfing"},
+                new String[] {"shouldersurfing", "v5.previous", "shouldersurfing"},
                 new String[] {"leawind", "2", "leawind"},
                 new String[] {"leawind", "3", "leawind"},
                 new String[] {"perspectiveapi", "1.5.0", "perspectiveapi"}
@@ -133,7 +134,7 @@ class UpstreamAbiFixtureTest {
         assertEquals(
                 ShoulderSurfingGeneration.API_V5,
                 ShoulderSurfingGeneration.detect(true, source),
-                "5.1.1 must remain in the verified v5 API generation"
+                "5.2.0 must remain in the verified v5 API generation"
         );
 
         assertEquals(
@@ -142,8 +143,18 @@ class UpstreamAbiFixtureTest {
                         ShoulderSurfingGeneration.detect(true, source),
                         false
                 ),
-                "5.1.1 must use the addon v5 backend"
+                "5.2.0 must use the addon v5 backend"
         );
+    }
+
+    @Test
+    void shoulderSurfingPreviousBaselineStillUsesV5Backend() {
+        var source = jarSource(CompatibilityFixtures.jar(
+                "shouldersurfing", "v5.previous", "shouldersurfing"));
+        assertEquals(ShoulderSurfingGeneration.API_V5,
+                ShoulderSurfingGeneration.detect(true, source));
+        assertEquals(ShoulderSurfingDispatch.USE_ADDON_V5,
+                ShoulderSurfingDispatch.resolve(ShoulderSurfingGeneration.detect(true, source), false));
     }
 
     private static Path shouldersurfingLegacy() {

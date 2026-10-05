@@ -1,6 +1,7 @@
 package com.mafuyu404.taczaddon.common;
 
 import com.mafuyu404.taczaddon.init.CommonConfig;
+import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
 import com.mafuyu404.taczaddon.init.crafting.CraftingItemSource;
 import com.mafuyu404.taczaddon.init.crafting.CraftingSourceKey;
 import com.mafuyu404.taczaddon.init.crafting.NearbyInventorySourceResolver;
@@ -9,7 +10,6 @@ import com.mojang.logging.LogUtils;
 import com.tacz.guns.api.item.IAttachment;
 import com.tacz.guns.api.item.IGun;
 import com.tacz.guns.api.item.attachment.AttachmentType;
-import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
@@ -20,9 +20,8 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Server-side refit source layer. It uses the same generic nearby-container
- * scanner as Gunsmith crafting, but returns only physical attachment
- * candidates with enough identity for a later authoritative install.
+ * Server-side carried-backpack and generic nearby-container attachment sources.
+ * Candidates retain enough identity for a later authoritative install.
  */
 public final class RefitSourceResolver {
     public static final int MAX_EXTERNAL_CANDIDATES = 256;
@@ -35,17 +34,18 @@ public final class RefitSourceResolver {
     public static List<CraftingItemSource> resolveExternalSources(
             ServerPlayer player
     ) {
-        if (!CommonConfig.enableNearbyContainerSources()) {
-            return List.of();
+        ArrayList<CraftingItemSource> sources = new ArrayList<>();
+        try {
+            sources.addAll(SophisticatedBackpacksCompat.resolveRefitSources(player));
+        } catch (RuntimeException | LinkageError failure) {
+            LOGGER.warn("Skipping unavailable carried backpack sources", failure);
         }
-
-        BlockPos anchor = player.blockPosition();
-        return NearbyInventorySourceResolver.resolve(
-                player,
-                anchor,
-                CommonConfig.getNearbyContainerScanRadius(),
-                1
-        );
+        if (CommonConfig.enableNearbyContainerSources()) {
+            sources.addAll(NearbyInventorySourceResolver.resolveGeneric(
+                    player, player.blockPosition(),
+                    CommonConfig.getNearbyContainerScanRadius(), 1));
+        }
+        return List.copyOf(sources);
     }
 
     public static List<RefitExternalCandidate> resolveExternalCandidates(
@@ -99,8 +99,8 @@ public final class RefitSourceResolver {
             return;
         }
 
-        if (!(source.key()
-                instanceof CraftingSourceKey.BlockEntity blockKey)) {
+        if (!(source.key() instanceof CraftingSourceKey.BlockEntity)
+                && !(source.key() instanceof CraftingSourceKey.Backpack)) {
             return;
         }
 
@@ -130,10 +130,7 @@ public final class RefitSourceResolver {
             candidates.add(new RefitExternalCandidate(
                     attachmentId,
                     type,
-                    RefitSourceLocator.fromBlockSource(
-                            blockKey,
-                            slot
-                    ),
+                    new RefitSourceLocator(source.key(), slot),
                     stack.copy()
             ));
         }
@@ -144,10 +141,7 @@ public final class RefitSourceResolver {
             RefitSourceLocator locator
     ) {
         for (CraftingItemSource source : sources) {
-            if (source.key()
-                    instanceof CraftingSourceKey.BlockEntity blockKey
-                    && blockKey.dimension().equals(locator.dimension())
-                    && blockKey.pos().equals(locator.pos())) {
+            if (source.key().equals(locator.sourceKey())) {
                 return Optional.of(source);
             }
         }

@@ -1,6 +1,9 @@
 package com.mafuyu404.taczaddon.compat;
 
 import com.mojang.logging.LogUtils;
+import com.mafuyu404.taczaddon.init.crafting.BackpackItemSource;
+import com.mafuyu404.taczaddon.init.crafting.CraftingItemSource;
+import com.mafuyu404.taczaddon.init.crafting.CraftingSourceKey;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -29,6 +32,46 @@ public final class SophisticatedBackpacksCompatInner {
             new AtomicBoolean();
 
     private SophisticatedBackpacksCompatInner() {
+    }
+
+    /** Only enumerate currently carried, interactable backpacks; never look up arbitrary UUIDs. */
+    public static List<CraftingItemSource> resolveRefitSources(ServerPlayer player) {
+        List<CraftingItemSource> sources = new ArrayList<>();
+        Set<UUID> seenContents = new HashSet<>();
+        PlayerInventoryProvider.get().runOnBackpacks(player, (backpack, handlerName, identifier, slot) -> {
+            try {
+                BackpackContext.Item context = new BackpackContext.Item(handlerName, identifier, slot);
+                if (!context.canInteractWith(player)) return false;
+                IBackpackWrapper wrapper = context.getBackpackWrapper(player);
+                if (wrapper == IBackpackWrapper.Noop.INSTANCE || !accessFor(wrapper).mutationAllowed()) {
+                    return false;
+                }
+                UUID contentsId = wrapper.getContentsUuid().orElse(null);
+                if (contentsId == null || !seenContents.add(contentsId)) return false;
+                InventoryHandler handler = wrapper.getInventoryHandler();
+                ItemStack expectedBackpack = wrapper.getBackpack();
+                CraftingSourceKey.Backpack key = new CraftingSourceKey.Backpack(
+                        player.getUUID(), handlerName, identifier, slot, contentsId);
+                sources.add(new BackpackItemSource(key, handler, () -> {
+                    if (!context.canInteractWith(player)) return false;
+                    IBackpackWrapper current = context.getBackpackWrapper(player);
+                    return current != IBackpackWrapper.Noop.INSTANCE
+                            && current.getBackpack() == expectedBackpack
+                            && current.getContentsUuid().filter(contentsId::equals).isPresent()
+                            && accessFor(current).mutationAllowed();
+                }, () -> {
+                    handler.saveInventory();
+                    player.getInventory().setChanged();
+                }, () -> {
+                    syncBackpackContents(player, wrapper);
+                    player.containerMenu.broadcastChanges();
+                }));
+            } catch (RuntimeException failure) {
+                LOGGER.warn("Skipping inaccessible refit backpack", failure);
+            }
+            return false;
+        });
+        return List.copyOf(sources);
     }
 
     public static boolean visitInventoryBackpacks(

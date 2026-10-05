@@ -16,6 +16,7 @@ class OptionalCompatibilityIsolationTest {
     private static final String PACKAGE = "com.mafuyu404.taczaddon.compat.";
     private static final List<String> OPTIONAL_PACKAGES = List.of(
             "com.solr98.beyondintegration.",
+            "net.fxnt.fxntstorage.", "com.simibubi.create.",
             "mezz.jei.", "top.theillusivec4.curios.", "net.p3pp3rf1y.sophisticated",
             "com.github.exopandora.shouldersurfing.", "io.github.leawind.perspectiveapi.");
 
@@ -67,7 +68,7 @@ class OptionalCompatibilityIsolationTest {
         };
         for (String name : List.of("CuriosCompat", "JeiCompat", "ShoulderSurfing5Compat",
                 "PerspectiveApiCompat", "SophisticatedBackpacksCompat", "SophisticatedStorageClientCompat",
-                "BeyondIntegrationCompat", "BeyondAmmoClientCompat")) {
+                "BeyondIntegrationCompat", "BeyondAmmoClientCompat", "SophisticatedBlockStorageCompat", "CreateStorageCompat")) {
             Class<?> facade = Class.forName(PACKAGE + name, true, loader);
             for (var method : facade.getDeclaredMethods()) {
                 if (java.lang.reflect.Modifier.isPublic(method.getModifiers())) {
@@ -104,7 +105,7 @@ class OptionalCompatibilityIsolationTest {
             }
             assertTrue(dependency.contains("ordering=\"AFTER\""), dependency);
         }
-        assertEquals(7, optionalCount);
+        assertEquals(8, optionalCount);
         /*
          * Loader tolerance is not a support claim: the runtime capability
          * gates decide what is actually usable, and the metadata comment has to

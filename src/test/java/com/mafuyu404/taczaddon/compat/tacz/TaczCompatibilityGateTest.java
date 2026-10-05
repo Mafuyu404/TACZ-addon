@@ -21,6 +21,14 @@ class TaczCompatibilityGateTest {
     void versionProfileIsExact() {
         assertEquals(
                 TaczCompatibilityProfile.TACZ_1_1_8_HOTFIX,
+                TaczVersionReader.profileForVersion("1.1.8-hotfix2")
+        );
+        assertEquals(
+                TaczCompatibilityProfile.UNKNOWN,
+                TaczVersionReader.profileForVersion("1.1.8-hotfix3")
+        );
+        assertEquals(
+                TaczCompatibilityProfile.TACZ_1_1_8_HOTFIX,
                 TaczVersionReader.profileForVersion("1.1.8-hotfix")
         );
         assertEquals(

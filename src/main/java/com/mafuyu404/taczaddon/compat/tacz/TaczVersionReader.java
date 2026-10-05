@@ -13,13 +13,16 @@ final class TaczVersionReader {
             "com/tacz/guns/api/item/IGun.class";
     private static final String EXPECTED_VERSION =
             "1.1.8-hotfix";
+    private static final String HOTFIX2_VERSION = "1.1.8-hotfix2";
 
     private TaczVersionReader() {
     }
 
     static TaczCompatibilityProfile profileForVersion(String version) {
         if (version != null
-                && EXPECTED_VERSION.equalsIgnoreCase(version.trim())) {
+                && (EXPECTED_VERSION.equalsIgnoreCase(version.trim())
+                || HOTFIX2_VERSION.equalsIgnoreCase(version.trim()))) {
+            // Both published jars expose the same version-bound Mixin contracts.
             return TaczCompatibilityProfile.TACZ_1_1_8_HOTFIX;
         }
         return TaczCompatibilityProfile.UNKNOWN;

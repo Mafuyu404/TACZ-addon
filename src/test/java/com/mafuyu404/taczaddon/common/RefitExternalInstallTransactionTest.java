@@ -2,6 +2,8 @@ package com.mafuyu404.taczaddon.common;
 
 import com.mafuyu404.taczaddon.init.crafting.CraftingItemSource;
 import com.mafuyu404.taczaddon.init.crafting.CraftingSourceKey;
+import com.mafuyu404.taczaddon.init.crafting.BackpackItemSource;
+import net.minecraftforge.items.ItemStackHandler;
 import com.mafuyu404.taczaddon.testutil.MinecraftTestBootstrap;
 import com.tacz.guns.api.item.IAttachment;
 import com.tacz.guns.api.item.attachment.AttachmentType;
@@ -16,6 +18,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -26,6 +31,77 @@ import static org.junit.jupiter.api.Assertions.*;
  * compensation logic under test is the production code.
  */
 class RefitExternalInstallTransactionTest {
+    @Test
+    void backpackInstallAndCompensationConserveAttachments() {
+        for (boolean failGun : new boolean[] {false, true}) {
+            ItemStackHandler handler = new ItemStackHandler(1);
+            handler.setStackInSlot(0, attachmentStack().copyWithCount(2));
+            AtomicInteger savedCount = new AtomicInteger(-1);
+            var source = new BackpackItemSource(
+                    new CraftingSourceKey.Backpack(UUID.randomUUID(), "main", "", 3, UUID.randomUUID()),
+                    handler, () -> true,
+                    () -> savedCount.set(handler.getStackInSlot(0).getCount()), () -> {});
+            FakeGun gun = new FakeGun();
+            gun.failAfterInstalling = failGun;
+            var result = RefitExternalInstallTransaction.execute(source, 0, ATTACHMENT_ID,
+                    ATTACHMENT_TYPE, new FakeHost(gun, source));
+            source.markChanged();
+            assertEquals(failGun ? RefitExternalInstallTransaction.Outcome.MUTATION_FAILED_COMPENSATED
+                    : RefitExternalInstallTransaction.Outcome.INSTALLED, result.outcome());
+            assertEquals(failGun ? 2 : 1, savedCount.get());
+            assertEquals(2, handler.getStackInSlot(0).getCount() + gun.installed.size());
+        }
+    }
+
+    @Test
+    void backpackRemovedBetweenSimulationAndExtractionCannotInstall() {
+        AtomicBoolean available = new AtomicBoolean(true);
+        ItemStackHandler handler = new ItemStackHandler(1) {
+            @Override public ItemStack extractItem(int slot, int amount, boolean simulate) {
+                ItemStack result = super.extractItem(slot, amount, simulate);
+                if (simulate) available.set(false);
+                return result;
+            }
+        };
+        handler.setStackInSlot(0, attachmentStack());
+        var source = new BackpackItemSource(
+                new CraftingSourceKey.Backpack(UUID.randomUUID(), "main", "", 3, UUID.randomUUID()),
+                handler, available::get, () -> {}, () -> {});
+        FakeGun gun = new FakeGun();
+        var result = RefitExternalInstallTransaction.execute(source, 0, ATTACHMENT_ID,
+                ATTACHMENT_TYPE, new FakeHost(gun, source));
+        assertFalse(result.succeeded());
+        assertEquals(1, handler.getStackInSlot(0).getCount());
+        assertTrue(gun.installed.isEmpty());
+    }
+
+    @Test
+    void failingBackpackExtractionPersistsCapturedBackendWithoutInventingRefund() {
+        AtomicBoolean available = new AtomicBoolean(true);
+        AtomicInteger saves = new AtomicInteger();
+        ItemStackHandler handler = new ItemStackHandler(1) {
+            @Override public ItemStack extractItem(int slot, int amount, boolean simulate) {
+                ItemStack result = super.extractItem(slot, amount, simulate);
+                if (!simulate) {
+                    available.set(false);
+                    throw new IllegalStateException("backend failed after extraction");
+                }
+                return result;
+            }
+        };
+        handler.setStackInSlot(0, attachmentStack().copyWithCount(2));
+        var source = new BackpackItemSource(
+                new CraftingSourceKey.Backpack(UUID.randomUUID(), "main", "", 3, UUID.randomUUID()),
+                handler, available::get, saves::incrementAndGet, () -> {});
+        FakeGun gun = new FakeGun();
+        var result = RefitExternalInstallTransaction.execute(source, 0, ATTACHMENT_ID,
+                ATTACHMENT_TYPE, new FakeHost(gun, source));
+        source.markChanged();
+        assertEquals(RefitExternalInstallTransaction.Outcome.MUTATION_FAILED_UNKNOWN, result.outcome());
+        assertEquals(1, handler.getStackInSlot(0).getCount());
+        assertEquals(1, saves.get());
+        assertTrue(gun.installed.isEmpty());
+    }
     private static final ResourceLocation ATTACHMENT_ID =
             ResourceLocation.tryBuild("taczaddon_test", "fake_scope");
     private static final AttachmentType ATTACHMENT_TYPE =
@@ -627,13 +703,13 @@ class RefitExternalInstallTransactionTest {
     private static final class FakeHost
             implements RefitExternalInstallTransaction.Host {
         private final FakeGun gun;
-        private final FakeSource source;
+        private final CraftingItemSource source;
         private ItemStack snapshot = ItemStack.EMPTY;
         private boolean restoreSucceeds = true;
         private boolean sourceReturnSucceeds = true;
         private int restoreAttempts;
 
-        private FakeHost(FakeGun gun, FakeSource source) {
+        private FakeHost(FakeGun gun, CraftingItemSource source) {
             this.gun = gun;
             this.source = source;
         }

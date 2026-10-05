@@ -2,6 +2,7 @@ package com.mafuyu404.taczaddon.event;
 
 import com.mafuyu404.taczaddon.TACZaddon;
 import com.mafuyu404.taczaddon.client.GunRefitScreenAccess;
+import com.mafuyu404.taczaddon.compat.CreateStorageCompat;
 import com.mafuyu404.taczaddon.compat.CuriosCompat;
 import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
 import com.mafuyu404.taczaddon.compat.SophisticatedStorageClientCompat;
@@ -362,6 +363,14 @@ public final class ClientEvent {
 
     private static void rebuildBackpackHudInventory(Player player) {
         ArrayList<ItemStack> combined = new ArrayList<>();
+
+        CreateStorageCompat.visitBackpacks(player, handler -> {
+            for (int slot = 0; slot < handler.getSlots(); slot++) {
+                ItemStack stack = handler.getStackInSlot(slot);
+                if (!stack.isEmpty()) combined.add(stack.copy());
+            }
+            return false;
+        });
 
         SophisticatedBackpacksCompat.visitInventoryBackpacks(
                 player,

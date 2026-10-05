@@ -11,11 +11,28 @@ import net.minecraft.world.level.Level;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RefitSourceResolverTest {
+    @Test
+    void staleOrForeignBackpackLocatorCannotResolveAnotherSource() {
+        UUID owner = UUID.randomUUID();
+        UUID contents = UUID.randomUUID();
+        var key = new CraftingSourceKey.Backpack(owner, "main", "", 4, contents);
+        var source = fakeSource(key, new ItemStack(Items.IRON_INGOT));
+        var sources = List.of(source);
+        assertSame(source, RefitSourceResolver.findSource(sources, new RefitSourceLocator(key, 0)).orElseThrow());
+        for (var stale : List.of(
+                new CraftingSourceKey.Backpack(owner, "main", "", 5, contents),
+                new CraftingSourceKey.Backpack(owner, "curios", "back", 4, contents),
+                new CraftingSourceKey.Backpack(owner, "main", "", 4, UUID.randomUUID()),
+                new CraftingSourceKey.Backpack(UUID.randomUUID(), "main", "", 4, contents))) {
+            assertTrue(RefitSourceResolver.findSource(sources, new RefitSourceLocator(stale, 0)).isEmpty());
+        }
+    }
     @Test
     void identicalStacksInDifferentSourcesStayIndependent() {
         ItemStack scope = new ItemStack(Items.IRON_INGOT);
@@ -50,13 +67,14 @@ class RefitSourceResolverTest {
             BlockPos pos,
             ItemStack stack
     ) {
+        return fakeSource(new CraftingSourceKey.BlockEntity(Level.OVERWORLD, pos), stack);
+    }
+
+    private static CraftingItemSource fakeSource(CraftingSourceKey key, ItemStack stack) {
         return new CraftingItemSource() {
             @Override
             public CraftingSourceKey key() {
-                return new CraftingSourceKey.BlockEntity(
-                        Level.OVERWORLD,
-                        pos
-                );
+                return key;
             }
 
             @Override

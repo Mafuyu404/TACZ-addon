@@ -1,5 +1,7 @@
 package com.mafuyu404.taczaddon.init.crafting;
 
+import com.mafuyu404.taczaddon.compat.SophisticatedBlockStorageCompat;
+import com.mafuyu404.taczaddon.compat.CreateStorageCompat;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
@@ -13,6 +15,11 @@ import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.server.ServerLifecycleHooks;
 
 import javax.annotation.Nullable;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.BitSet;
+import java.util.Set;
+import java.util.List;
 
 /**
  * A block inventory source with one backend selected for its lifetime.
@@ -41,6 +48,10 @@ public final class ContainerItemSource implements CraftingItemSource {
     private final ResourceKey<Level> dimension;
     private final BlockPos pos;
     private final Backend backend;
+    private final boolean genericOnly;
+    private final UUID linkedStorageGroup;
+    private final CreateStorageCompat.BlockAccess createStorageAccess;
+    private final BitSet excludedSlots = new BitSet();
     @Nullable
     private final BlockEntity expectedBlockEntity;
     @Nullable
@@ -51,6 +62,16 @@ public final class ContainerItemSource implements CraftingItemSource {
     private final Container expectedContainer;
 
     public ContainerItemSource(Level level, BlockPos pos) {
+        this(level, pos, false);
+    }
+
+    /** Refit uses only the standard item capability / vanilla Container contract. */
+    public static ContainerItemSource generic(Level level, BlockPos pos) {
+        return new ContainerItemSource(level, pos, true);
+    }
+
+    private ContainerItemSource(Level level, BlockPos pos, boolean genericOnly) {
+        this.genericOnly = genericOnly;
         this.dimension = level.dimension();
         this.pos = pos.immutable();
         BackendBinding binding = detectBackend(level, this.pos);
@@ -60,6 +81,34 @@ public final class ContainerItemSource implements CraftingItemSource {
                 binding.itemHandlerCapability();
         this.expectedItemHandler = binding.itemHandler();
         this.expectedContainer = binding.container();
+        this.linkedStorageGroup = genericOnly ? null : SophisticatedBlockStorageCompat.groupId(this.expectedBlockEntity);
+        this.createStorageAccess = genericOnly ? null : CreateStorageCompat.bind(this.expectedBlockEntity, this.expectedItemHandler);
+        if (this.createStorageAccess != null) {
+            for (int i = 0; i < this.createStorageAccess.slots().size(); i++) {
+                if (this.createStorageAccess.slots().get(i).slot() < 0) this.excludedSlots.set(i);
+            }
+        }
+    }
+
+    boolean claimPhysicalSlots(Set<CreateStorageCompat.PhysicalSlot> seen) {
+        if (this.createStorageAccess == null) return true;
+        var slots = this.createStorageAccess.slots();
+        this.excludedSlots.or(excludeClaimedSlots(slots, seen));
+        return this.excludedSlots.nextClearBit(0) < slots.size();
+    }
+
+    static BitSet excludeClaimedSlots(List<CreateStorageCompat.PhysicalSlot> slots,
+                                      Set<CreateStorageCompat.PhysicalSlot> seen) {
+        BitSet excluded = new BitSet();
+        for (int i = 0; i < slots.size(); i++) {
+            var slot = slots.get(i);
+            if (slot.slot() < 0 || !seen.add(slot)) excluded.set(i);
+        }
+        return excluded;
+    }
+
+    public UUID linkedStorageGroup() {
+        return this.linkedStorageGroup;
     }
 
     @Override
@@ -98,7 +147,7 @@ public final class ContainerItemSource implements CraftingItemSource {
 
     @Override
     public ItemStack getStackInSlot(int slot) {
-        if (slot < 0) {
+        if (slot < 0 || this.excludedSlots.get(slot)) {
             return ItemStack.EMPTY;
         }
 
@@ -127,7 +176,7 @@ public final class ContainerItemSource implements CraftingItemSource {
             int amount,
             boolean simulate
     ) {
-        if (slot < 0 || amount <= 0) {
+        if (slot < 0 || amount <= 0 || this.excludedSlots.get(slot)) {
             return ItemStack.EMPTY;
         }
 
@@ -174,7 +223,7 @@ public final class ContainerItemSource implements CraftingItemSource {
             return ItemStack.EMPTY;
         }
 
-        if (slot < 0) {
+        if (slot < 0 || this.excludedSlots.get(slot)) {
             return stack.copy();
         }
 
@@ -424,7 +473,10 @@ public final class ContainerItemSource implements CraftingItemSource {
             BlockEntity currentBlockEntity,
             Object currentBackend
     ) {
-        return sameBackendIdentity(
+        return (this.createStorageAccess == null || this.createStorageAccess.valid().getAsBoolean())
+                && (this.genericOnly || Objects.equals(this.linkedStorageGroup,
+                SophisticatedBlockStorageCompat.groupId(currentBlockEntity)))
+                && sameBackendIdentity(
                 this.expectedBlockEntity,
                 expectedBackend(),
                 currentBlockEntity,

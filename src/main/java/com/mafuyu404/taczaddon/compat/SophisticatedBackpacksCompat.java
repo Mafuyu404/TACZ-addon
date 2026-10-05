@@ -9,6 +9,8 @@ import org.slf4j.Logger;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
+import java.util.List;
+import com.mafuyu404.taczaddon.init.crafting.CraftingItemSource;
 
 /**
  * Optional Sophisticated Backpacks facade.
@@ -74,6 +76,18 @@ public final class SophisticatedBackpacksCompat {
         } catch (LinkageError linkageError) {
             breakLinkage(linkageError);
             return false;
+        }
+    }
+
+    public static List<CraftingItemSource> resolveRefitSources(ServerPlayer player) {
+        if (!isUsable() || player == null) {
+            return List.of();
+        }
+        try {
+            return SophisticatedBackpacksCompatInner.resolveRefitSources(player);
+        } catch (LinkageError linkageError) {
+            breakLinkage(linkageError);
+            return List.of();
         }
     }
 

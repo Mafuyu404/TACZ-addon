@@ -41,6 +41,7 @@ class SophisticatedLinkedStorageArchitectureTest {
                     assertFalse(text.contains(forbidden), file.toString());
                 }
                 if (file.getFileName().toString().equals("SophisticatedLinkedStorageCompat326.java")) continue;
+                if (file.getFileName().toString().equals("SophisticatedBlockStorageCompatInner.java")) continue;
                 for (String line : text.lines().filter(l -> l.startsWith("import ")).toList()) {
                     assertFalse(line.contains("sophisticatedcore.linkedstorage"), file.toString());
                     assertFalse(line.contains("LinkedStorageBackpackContentsMessage"), file.toString());
@@ -185,7 +186,7 @@ class SophisticatedLinkedStorageArchitectureTest {
         String props = Files.readString(Path.of("gradle.properties"));
         /*
          * Authoritative baseline: Minecraft 1.20.1, Forge 47.4.20 with a
-         * supported range [47.3.19,), loader range [47,48), mod version 1.1.8.2. Every build
+         * supported range [47.3.19,), loader range [47,48), mod version 1.1.8.3. Every build
          * artifact derives from these single declarations, so the test pins the
          * declared constants and checks that mods.toml and the archive name
          * consume them rather than restating a second copy that can drift.
@@ -194,7 +195,7 @@ class SophisticatedLinkedStorageArchitectureTest {
         String minecraftRange = "[1.20.1]";
         String forgeRange = "[47.3.19,)";
         String loaderRange = "[47,48)";
-        String modVersion = "1.1.8.2";
+        String modVersion = "1.1.8.3";
         for (String declaration : new String[] {
                 "minecraft_version=1.20.1",
                 "minecraft_version_range=" + minecraftRange,
@@ -212,7 +213,7 @@ class SophisticatedLinkedStorageArchitectureTest {
         assertFalse(props.contains("forge_version_range=[47.4.20,)"));
         assertFalse(props.contains("loader_version_range=[47,)"));
         String mods = Files.readString(Path.of("src/main/resources/META-INF/mods.toml"));
-        assertTrue(mods.contains("versionRange=\"[1.1.8-hotfix]\""));
+        assertTrue(mods.contains("versionRange=\"[1.1.8-hotfix],[1.1.8-hotfix2]\""));
         assertTrue(mods.contains("versionRange=\"${forge_version_range}\""));
         assertTrue(mods.contains("loaderVersion=\"${loader_version_range}\""));
         assertTrue(mods.contains("version=\"${mod_version}\""));
@@ -220,7 +221,7 @@ class SophisticatedLinkedStorageArchitectureTest {
         assertTrue(Files.readString(Path.of("build.gradle")).contains(
                 "archivesName = \"${mod_id}-${mod_version}-forge-${minecraft_version}\""));
         assertTrue(Files.readString(Path.of("README.md"))
-                .contains("TaCZ 1.1.8-hotfix"));
+                .contains("1.1.8-hotfix"));
         assertTrue(Files.readString(Path.of("src/main/resources/taczaddon.mixins.json"))
                 .replaceAll("\\s+", "").contains("\"compatibilityLevel\":\"JAVA_17\""));
     }

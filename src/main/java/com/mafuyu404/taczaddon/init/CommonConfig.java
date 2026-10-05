@@ -32,7 +32,8 @@ public final class CommonConfig {
                         "nearby loaded block inventories. When false, player",
                         "inventory sources remain available but nearby block",
                         "sources are disabled for both gunsmith crafting and",
-                        "the refit external candidate list."
+                        "the refit external candidate list. Carried Sophisticated",
+                        "Backpacks remain available for refitting."
                 )
                 .define("enableContainerReader", true);
 

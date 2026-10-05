@@ -26,7 +26,7 @@ public final class NetworkHandler {
      * formats changed, so the protocol changed again while every packet ID
      * stayed in place.
      */
-    private static final String PROTOCOL = "2.11";
+    private static final String PROTOCOL = "2.12";
 
     private static final int ID_PRIMITIVE_RESERVED = 0;
     private static final int ID_SWITCH_GUN = 1;

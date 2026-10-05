@@ -7,9 +7,15 @@ import java.util.UUID;
 
 public sealed interface CraftingSourceKey
         permits CraftingSourceKey.PlayerInventory,
-                CraftingSourceKey.BlockEntity {
+                CraftingSourceKey.BlockEntity,
+                CraftingSourceKey.Backpack {
 
     String type();
+
+    record Backpack(UUID playerId, String handlerName, String identifier,
+                    int inventorySlot, UUID contentsId) implements CraftingSourceKey {
+        @Override public String type() { return "backpack"; }
+    }
 
     record PlayerInventory(UUID playerId) implements CraftingSourceKey {
         @Override public String type() { return "player"; }

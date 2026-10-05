@@ -67,6 +67,8 @@ class SophisticatedBinaryFixtureTest {
      * declared by the corresponding Sophisticated Backpacks jar.
      */
     private static final List<Fixture> FIXTURES_BY_GENERATION = List.of(
+            new Fixture("3.26.4.2172", "3.26.4",
+                    SophisticatedBackpackGeneration.LINKED_STORAGE),
             new Fixture(
                     "3.24.18.1488",
                     "3.24.18",
@@ -88,7 +90,7 @@ class SophisticatedBinaryFixtureTest {
                     SophisticatedBackpackGeneration.LINKED_STORAGE
             ),
             new Fixture(
-                    "3.26.4.2172",
+                    "3.26.6.2176",
                     "3.26.current",
                     SophisticatedBackpackGeneration.LINKED_STORAGE
             )
@@ -209,6 +211,9 @@ class SophisticatedBinaryFixtureTest {
                 fixture.core()
         );
         JarApi source = new JarApi(jars);
+        assertEquals(fixture.expected() == SophisticatedBackpackGeneration.LINKED_STORAGE,
+                SophisticatedBlockStorageCompat.matches(source),
+                "Block endpoint bridge must recognize actual historical Core APIs");
 
         assertEquals(
                 fixture.expected(),
@@ -260,7 +265,8 @@ class SophisticatedBinaryFixtureTest {
         if (fixture.expected()
                 == SophisticatedBackpackGeneration.LINKED_STORAGE) {
             assertEquals(
-                    fixture.generation().equals("3.26.current")
+                    (fixture.generation().equals("3.26.current")
+                            || fixture.generation().equals("3.26.4"))
                             ? SophisticatedLinkedStorageCompatNetwork.Protocol.CORE
                             : SophisticatedLinkedStorageCompatNetwork.Protocol.BACKPACKS,
                     SophisticatedLinkedStorageCompatNetwork.Protocol.detect(source),
@@ -274,6 +280,10 @@ class SophisticatedBinaryFixtureTest {
                     source,
                     backendAbsentClasses,
                     backendAbsentMembers
+            );
+            verifyClass(
+                    "com/mafuyu404/taczaddon/compat/SophisticatedBlockStorageCompatInner.class",
+                    source, backendAbsentClasses, backendAbsentMembers
             );
             assertEquals(
                     Collections.emptySet(),

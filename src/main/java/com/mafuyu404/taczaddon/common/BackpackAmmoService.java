@@ -2,6 +2,7 @@ package com.mafuyu404.taczaddon.common;
 
 import com.mafuyu404.taczaddon.common.AmmoConsumptionOrchestrator.ConsumptionOutcome;
 import com.mafuyu404.taczaddon.compat.CuriosCompat;
+import com.mafuyu404.taczaddon.compat.CreateStorageCompat;
 import com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat;
 import com.mafuyu404.taczaddon.init.VirtualInventory;
 import com.mojang.logging.LogUtils;
@@ -45,6 +46,10 @@ public final class BackpackAmmoService {
                         )
                 );
         if (foundInBackpack) {
+            return true;
+        }
+
+        if (CreateStorageCompat.visitBackpacks(player, backpack -> containsCompatibleAmmo(backpack, gunStack))) {
             return true;
         }
 
@@ -111,7 +116,7 @@ public final class BackpackAmmoService {
     }
 
     /**
-     * Consumes supplemental ammo from the player's Sophisticated Backpacks.
+     * Consumes supplemental ammo from Sophisticated Backpacks, then Create Storage backpacks.
      *
      * <p>The confirmed amount is recorded as soon as one slot has been
      * extracted, so a later slot failure never erases earlier progress. A
@@ -123,8 +128,7 @@ public final class BackpackAmmoService {
             ItemStack gunStack,
             int requested
     ) {
-        if (!SophisticatedBackpacksCompat.isUsable()
-                || player == null
+        if (player == null
                 || gunStack == null
                 || gunStack.isEmpty()
                 || requested <= 0) {
@@ -134,8 +138,11 @@ public final class BackpackAmmoService {
         return consumeThroughHandlers(
                 requested,
                 gunStack,
-                visitor -> SophisticatedBackpacksCompat
-                        .mutateInventoryBackpacks(player, visitor)
+                visitor -> {
+                    if (!SophisticatedBackpacksCompat.mutateInventoryBackpacks(player, visitor)) {
+                        CreateStorageCompat.mutateBackpacks(player, visitor);
+                    }
+                }
         );
     }
 
@@ -276,6 +283,13 @@ public final class BackpackAmmoService {
             @Nullable IItemHandler vanillaHandler
     ) {
         ArrayList<ItemStack> allItems = new ArrayList<>();
+        CreateStorageCompat.visitBackpacks(player, backpack -> {
+            for (int slot = 0; slot < backpack.getSlots(); slot++) {
+                ItemStack stack = backpack.getStackInSlot(slot);
+                if (!stack.isEmpty()) allItems.add(stack.copy());
+            }
+            return false;
+        });
         SophisticatedBackpacksCompat.visitInventoryBackpacks(
                 player,
                 handler -> {
@@ -463,19 +477,26 @@ public final class BackpackAmmoService {
                         gunStack,
                         stack
                 )) {
-                    ItemStack extracted =
-                            handler.extractItem(
-                                    slot,
-                                    remaining,
-                                    false
-                            );
+                    // Oversized storage stacks may only yield one normal stack
+                    // per call. Keep draining this slot while it supplies ammo.
+                    while (true) {
+                        ItemStack extracted = handler.extractItem(slot, remaining, false);
+                        if (extracted == null || extracted.isEmpty()) {
+                            break;
+                        }
+                        consumed += clampConsumed(remaining, extracted.getCount());
+                        remaining = requested - consumed;
+                        if (remaining <= 0) {
+                            break;
+                        }
 
-                    if (extracted != null
-                            && !extracted.isEmpty()) {
-                        consumed += clampConsumed(
-                                remaining,
-                                extracted.getCount()
-                        );
+                        // A handler may replace its stack during extraction.
+                        stack = handler.getStackInSlot(slot);
+                        if (stack == null || stack.isEmpty()
+                                || !(stack.getItem() instanceof IAmmo nextAmmo)
+                                || !nextAmmo.isAmmoOfGun(gunStack, stack)) {
+                            break;
+                        }
                     }
 
                     continue;

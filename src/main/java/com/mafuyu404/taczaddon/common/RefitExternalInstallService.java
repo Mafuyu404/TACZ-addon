@@ -1,6 +1,5 @@
 package com.mafuyu404.taczaddon.common;
 
-import com.mafuyu404.taczaddon.init.CommonConfig;
 import com.mafuyu404.taczaddon.init.crafting.CraftingItemSource;
 import com.mafuyu404.taczaddon.init.crafting.PlayerInventorySource;
 import com.mafuyu404.taczaddon.init.crafting.RefitSourceLocator;
@@ -23,7 +22,7 @@ import java.util.Optional;
  * Authoritative external-source attachment install.
  *
  * The client locator is only a hint. Every request re-resolves the currently
- * legal nearby source set from the server player position and verifies the
+ * legal carried/nearby source set from the server player and verifies the
  * exact physical slot before any item is touched.
  */
 public final class RefitExternalInstallService {
@@ -40,8 +39,7 @@ public final class RefitExternalInstallService {
             return;
         }
 
-        if (!CommonConfig.enableNearbyContainerSources()
-                || LiberateAttachmentService.isEnabled(player)) {
+        if (LiberateAttachmentService.isEnabled(player)) {
             reject(player);
             return;
         }
@@ -144,6 +142,9 @@ public final class RefitExternalInstallService {
                 );
 
         if (!result.succeeded()) {
+            // Even an extraction that throws may have changed a backpack. Persist
+            // the captured source without retrying extraction or inventing a refund.
+            synchronize(player, source);
             logOutcome(player, source, locator.slot(), result);
             reject(player);
             return;

@@ -9,6 +9,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.items.ItemStackHandler;
+import net.minecraftforge.items.wrapper.RangedWrapper;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeAll;
@@ -67,6 +69,89 @@ class BackpackAmmoServiceTest {
 
         assertEquals(12, consumed);
         assertEquals(0, handler.stacks.get(0).getCount());
+    }
+
+    @Test
+    void oversizedSlotFillsRequestAndPersistsRemainder() {
+        // Create Storage uses this Forge handler through a ranged view. Each
+        // extraction is capped at the item's normal maximum stack size.
+        ItemStackHandler inventory = new ItemStackHandler(1);
+        inventory.setStackInSlot(0, new ItemStack(COMPATIBLE_AMMO, 180));
+        IItemHandler handler = new RangedWrapper(inventory, 0, 1);
+
+        assertEquals(150, BackpackAmmoService.extractCompatibleAmmoDirectly(
+                handler, new ItemStack(Items.STONE), 150));
+        ItemStackHandler reloaded = new ItemStackHandler(1);
+        reloaded.deserializeNBT(inventory.serializeNBT());
+        assertEquals(30, reloaded.getStackInSlot(0).getCount());
+    }
+
+    @Test
+    void emptyExtractionStopsRetryingSlotAndContinuesToNextSlot() {
+        int[] calls = {0};
+        ItemStackHandler handler = new ItemStackHandler(2) {
+            @Override
+            public ItemStack extractItem(int slot, int amount, boolean simulate) {
+                if (slot == 0 && ++calls[0] > 1) {
+                    assertEquals(2, calls[0], "Must not retry a blocked slot");
+                    return ItemStack.EMPTY;
+                }
+                return super.extractItem(slot, amount, simulate);
+            }
+        };
+        handler.setStackInSlot(0, new ItemStack(COMPATIBLE_AMMO, 240));
+        handler.setStackInSlot(1, new ItemStack(COMPATIBLE_AMMO, 100));
+
+        assertEquals(150, BackpackAmmoService.extractCompatibleAmmoDirectly(
+                handler, new ItemStack(Items.STONE), 150));
+        assertEquals(2, calls[0]);
+        assertEquals(176, handler.getStackInSlot(0).getCount());
+        assertEquals(14, handler.getStackInSlot(1).getCount());
+    }
+
+    @Test
+    void retryRechecksCompatibilityAfterStackReplacement() {
+        ItemStackHandler handler = new ItemStackHandler(1) {
+            @Override
+            public ItemStack extractItem(int slot, int amount, boolean simulate) {
+                assertSame(COMPATIBLE_AMMO, getStackInSlot(slot).getItem());
+                ItemStack result = super.extractItem(slot, amount, simulate);
+                setStackInSlot(slot, new ItemStack(INCOMPATIBLE_AMMO, 100));
+                return result;
+            }
+        };
+        handler.setStackInSlot(0, new ItemStack(COMPATIBLE_AMMO, 240));
+
+        assertEquals(64, BackpackAmmoService.extractCompatibleAmmoDirectly(
+                handler, new ItemStack(Items.STONE), 150));
+        assertEquals(100, handler.getStackInSlot(0).getCount());
+    }
+
+    @Test
+    void failedRetryPreservesConfirmedRoundsAndStopsTraversal() {
+        for (boolean linkageFailure : new boolean[]{false, true}) {
+            int[] calls = {0};
+            ItemStackHandler handler = new ItemStackHandler(1) {
+                @Override
+                public ItemStack extractItem(int slot, int amount, boolean simulate) {
+                    if (++calls[0] == 2) {
+                        if (linkageFailure) throw new NoSuchMethodError("retry failed");
+                        throw new IllegalStateException("retry failed");
+                    }
+                    return super.extractItem(slot, amount, simulate);
+                }
+            };
+            handler.setStackInSlot(0, new ItemStack(COMPATIBLE_AMMO, 240));
+
+            var outcome = BackpackAmmoService.consumeThroughHandlers(
+                    150, new ItemStack(Items.STONE), visitor -> {
+                        visitor.test(handler);
+                        fail("Must stop traversal after a failed extraction");
+                    });
+            assertEquals(64, outcome.consumed());
+            assertEquals(AmmoConsumptionOrchestrator.Status.STOPPED_UNKNOWN, outcome.status());
+            assertEquals(176, handler.getStackInSlot(0).getCount());
+        }
     }
 
     @Test

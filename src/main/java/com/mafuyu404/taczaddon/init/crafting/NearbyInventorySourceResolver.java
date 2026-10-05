@@ -1,6 +1,7 @@
 package com.mafuyu404.taczaddon.init.crafting;
 
 import com.mojang.logging.LogUtils;
+import com.mafuyu404.taczaddon.compat.CreateStorageCompat;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
@@ -28,6 +29,19 @@ public final class NearbyInventorySourceResolver {
             int horizontalRadius,
             int verticalRadius
     ) {
+        return resolve(player, anchor, horizontalRadius, verticalRadius, false);
+    }
+
+    public static List<CraftingItemSource> resolveGeneric(
+            ServerPlayer player, BlockPos anchor, int horizontalRadius, int verticalRadius
+    ) {
+        return resolve(player, anchor, horizontalRadius, verticalRadius, true);
+    }
+
+    private static List<CraftingItemSource> resolve(
+            ServerPlayer player, BlockPos anchor, int horizontalRadius,
+            int verticalRadius, boolean genericOnly
+    ) {
         Level level = player.level();
         BlockPos origin = anchor.immutable();
         int horizontal = Math.max(0, horizontalRadius);
@@ -51,28 +65,25 @@ public final class NearbyInventorySourceResolver {
         positions.sort(Comparator.comparingLong(BlockPos::asLong));
 
         ArrayList<CraftingItemSource> sources = new ArrayList<>();
-        LinkedHashSet<CraftingSourceKey> sourceKeys =
-                new LinkedHashSet<>();
-        Set<Object> backendIdentities =
-                Collections.newSetFromMap(new IdentityHashMap<>());
+        SourceIdentities identities = new SourceIdentities();
+        Set<CreateStorageCompat.PhysicalSlot> physicalSlots = new HashSet<>();
 
         for (BlockPos pos : positions) {
-            if (pos.equals(origin) || !level.isLoaded(pos)) {
+            if ((!genericOnly && pos.equals(origin)) || !level.isLoaded(pos)) {
                 continue;
             }
 
             try {
                 ContainerItemSource source =
-                        new ContainerItemSource(level, pos);
+                        genericOnly ? ContainerItemSource.generic(level, pos)
+                                : new ContainerItemSource(level, pos);
                 if (!source.hasUsableBackend()
-                        || !sourceKeys.add(source.key())
-                        || !backendIdentities.add(
-                        source.backendIdentity()
-                )) {
+                        || !identities.add(source.key(), source.backendIdentity(),
+                        source.linkedStorageGroup())) {
                     continue;
                 }
 
-                sources.add(source);
+                if (genericOnly || source.claimPhysicalSlots(physicalSlots)) sources.add(source);
             } catch (RuntimeException | LinkageError failure) {
                 LOGGER.warn(
                         "Skipping unreadable or binary-incompatible "
@@ -84,6 +95,22 @@ public final class NearbyInventorySourceResolver {
         }
 
         return List.copyOf(sources);
+    }
+
+    static final class SourceIdentities {
+        private final Set<CraftingSourceKey> keys = new HashSet<>();
+        private final Set<Object> backends = Collections.newSetFromMap(new IdentityHashMap<>());
+        private final Set<UUID> linkedGroups = new HashSet<>();
+
+        boolean add(CraftingSourceKey key, Object backend, UUID group) {
+            // Linked barrels/chests can expose distinct filtered handlers for one inventory.
+            if (keys.contains(key) || backends.contains(backend)
+                    || (group != null && linkedGroups.contains(group))) return false;
+            keys.add(key);
+            backends.add(backend);
+            if (group != null) linkedGroups.add(group);
+            return true;
+        }
     }
 
     /**

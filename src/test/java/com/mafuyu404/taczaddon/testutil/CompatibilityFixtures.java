@@ -114,7 +114,7 @@ public final class CompatibilityFixtures {
         if (metadata != null) {
             for (String line : metadata.split("\\R")) {
                 String trimmed = line.trim();
-                if (!trimmed.startsWith("version")) {
+                if (!trimmed.matches("version\\s*=.*")) {
                     continue;
                 }
                 int equals = trimmed.indexOf('=');

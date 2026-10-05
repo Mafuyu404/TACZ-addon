@@ -347,11 +347,10 @@ class GunSmithVanillaCraftingPathTest {
 
         assertTrue(networkHandler.contains("ID_ATTACHMENT_DETAIL_RULE_STATE = 13"));
         /*
-     * 2.10 appends the server-owned fast swap policy to the feature config
-         * payload and 2.11 extends the gunsmith source packet formats; every
-         * existing packet ID above stays unchanged.
+         * 2.12 adds carried-backpack identities to refit locators; every
+         * existing packet ID stays unchanged.
          */
-        assertTrue(networkHandler.contains("PROTOCOL = \"2.11\""));
+        assertTrue(networkHandler.contains("PROTOCOL = \"2.12\""));
         assertPacketId(networkHandler, "ID_SWITCH_GUN", 1);
         assertPacketId(networkHandler, "ID_AMMO_BOX_COLLECT", 2);
         assertPacketId(networkHandler, "ID_SERVER_FEATURE_CONFIG", 3);

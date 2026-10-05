@@ -29,11 +29,11 @@ ordering="NONE"
 side="BOTH"
 
 # Hard dependency. Current version-bound TaCZ contracts are validated exactly
-# against TaCZ 1.1.8-hotfix (Curse file 8141310).
+# against TaCZ 1.1.8-hotfix and 1.1.8-hotfix2 (same adapter contracts).
 [[dependencies.${mod_id}]]
 modId="tacz"
 mandatory=true
-versionRange="[1.1.8-hotfix]"
+versionRange="[1.1.8-hotfix],[1.1.8-hotfix2]"
 ordering="AFTER"
 side="BOTH"
 
@@ -48,6 +48,14 @@ side="BOTH"
 #   - unknown/unverified generations disable only that integration. They are
 #     neither supported nor assumed to be equivalent to a known one.
 # See the compatibility report in README.md for the verified generations.
+
+# Optional compatibility: Create Storage (Create is its own required dependency)
+[[dependencies.${mod_id}]]
+modId="fxntstorage"
+mandatory=false
+versionRange="[0,)"
+ordering="AFTER"
+side="BOTH"
 
 # Optional compatibility: Sophisticated Core
 [[dependencies.${mod_id}]]

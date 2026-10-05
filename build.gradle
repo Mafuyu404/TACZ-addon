@@ -59,6 +59,8 @@ minecraft {
             property 'mixin.debug.verbose', 'true'
             property 'mixin.debug.countInjections', 'true'
             property 'mixin.checks.interfaces', 'true'
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
         }
 
         client {
@@ -93,6 +95,18 @@ mixin {
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 repositories {
+    maven {
+        url = 'https://maven.createmod.net'
+        content {
+            includeGroup 'com.simibubi.create'
+            includeGroup 'net.createmod.ponder'
+            includeGroup 'dev.engine-room.flywheel'
+        }
+    }
+    maven {
+        url = 'https://maven.ithundxr.dev/mirror'
+        content { includeGroup 'com.tterrag.registrate' }
+    }
     maven {
         name = "Curse Maven"
         url = "https://cursemaven.com"
@@ -144,6 +158,22 @@ def allowMissingCompatibilityFixtures =
  * fixture is an explicit compatibility decision and should change this table.
  */
 def compatibilityFixtureSpecs = [
+        [group: "createstorage", generation: "1.2.7", kind: "storage",
+         version: "1.2.7", artifact: "curse.maven:create-storage-neo-forge-1281770:8712044"],
+        [group: "sophisticated", generation: "3.26.4", kind: "backpacks",
+         version: "3.26.4.2172", artifact: "curse.maven:sophisticated-backpacks-422301:8992941"],
+        [group: "sophisticated", generation: "3.26.4", kind: "core",
+         version: "1.5.2.2346", artifact: "curse.maven:sophisticated-core-618298:8985880"],
+        [group: "sophisticated", generation: "storage.previous", kind: "storage",
+         version: "1.4.86.2131", artifact: "curse.maven:sophisticated-storage-619320:8719374"],
+        [group: "shouldersurfing", generation: "v5.previous", kind: "shouldersurfing",
+         version: "5.1.1", artifact: "curse.maven:shoulder-surfing-reloaded-243190:8950312"],
+        [group: "tacz", generation: "hotfix", kind: "tacz",
+         version: "1.1.8-hotfix", artifact: "curse.maven:timeless-and-classics-zero-1028108:8141310"],
+        [group: "tacz", generation: "hotfix2", kind: "tacz",
+         version: "1.1.8-hotfix2", artifact: "maven.modrinth:SzzJttH8:AzCBJlex"],
+        [group: "sophisticated", generation: "storage.current", kind: "storage",
+         version: "1.5.0.2137", artifact: "maven.modrinth:hMlaZH8f:kR1FSEuq"],
         // ---------------- Sophisticated 3.24 ordinary-only generations
 
         [
@@ -220,17 +250,17 @@ def compatibilityFixtureSpecs = [
                 group      : "sophisticated",
                 generation : "3.26.current",
                 kind       : "backpacks",
-                version    : "3.26.4.2172",
+                version    : "3.26.6.2176",
                 artifact   :
-                        "curse.maven:sophisticated-backpacks-422301:8992941"
+                        "maven.modrinth:TyCTlI4b:1umN9rSN"
         ],
         [
                 group      : "sophisticated",
                 generation : "3.26.current",
                 kind       : "core",
-                version    : "1.5.2.2346",
+                version    : "1.5.4.2362",
                 artifact   :
-                        "curse.maven:sophisticated-core-618298:8985880"
+                        "maven.modrinth:nmoqTijg:XQog8w6A"
         ],
 
         // ---------------- Shoulder Surfing generations
@@ -255,9 +285,9 @@ def compatibilityFixtureSpecs = [
                 group      : "shouldersurfing",
                 generation : "v5.current",
                 kind       : "shouldersurfing",
-                version    : "5.1.1",
+                version    : "5.2.0",
                 artifact   :
-                        "curse.maven:shoulder-surfing-reloaded-243190:8950312"
+                        "maven.modrinth:kepjj2sy:mswaiBSo"
         ],
 
         // ---------------- Leawind generations
@@ -454,8 +484,8 @@ dependencies {
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
     /*
-    * Compile/test baseline: Sophisticated Backpacks 3.26.4.2172 +
-    * Sophisticated Core 1.5.2.2346.
+    * Compile/test baseline: Sophisticated Backpacks 3.26.6.2176 +
+    * Sophisticated Core 1.5.4.2362.
     *
     * Runtime metadata deliberately remains loader-tolerant for optional
     * dependency versions. Functional support is determined by structural
@@ -466,14 +496,22 @@ dependencies {
     * linked-storage generation, whose APIs must remain behind the lazy
     * optional bridge.
     */
-    implementation fg.deobf("curse.maven:sophisticated-core-618298:8985880")
-    implementation fg.deobf("curse.maven:sophisticated-backpacks-422301:8992941")
-    runtimeOnly fg.deobf("curse.maven:sophisticated-storage-619320:8719374")
+    implementation fg.deobf("maven.modrinth:nmoqTijg:XQog8w6A")
+    implementation fg.deobf("maven.modrinth:TyCTlI4b:1umN9rSN")
+    runtimeOnly fg.deobf("maven.modrinth:hMlaZH8f:kR1FSEuq")
 
 
-    implementation fg.deobf("curse.maven:timeless-and-classics-zero-1028108:8141310")
+    implementation fg.deobf("maven.modrinth:SzzJttH8:AzCBJlex")
+    implementation fg.deobf("curse.maven:create-storage-neo-forge-1281770:8712044")
+    // Create Storage requires Create 6.0.7+. Release-equivalent development artifacts.
+    implementation(fg.deobf("com.simibubi.create:create-1.20.1:6.0.8-289:slim") { transitive = false })
+    implementation fg.deobf("net.createmod.ponder:Ponder-Forge-1.20.1:1.0.91")
+    implementation fg.deobf("com.tterrag.registrate:Registrate:MC1.20-1.3.3")
+    compileOnly fg.deobf("dev.engine-room.flywheel:flywheel-forge-api-1.20.1:1.0.5")
+    runtimeOnly fg.deobf("dev.engine-room.flywheel:flywheel-forge-1.20.1:1.0.5")
+    implementation "io.github.llamalad7:mixinextras-forge:0.4.1"
 
-    implementation fg.deobf("curse.maven:shoulder-surfing-reloaded-243190:8950312")
+    implementation fg.deobf("maven.modrinth:kepjj2sy:mswaiBSo")
     implementation fg.deobf("curse.maven:leawind-third-person-930880:8602826")
     compileOnly fg.deobf("maven.modrinth:LIqveQm1:1.5.0-beta+forge-1.20.1")
     runtimeOnly fg.deobf("maven.modrinth:LIqveQm1:1.5.0-beta+forge-1.20.1")
@@ -482,17 +520,17 @@ dependencies {
     implementation fg.deobf("curse.maven:rhino-416294:6186971")
     implementation fg.deobf("curse.maven:architectury-api-419699:5137938")
 
-    implementation fg.deobf("curse.maven:jei-238222:8964933")
+    implementation fg.deobf("maven.modrinth:u6dRKJwZ:uyTkeINn")
 
     implementation fg.deobf("curse.maven:curios-309927:6418456")
 
     implementation fg.deobf("curse.maven:kiwi-303657:8322142")
 
-    implementation fg.deobf("curse.maven:beyond-dimensions-1222890:8588447")
-    implementation fg.deobf("curse.maven:beyond-integration-1557405:8668459")
+    implementation fg.deobf("maven.modrinth:6zGxpbt7:XXnCAMBQ")
+    implementation fg.deobf("curse.maven:beyond-integration-1557405:8868599")
 
-    compileOnly fg.deobf("curse.maven:accelerated-rendering-1314021:8179092")
-    runtimeOnly fg.deobf("curse.maven:just-enough-characters-250702:8117466")
+    compileOnly fg.deobf("curse.maven:accelerated-rendering-1314021:8448250")
+    runtimeOnly fg.deobf("curse.maven:just-enough-characters-250702:8771525")
 
     compileOnly 'org.ow2.asm:asm-tree:9.9.1'
     testImplementation 'org.ow2.asm:asm-tree:9.9.1'
