@@ -127,6 +127,8 @@ public final class RefitSourceResolver {
                 continue;
             }
 
+            if (extractableStack(source, slot).isEmpty()) continue;
+
             candidates.add(new RefitExternalCandidate(
                     attachmentId,
                     type,
@@ -146,6 +148,15 @@ public final class RefitSourceResolver {
             }
         }
         return Optional.empty();
+    }
+
+    /** Visible templates and output-blocked slots are not installable attachments. */
+    static ItemStack extractableStack(CraftingItemSource source, int slot) {
+        ItemStack visible = source.getStackInSlot(slot);
+        if (visible.isEmpty()) return ItemStack.EMPTY;
+        ItemStack extracted = source.extractItem(slot, 1, true);
+        return extracted.getCount() == 1 && ItemStack.isSameItemSameTags(visible, extracted)
+                ? visible : ItemStack.EMPTY;
     }
 
     public record RefitExternalCandidate(

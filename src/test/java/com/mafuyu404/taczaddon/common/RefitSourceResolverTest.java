@@ -17,6 +17,28 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RefitSourceResolverTest {
+    @org.junit.jupiter.api.BeforeAll
+    static void bootstrap() throws Exception {
+        com.mafuyu404.taczaddon.testutil.MinecraftTestBootstrap.prepare();
+    }
+
+    @Test
+    void visibleButUnextractableTemplatesAreNotCandidates() {
+        var source = fakeSource(BlockPos.ZERO, new ItemStack(Items.IRON_INGOT));
+        assertTrue(RefitSourceResolver.extractableStack(source, 0).isEmpty());
+    }
+
+    @Test
+    void candidateProbeDoesNotConsumeTheRealBackpackStack() {
+        var handler = new net.minecraftforge.items.ItemStackHandler(1);
+        handler.setStackInSlot(0, new ItemStack(Items.IRON_INGOT, 3));
+        var source = new com.mafuyu404.taczaddon.init.crafting.BackpackItemSource(
+                new CraftingSourceKey.Backpack(UUID.randomUUID(), "main", "", 0, UUID.randomUUID()),
+                handler, () -> true, () -> {}, () -> {});
+        org.junit.jupiter.api.Assertions.assertEquals(3, RefitSourceResolver.extractableStack(source, 0).getCount());
+        org.junit.jupiter.api.Assertions.assertEquals(3, handler.getStackInSlot(0).getCount());
+    }
+
     @Test
     void staleOrForeignBackpackLocatorCannotResolveAnotherSource() {
         UUID owner = UUID.randomUUID();
