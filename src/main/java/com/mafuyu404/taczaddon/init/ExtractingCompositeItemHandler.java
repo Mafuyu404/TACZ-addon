@@ -53,11 +53,33 @@ public class ExtractingCompositeItemHandler
             return ItemStack.EMPTY;
         }
 
-        return source.handler().extractItem(
-                source.slot(),
-                amount,
-                simulate
-        );
+        if (simulate) {
+            return source.handler().extractItem(source.slot(), amount, true);
+        }
+
+        // TaCZ visits each slot once, but upgraded storage may cap each extraction
+        // to a normal stack. Drain the requested amount without crossing into a
+        // replacement item or changing the ammo-box working-copy transaction.
+        ItemStack expected = source.handler().getStackInSlot(source.slot()).copy();
+        ItemStack result = ItemStack.EMPTY;
+        int remaining = amount;
+        while (remaining > 0 && !expected.isEmpty()) {
+            ItemStack current = source.handler().getStackInSlot(source.slot());
+            if (!ItemStack.isSameItemSameComponents(expected, current)) {
+                break;
+            }
+            ItemStack extracted = source.handler().extractItem(source.slot(), remaining, false);
+            if (extracted.isEmpty()) {
+                break;
+            }
+            if (result.isEmpty()) {
+                result = extracted.copy();
+            } else {
+                result.grow(extracted.getCount());
+            }
+            remaining -= extracted.getCount();
+        }
+        return result;
     }
 
     public void commitChanges() {

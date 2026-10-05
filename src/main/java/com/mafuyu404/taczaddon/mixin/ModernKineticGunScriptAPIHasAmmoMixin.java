@@ -30,6 +30,8 @@ public class ModernKineticGunScriptAPIHasAmmoMixin {
         ReadOnlyCompositeItemHandler.Builder builder = ReadOnlyCompositeItemHandler.builder();
         SophisticatedBackpacksCompat.forEachInventoryBackpackHandler(player, handler -> builder.addHandler(handler, "inventory_backpack"));
 
+        com.mafuyu404.taczaddon.compat.CreateStorageCompat.visitBackpacks(player, backpack -> { builder.addHandler(backpack, "create_backpack"); return false; });
+
         IItemHandler handler = instance.getCapability(Capabilities.ItemHandler.ENTITY, null);
         if (handler != null) {
             builder.addHandler(handler, "player_inventory");

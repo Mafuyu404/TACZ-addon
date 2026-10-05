@@ -12,7 +12,7 @@ public final class ShootWhileReloadService {
     }
     public static boolean hasLoadedAmmo(ItemStack stack) {
         IGun gun = IGun.getIGunOrNull(stack);
-        return gun != null && TimelessAPI.getCommonGunIndex(gun.getGunId(stack))
+        return gun != null && !gun.useInventoryAmmo(stack) && TimelessAPI.getCommonGunIndex(gun.getGunId(stack))
                 .map(index -> hasLoadedAmmo(gun.getCurrentAmmoCount(stack), gun.hasBulletInBarrel(stack), index.getGunData().getBolt()))
                 .orElse(false);
     }

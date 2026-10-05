@@ -45,8 +45,7 @@ public final class ShootWhenReload {
     public static boolean canInterruptForImmediateShot(
             LocalPlayer player
     ) {
-        if (!Config.enableShootWhileReloading()
-                || !ClientSyncedConfig.enableShootWhileReloading()) {
+        if (!ClientSyncedConfig.enableShootWhileReloading()) {
             return false;
         }
 
@@ -77,7 +76,7 @@ public final class ShootWhenReload {
         IGun gun =
                 IGun.getIGunOrNull(gunStack);
 
-        if (gun == null) {
+        if (gun == null || gun.useInventoryAmmo(gunStack)) {
             return false;
         }
 

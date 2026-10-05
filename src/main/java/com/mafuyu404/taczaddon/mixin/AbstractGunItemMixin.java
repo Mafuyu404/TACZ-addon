@@ -15,7 +15,8 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 
 @Mixin(value = AbstractGunItem.class, remap = false)
 public class AbstractGunItemMixin {
-    @Redirect(method = "canReload", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;getCapability(Lnet/neoforged/neoforge/capabilities/EntityCapability;Ljava/lang/Object;)Ljava/lang/Object;"))
+    // Inventory-feed guns query hasInventoryAmmo before firing instead of canReload.
+    @Redirect(method = {"canReload", "hasInventoryAmmo"}, at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;getCapability(Lnet/neoforged/neoforge/capabilities/EntityCapability;Ljava/lang/Object;)Ljava/lang/Object;"), require = 2)
     private Object taczaddon$checkBackpackAmmos(LivingEntity instance, EntityCapability<IItemHandler, ?> capability, Object context) {
         if (!(instance instanceof Player player) || capability != Capabilities.ItemHandler.ENTITY) {
             return instance.getCapability(Capabilities.ItemHandler.ENTITY, null);
@@ -23,6 +24,8 @@ public class AbstractGunItemMixin {
 
         ReadOnlyCompositeItemHandler.Builder builder = ReadOnlyCompositeItemHandler.builder();
         SophisticatedBackpacksCompat.forEachInventoryBackpackHandler(player, handler -> builder.addHandler(handler, "inventory_backpack"));
+
+        com.mafuyu404.taczaddon.compat.CreateStorageCompat.visitBackpacks(player, handler -> { builder.addHandler(handler, "create_backpack"); return false; });
 
         IItemHandler playerHandler = player.getCapability(Capabilities.ItemHandler.ENTITY, null);
         if (playerHandler != null) {

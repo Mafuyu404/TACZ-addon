@@ -4,13 +4,18 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.p3pp3rf1y.sophisticatedbackpacks.network.RequestBackpackInventoryContentsPayload;
-import net.p3pp3rf1y.sophisticatedbackpacks.network.RequestLinkedStorageBackpackContentsPayload;
+import net.p3pp3rf1y.sophisticatedcore.linkedstorage.RequestLinkedStorageContentsPayload;
 import org.junit.jupiter.api.Test;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** Exercises the production per-pass router with a recording native-payload sender. */
 class SophisticatedClientSyncRequestsTest {
+    @Test void currentCorePayloadAndClientSyncContractAreAvailable() {
+        assertEquals("sophisticatedcore", new RequestLinkedStorageContentsPayload(new UUID(0, 1), -1L)
+                .type().id().getNamespace());
+        assertTrue(new SophisticatedBackpacksIntegrationImpl().probeClientSync());
+    }
     private static final UUID A = new UUID(0, 1);
     private final List<CustomPacketPayload> sent = new ArrayList<>();
     private final List<ItemStack> registered = new ArrayList<>();
@@ -34,9 +39,9 @@ class SophisticatedClientSyncRequestsTest {
             assertFalse(requests.request(true, A, ItemStack.EMPTY));
         }
         assertEquals(List.of(new RequestBackpackInventoryContentsPayload(A),
-                new RequestLinkedStorageBackpackContentsPayload(A, -1L),
+                new RequestLinkedStorageContentsPayload(A, -1L),
                 new RequestBackpackInventoryContentsPayload(A),
-                new RequestLinkedStorageBackpackContentsPayload(A, -1L)), sent);
+                new RequestLinkedStorageContentsPayload(A, -1L)), sent);
     }
     @Test void ordinaryBackpackRequestsOnlyNormalContents() {
         ItemStack stack = new ItemStack(Items.LEATHER);
@@ -54,14 +59,14 @@ class SophisticatedClientSyncRequestsTest {
     }
     @Test void linkedEndpointRequestsOnlyLinkedContents() {
         assertFalse(pass().request(true, A, ItemStack.EMPTY));
-        assertEquals(List.of(new RequestLinkedStorageBackpackContentsPayload(A, -1L)), sent);
+        assertEquals(List.of(new RequestLinkedStorageContentsPayload(A, -1L)), sent);
         assertTrue(registered.isEmpty());
     }
     @Test void duplicateLinkedGroupRequestsOnce() {
         var pass = pass();
         assertFalse(pass.request(true, A, ItemStack.EMPTY));
         assertFalse(pass.request(true, A, ItemStack.EMPTY));
-        assertEquals(List.of(new RequestLinkedStorageBackpackContentsPayload(A, -1L)), sent);
+        assertEquals(List.of(new RequestLinkedStorageContentsPayload(A, -1L)), sent);
         assertTrue(registered.isEmpty());
     }
     @Test void equalUuidsRemainIndependentNamespaces() {
@@ -69,7 +74,7 @@ class SophisticatedClientSyncRequestsTest {
         assertFalse(pass.request(false, A, ItemStack.EMPTY));
         assertFalse(pass.request(true, A, ItemStack.EMPTY));
         assertEquals(List.of(new RequestBackpackInventoryContentsPayload(A),
-                new RequestLinkedStorageBackpackContentsPayload(A, -1L)), sent);
+                new RequestLinkedStorageContentsPayload(A, -1L)), sent);
     }
     @Test void missingEndpointDataSkipsStackAndContinuesEnumeration() {
         var pass = pass();
@@ -82,7 +87,7 @@ class SophisticatedClientSyncRequestsTest {
     @Test void subsequentWorldBootstrapRequestsFreshFullSnapshot() {
         assertFalse(pass().request(true, A, ItemStack.EMPTY));
         assertFalse(pass().request(true, A, ItemStack.EMPTY));
-        assertEquals(List.of(new RequestLinkedStorageBackpackContentsPayload(A, -1L),
-                new RequestLinkedStorageBackpackContentsPayload(A, -1L)), sent);
+        assertEquals(List.of(new RequestLinkedStorageContentsPayload(A, -1L),
+                new RequestLinkedStorageContentsPayload(A, -1L)), sent);
     }
 }

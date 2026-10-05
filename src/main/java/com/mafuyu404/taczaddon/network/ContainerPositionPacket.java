@@ -1,5 +1,6 @@
 package com.mafuyu404.taczaddon.network;
 
+import com.mafuyu404.taczaddon.init.CommonConfig;
 import com.mafuyu404.taczaddon.TACZaddon;
 import com.mafuyu404.taczaddon.init.Config;
 import com.mafuyu404.taczaddon.init.ContainerReaderState;
@@ -67,7 +68,7 @@ public final class ContainerPositionPacket
                 return;
             }
 
-            if (!Config.enableGunSmithTableContainerReader()) {
+            if (!CommonConfig.enableContainerReader()) {
                 return;
             }
 
@@ -115,7 +116,7 @@ public final class ContainerPositionPacket
         List<BlockPos> backpackPositions = new ArrayList<>();
 
         for (var source : com.mafuyu404.taczaddon.init.NearbyInventorySourceResolver.resolve(
-                player, tablePos, Config.getContainerScanRadius(), 1)) {
+                player, tablePos, CommonConfig.getContainerScanRadius(), 1)) {
             try {
                 if (!source.isValid()) continue;
                 List<ItemStack> sourceItems = new ArrayList<>();
@@ -152,7 +153,7 @@ public final class ContainerPositionPacket
      * Call this after the server has consumed crafting ingredients.
      */
     public static void refreshStoredSnapshot(ServerPlayer player) {
-        if (!Config.enableGunSmithTableContainerReader()) {
+        if (!CommonConfig.enableContainerReader()) {
             return;
         }
 

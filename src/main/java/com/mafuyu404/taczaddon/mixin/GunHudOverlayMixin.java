@@ -50,9 +50,15 @@ public abstract class GunHudOverlayMixin {
                         gunStack
                 );
 
+        int[] createAmmo = {0};
+        com.mafuyu404.taczaddon.compat.CreateStorageCompat.visitBackpacks(player, handler -> {
+            createAmmo[0] = (int) Math.min(MAX_AMMO_COUNT, (long) createAmmo[0]
+                    + com.mafuyu404.taczaddon.common.BackpackAmmoService.countAmmo(handler, gunStack));
+            return createAmmo[0] >= MAX_AMMO_COUNT;
+        });
         cacheInventoryAmmoCount = Math.min(
                 MAX_AMMO_COUNT,
-                cacheInventoryAmmoCount + backpackAmmo
+                cacheInventoryAmmoCount + backpackAmmo + createAmmo[0]
         );
     }
 }

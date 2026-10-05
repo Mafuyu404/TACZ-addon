@@ -23,10 +23,27 @@ class GameplayParityArchitectureTest {
         return Files.readString(com.mafuyu404.taczaddon.testutil.SourceTree.path("src/main/java/com/mafuyu404/taczaddon/" + name + ".java"));
     }
     private static int count(String text, String needle) { return text.split(java.util.regex.Pattern.quote(needle), -1).length - 1; }
+    @Test void bothAmmoQueryPathsHaveTheRequiredNeoForgeCapabilityCall() throws Exception {
+        var gun = type("com/tacz/guns/api/item/gun/AbstractGunItem");
+        for (String name : List.of("canReload", "hasInventoryAmmo")) {
+            var query = gun.methods.stream().filter(m -> m.name.equals(name)).findFirst().orElseThrow();
+            long calls = Arrays.stream(query.instructions.toArray()).filter(i -> i instanceof MethodInsnNode call
+                    && call.owner.equals("net/minecraft/world/entity/LivingEntity")
+                    && call.name.equals("getCapability")
+                    && call.desc.equals("(Lnet/neoforged/neoforge/capabilities/EntityCapability;Ljava/lang/Object;)Ljava/lang/Object;")).count();
+            assertEquals(1, calls, name);
+        }
+        // Loading the target also executes Mixin's required-injection validation (both calls).
+        Class<?> target = Class.forName("com.tacz.guns.api.item.gun.AbstractGunItem", false, getClass().getClassLoader());
+        assertTrue(Arrays.stream(target.getDeclaredMethods())
+                .anyMatch(m -> m.getName().contains("taczaddon$checkBackpackAmmos")));
+    }
     @Test void requiredServerMixinsApplyToTheInstalledDependency() throws Exception {
         for (var contract : Map.of(
                 "com.tacz.guns.entity.shooter.LivingEntityShoot", "taczaddon$commitReloadInterruption",
-                "com.tacz.guns.inventory.GunSmithTableMenu", "taczaddon$bridgeCraft"
+                "com.tacz.guns.inventory.GunSmithTableMenu", "taczaddon$bridgeCraft",
+                "com.tacz.guns.item.ModernKineticGunScriptAPI", "taczaddon$consumeBackpackAmmo",
+                "com.tacz.guns.entity.shooter.LivingEntityDrawGun", "modifyDrawTime"
         ).entrySet()) {
             Class<?> target = Class.forName(contract.getKey(), false, getClass().getClassLoader());
             assertTrue(Arrays.stream(target.getDeclaredMethods()).anyMatch(method -> method.getName().contains(contract.getValue())),
@@ -110,19 +127,20 @@ class GameplayParityArchitectureTest {
             assertFalse(source(name).contains("import net.p3pp3rf1y."), name);
         }
     }
-    @Test void externalRefitUsesServerLocatorValidationAndSafeReturnPreflight() throws Exception {
+    @Test void externalRefitUsesServerLocatorValidationAndOverflowReturn() throws Exception {
         String resolver = source("common/RefitSourceResolver");
         assertTrue(resolver.contains("!LiberateAttachment.isLiberated(player)"));
         String service = source("common/RefitExternalInstallService");
         for (String guard : List.of("RefitSourceResolver.canUseSources", "gunSlot != player.getInventory().selected", "locator.dimension()",
-                "inRange", "isLoaded(locator.pos())", "NearbyInventorySourceResolver.resolve", "source.isValid()", "locator.slot() >= handler.getSlots()",
+                "RefitSourceResolver.resolveExternalSources", "sameSource(locator)", "source.isValid()", "locator.slot() >= handler.getSlots()",
                 "expectedId.equals(attachment.getAttachmentId(current))", "expectedType != attachment.getType(current)", "gun.allowAttachment(gunStack, current)")) {
             assertTrue(service.contains(guard), guard);
         }
         String transaction = source("common/AttachmentRefitService");
         transaction = transaction.substring(transaction.indexOf("public static InstallResult installExternal"), transaction.indexOf("public enum UnloadResult"));
-        assertTrue(transaction.indexOf("extraction.simulateOne()") < transaction.indexOf("transaction.canFullyInsert"));
-        assertTrue(transaction.indexOf("transaction.canFullyInsert") < transaction.indexOf("extraction.extractOne()"));
+        assertTrue(transaction.indexOf("extraction.simulateOne()") < transaction.indexOf("extraction.extractOne()"));
+        assertFalse(transaction.contains("transaction.canFullyInsert"));
+        assertTrue(transaction.indexOf("transaction.commitInsert") < transaction.indexOf("addFreshEntity"));
         assertTrue(transaction.contains("extraction.rollback()")); assertTrue(transaction.contains("handleRollbackOutcome"));
         assertTrue(transaction.indexOf("transaction.close();", transaction.indexOf("gun.installAttachment")) < transaction.indexOf("postChange("));
         assertFalse(transaction.contains("player.drop("));

@@ -16,7 +16,8 @@
     "ModernKineticGunScriptAPIHasAmmoMixin",
     "ModernKineticGunScriptAPIMixin",
     "NoCrawlMixin",
-    "SmithingMenuMixin"
+    "SmithingMenuMixin",
+    "LivingEntityDrawGunMixin"
   ],
   "client": [
     "AbstractContainerScreenMixin",
@@ -31,7 +32,6 @@
     "InteractGunSmithTable",
     "InventoryScreenMixin",
     "LeawindAimModeResolverMixin",
-    "LivingEntityDrawGunMixin",
     "LocalPlayerDrawMixin",
     "LocalPlayerReloadMixin",
     "LocalPlayerShootMixin",

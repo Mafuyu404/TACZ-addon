@@ -12,8 +12,8 @@ public final class GunSmithCraftingSources {
             GunSmithCraftingSessionManager.GunSmithCraftingSession session) {
         List<CraftingItemSource> sources = new ArrayList<>();
         sources.add(new PlayerInventorySource(player));
-        if (Config.enableNearbyContainerSources()) {
-            for (var source : NearbyInventorySourceResolver.resolve(player, session.getTablePos(), Config.getContainerScanRadius(), 1)) {
+        if (CommonConfig.enableNearbyContainerSources()) {
+            for (var source : NearbyInventorySourceResolver.resolve(player, session.getTablePos(), CommonConfig.getContainerScanRadius(), 1)) {
                 try {
                     if (source.isValid() && source.handler().getSlots() > 0) sources.add(new NearbySource(player, session, source));
                 } catch (RuntimeException exception) {
@@ -34,8 +34,8 @@ public final class GunSmithCraftingSources {
         public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) { return source.handler().insertItem(slot, stack, simulate); }
         public void restoreSlot(int slot, ItemStack snapshot) { ((IItemHandlerModifiable) source.handler()).setStackInSlot(slot, snapshot.copy()); }
         public boolean isValid(ServerPlayer player) {
-            return owner == player && Config.enableNearbyContainerSources() && session.validate(player, session.getContainerId())
-                    && NearbyInventorySourceResolver.inRange(session.getTablePos(), source.pos(), Config.getContainerScanRadius(), 1)
+            return owner == player && CommonConfig.enableNearbyContainerSources() && session.validate(player, session.getContainerId())
+                    && NearbyInventorySourceResolver.inRange(session.getTablePos(), source.pos(), CommonConfig.getContainerScanRadius(), 1)
                     && source.isValid();
         }
         public void markChanged() { source.markChanged(); }

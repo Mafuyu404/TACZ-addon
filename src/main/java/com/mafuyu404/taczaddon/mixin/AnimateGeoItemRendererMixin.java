@@ -1,6 +1,6 @@
 package com.mafuyu404.taczaddon.mixin;
 
-import com.mafuyu404.taczaddon.init.Config;
+import com.mafuyu404.taczaddon.init.ClientSyncedConfig;
 import com.tacz.guns.api.client.animation.statemachine.LuaAnimationStateMachine;
 import com.tacz.guns.client.animation.statemachine.ItemAnimationStateContext;
 import com.tacz.guns.client.renderer.item.AnimateGeoItemRenderer;
@@ -37,7 +37,7 @@ public abstract class AnimateGeoItemRendererMixin {
             ItemStack stack,
             CallbackInfoReturnable<Long> cir
     ) {
-        if (Config.FAST_SWAP_GUN.get()) {
+        if (ClientSyncedConfig.enableFastSwapGun()) {
             cir.setReturnValue(0L);
         }
     }
@@ -53,7 +53,7 @@ public abstract class AnimateGeoItemRendererMixin {
             ItemStack stack,
             CallbackInfoReturnable<Long> cir
     ) {
-        if (Config.FAST_SWAP_GUN.get()) {
+        if (ClientSyncedConfig.enableFastSwapGun()) {
             cir.setReturnValue(0L);
         }
     }
@@ -67,7 +67,7 @@ public abstract class AnimateGeoItemRendererMixin {
             long putAwayTime,
             CallbackInfo ci
     ) {
-        if (!Config.FAST_SWAP_GUN.get()) {
+        if (!ClientSyncedConfig.enableFastSwapGun()) {
             return;
         }
 

@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Pseudo
 @Mixin(targets = "io.github.leawind.thirdperson.internal.logic.scheduler.aiming.AimModeResolver", remap = false)
 public abstract class LeawindAimModeResolverMixin {
-    @Inject(method = "shouldAim(ZZZ)Z", at = @At("RETURN"), cancellable = true, require = 0, remap = false)
+    @Inject(method = "shouldAim(ZZZ)Z", at = @At("RETURN"), cancellable = true, require = 1, remap = false)
     private static void taczaddon$includeActualAds(boolean manual, boolean smart, boolean automatic,
                                                  CallbackInfoReturnable<Boolean> cir) {
         if (!cir.getReturnValueZ() && BetterAimCamera.isAimActive()) cir.setReturnValue(true);

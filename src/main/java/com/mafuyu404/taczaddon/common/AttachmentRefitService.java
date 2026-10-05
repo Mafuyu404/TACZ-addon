@@ -63,7 +63,7 @@ public final class AttachmentRefitService {
 
     /** Extends the existing ownership model with a reversible nearby source. */
     public static InstallResult installExternal(ServerPlayer player, int gunSlot,
-            com.mafuyu404.taczaddon.init.NearbyInventorySourceResolver.Source source, int sourceSlot,
+            RefitSource source, int sourceSlot,
             ResourceLocation expectedId, AttachmentType expectedType) {
         Inventory inventory = player.getInventory();
         if (!RefitSourceResolver.canUseSources(player) || !isValidGunSlot(inventory, gunSlot) || !source.isValid()
@@ -82,16 +82,15 @@ public final class AttachmentRefitService {
         ItemStack physicalReturn = VirtualAttachmentData.isVirtual(oldAttachment) ? ItemStack.EMPTY : oldAttachment;
         MainInventoryTransaction transaction = MainInventoryTransaction.begin(inventory);
         try {
-            // Capacity failure must precede extraction, even when that would free a source slot.
-            if (!transaction.canFullyInsert(physicalReturn)) {
-                transaction.close();
-                sendNoSpace(player);
-                return InstallResult.NO_SPACE;
-            }
             ItemStack extracted = extraction.extractOne();
             gun.installAttachment(player.registryAccess(), gunStack, extracted);
-            if (!transaction.commitInsert(physicalReturn).isEmpty()) {
-                throw new IllegalStateException("Physical attachment return failed after preflight");
+            ItemStack remainder = transaction.commitInsert(physicalReturn);
+            source.markChanged();
+            if (!remainder.isEmpty()) {
+                var dropped = new net.minecraft.world.entity.item.ItemEntity(player.level(), player.getX(), player.getY(), player.getZ(), remainder);
+                dropped.setDefaultPickUpDelay();
+                dropped.setTarget(player.getUUID());
+                if (!player.level().addFreshEntity(dropped)) throw new IllegalStateException("Attachment drop rejected");
             }
             transaction.close();
         } catch (RuntimeException exception) {
@@ -100,12 +99,11 @@ public final class AttachmentRefitService {
                 extraction.rollback();
                 source.markChanged();
             } catch (RuntimeException recoveryException) {
-                LOGGER.error("CRITICAL: external source rollback failed at {} slot {}", source.pos(), sourceSlot, recoveryException);
+                LOGGER.error("CRITICAL: external source rollback failed at {} slot {}", source.locator(), sourceSlot, recoveryException);
             }
             handleRollbackOutcome(transaction, player, inventory, "external-install", expectedId);
             return InstallResult.INTERNAL_FAILURE;
         }
-        source.markChanged();
         postChange(player, gunStack, expectedType, inventory);
         return InstallResult.SUCCESS;
     }

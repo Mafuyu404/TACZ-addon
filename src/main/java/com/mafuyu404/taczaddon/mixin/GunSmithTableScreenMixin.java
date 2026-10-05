@@ -80,7 +80,7 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
 
     @Unique
     private void taczaddon$requestNearbyContainerSnapshotIfNeeded() {
-        if (!Config.enableGunSmithTableContainerReader() || !ClientSyncedConfig.enableNearbyContainerSources()) {
+        if (!ClientSyncedConfig.enableNearbyContainerSources()) {
             return;
         }
 
@@ -446,7 +446,7 @@ public abstract class GunSmithTableScreenMixin extends AbstractContainerScreen<G
 
     @ModifyVariable(method = "getPlayerIngredientCount", at = @At("STORE"), ordinal = 0)
     private Inventory taczaddon$modifyIngredientShow(Inventory inventory) {
-        if (!Config.enableGunSmithTableContainerReader() || !ClientSyncedConfig.enableNearbyContainerSources()) {
+        if (!ClientSyncedConfig.enableNearbyContainerSources()) {
             return inventory;
         }
 

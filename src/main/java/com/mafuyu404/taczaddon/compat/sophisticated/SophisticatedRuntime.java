@@ -164,6 +164,24 @@ public final class SophisticatedRuntime {
             Supplier<R> fallback,
             Function<SophisticatedBackpacksIntegration, R> operation
     ) {
+        return call(capability, fallback, operation, false);
+    }
+
+    /** An unavailable backend may be skipped, but a started mutation must never be retried. */
+    public <R> R mutate(
+            SophisticatedCapability capability,
+            Supplier<R> fallback,
+            Function<SophisticatedBackpacksIntegration, R> operation
+    ) {
+        return call(capability, fallback, operation, true);
+    }
+
+    private <R> R call(
+            SophisticatedCapability capability,
+            Supplier<R> fallback,
+            Function<SophisticatedBackpacksIntegration, R> operation,
+            boolean mutation
+    ) {
         if (capability == null) {
             throw new IllegalArgumentException("capability must not be null");
         }
@@ -186,9 +204,11 @@ public final class SophisticatedRuntime {
             return operation.apply(requireIntegration());
         } catch (SophisticatedCompatibilityException exception) {
             markBroken(capability, exception);
+            if (mutation) throw exception;
             return fallback.get();
         } catch (LinkageError error) {
             markBroken(capability, error);
+            if (mutation) throw error;
             return fallback.get();
         }
     }

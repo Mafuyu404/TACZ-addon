@@ -1,5 +1,6 @@
 package com.mafuyu404.taczaddon.mixin;
 
+import com.mafuyu404.taczaddon.init.CommonConfig;
 import com.tacz.guns.api.entity.ShootResult;
 import com.tacz.guns.api.entity.IGunOperator;
 import com.tacz.guns.api.entity.ReloadState;
@@ -29,12 +30,12 @@ public class LivingEntityShootMixin {
 
     @Unique private boolean taczaddon$interruptReloadForCurrentShot;
 
-    // Verified TaCZ 8547439: both public overloads delegate to this private implementation.
+    // Verified TaCZ 9027337: both public overloads delegate to this private implementation.
     @Inject(method = "shoot(Ljava/util/function/Supplier;Ljava/util/function/Supplier;JFZ)Lcom/tacz/guns/api/entity/ShootResult;",
             at = @At("HEAD"), require = 1)
     private void taczaddon$beforeShot(Supplier<Float> pitch, Supplier<Float> yaw, long time,
             float charge, boolean charged, CallbackInfoReturnable<ShootResult> cir) {
-        this.taczaddon$interruptReloadForCurrentShot = Config.enableShootWhileReloading()
+        this.taczaddon$interruptReloadForCurrentShot = CommonConfig.enableShootWhileReloading()
                 && this.data != null && this.data.reloadStateType != null
                 && this.data.reloadStateType.isReloading()
                 && this.data.currentGunItem != null

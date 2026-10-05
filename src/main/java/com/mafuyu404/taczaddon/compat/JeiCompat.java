@@ -17,11 +17,11 @@ public final class JeiCompat {
     }
 
     public static boolean isInstalled() {
-        return ModList.get().isLoaded(MOD_ID);
+        return ModList.get() != null && ModList.get().isLoaded(MOD_ID);
     }
 
     public static boolean showRecipes(ItemStack itemStack) {
-        if (!isInstalled()) return false;
+        if (!isInstalled() || itemStack == null || itemStack.isEmpty()) return false;
         return JeiPlugin.showRecipes(itemStack);
     }
 }

@@ -66,11 +66,13 @@ public final class NearbyInventorySourceResolver {
             IItemHandler handler
     ) {
         public boolean isValid() {
+            if (handler instanceof PhysicalSourceFilter filter) return filter.isValid();
             return handler instanceof BlockHandler block
                     && block.isValid();
         }
 
         public Object backendIdentity() {
+            if (handler instanceof PhysicalSourceFilter filter) return filter.backendIdentity();
             if (!(handler instanceof BlockHandler block)) {
                 return handler;
             }
@@ -79,6 +81,7 @@ public final class NearbyInventorySourceResolver {
         }
 
         public void markChanged() {
+            if (handler instanceof PhysicalSourceFilter filter) { filter.markChanged(); return; }
             if (handler instanceof BlockHandler block) {
                 block.markChanged();
             }
@@ -311,7 +314,7 @@ public final class NearbyInventorySourceResolver {
             }
         }
 
-        return List.copyOf(result);
+        return PhysicalSourceFilter.filter(player, result);
     }
 
     private static List<BlockPos> orderedPositions(

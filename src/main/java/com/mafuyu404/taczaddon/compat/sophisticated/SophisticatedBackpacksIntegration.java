@@ -35,6 +35,8 @@ public interface SophisticatedBackpacksIntegration {
      */
     boolean probeCarriedBackpack();
 
+    default List<com.mafuyu404.taczaddon.common.RefitSource> resolveRefitSources(ServerPlayer player) { return List.of(); }
+
     /**
      * Verifies that the block-backpack class surface is loadable.
      *

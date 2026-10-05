@@ -41,6 +41,10 @@ public final class SophisticatedBackpacksCompat {
         return modList != null && modList.isLoaded(MOD_ID);
     }
 
+    public static java.util.List<com.mafuyu404.taczaddon.common.RefitSource> resolveRefitSources(ServerPlayer player) {
+        return runtime().call(SophisticatedCapability.CARRIED_BACKPACK, java.util.List::of, integration -> integration.resolveRefitSources(player));
+    }
+
     public static void init() {
         // Runs the one-time environment checks and loads the integration
         // implementation when the dependency group is present. Capability
@@ -115,7 +119,7 @@ public final class SophisticatedBackpacksCompat {
             return false;
         }
 
-        return runtime().call(
+        return runtime().mutate(
                 SophisticatedCapability.CARRIED_BACKPACK,
                 () -> false,
                 integration ->

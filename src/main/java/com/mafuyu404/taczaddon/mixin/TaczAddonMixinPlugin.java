@@ -161,7 +161,14 @@ public final class TaczAddonMixinPlugin
     ) {
         if (mixinClassName.equals(PACKAGE + "LeawindAimModeResolverMixin")) {
             // Soft target: inspect bytes only, never resolve an optional mod's classes.
-            return readClassBytes(targetClassName.replace('.', '/')) != null;
+            byte[] bytes = readClassBytes(targetClassName.replace('.', '/'));
+            if (bytes == null) return false;
+            ClassNode node = new ClassNode();
+            new ClassReader(bytes).accept(node, ClassReader.SKIP_CODE);
+            boolean supported = node.methods.stream().anyMatch(method -> method.name.equals("shouldAim")
+                    && method.desc.equals("(ZZZ)Z") && (method.access & Opcodes.ACC_STATIC) != 0);
+            if (!supported) LOGGER.warn("[taczaddon] Leawind aim integration disabled: shouldAim(ZZZ)Z contract changed");
+            return supported;
         }
         if (mixinClassName.equals(BACKPACK_PAYLOAD_MIXIN)) {
             boolean valid =

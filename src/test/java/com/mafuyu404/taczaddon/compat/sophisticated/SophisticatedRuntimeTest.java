@@ -24,6 +24,22 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * Sophisticated classes.
  */
 class SophisticatedRuntimeTest {
+    @Test
+    void failedMutationLatchesBackendWithoutReportingAnEmptySource() {
+        var runtime = readyRuntime(new StubIntegration());
+        var changes = new AtomicInteger();
+        var fallbacks = new AtomicInteger();
+        org.junit.jupiter.api.Assertions.assertThrows(NoSuchMethodError.class, () -> runtime.mutate(
+                SophisticatedCapability.CARRIED_BACKPACK,
+                () -> { fallbacks.incrementAndGet(); return false; },
+                backend -> { changes.incrementAndGet(); throw new NoSuchMethodError("after extraction"); }));
+        assertEquals(1, changes.get());
+        assertEquals(0, fallbacks.get());
+        assertEquals(SophisticatedCapabilityState.BROKEN, runtime.stateOf(SophisticatedCapability.CARRIED_BACKPACK));
+        assertEquals(false, runtime.mutate(SophisticatedCapability.CARRIED_BACKPACK, () -> false,
+                backend -> { changes.incrementAndGet(); return true; }));
+        assertEquals(1, changes.get());
+    }
 
     @AfterEach
     void resetPayloadContractState() {
@@ -409,7 +425,7 @@ class SophisticatedRuntimeTest {
         SophisticatedRuntime runtime = readyRuntime(new StubIntegration() {
             @Override public boolean probeClientSync() {
                 probes.incrementAndGet();
-                throw new NoSuchMethodError("RequestLinkedStorageBackpackContentsPayload(UUID,long)");
+                throw new NoSuchMethodError("RequestLinkedStorageContentsPayload(UUID,long)");
             }
         });
         for (int i = 0; i < 3; i++) {
@@ -430,7 +446,7 @@ class SophisticatedRuntimeTest {
         for (int i = 0; i < 3; i++) {
             assertEquals("fallback", runtime.call(SophisticatedCapability.CLIENT_SYNC, () -> "fallback", integration -> {
                 calls.incrementAndGet();
-                throw new NoClassDefFoundError("RequestLinkedStorageBackpackContentsPayload");
+                throw new NoClassDefFoundError("RequestLinkedStorageContentsPayload");
             }));
         }
         assertEquals(1, calls.get());

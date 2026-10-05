@@ -29,7 +29,7 @@ public final class RefitExternalSourceState {
         var mc = Minecraft.getInstance();
         var player = mc.player;
         if (player == null || !(mc.screen instanceof GunRefitScreen)
-                || LiberateAttachment.isLiberated(player) || !ClientSyncedConfig.enableNearbyContainerSources()) {
+                || LiberateAttachment.isLiberated(player)) {
             clear(); return;
         }
         IGun gun = IGun.getIGunOrNull(player.getMainHandItem());

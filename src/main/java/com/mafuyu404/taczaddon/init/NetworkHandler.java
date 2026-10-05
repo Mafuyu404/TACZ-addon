@@ -10,7 +10,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public class NetworkHandler {
-    private static final String PROTOCOL = "2.0";
+    private static final String PROTOCOL = "3.0";
 
     public static void register(IEventBus modBus) {
         modBus.addListener(NetworkHandler::registerPayloads);

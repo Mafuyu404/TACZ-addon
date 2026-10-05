@@ -22,7 +22,6 @@ import net.p3pp3rf1y.sophisticatedbackpacks.backpack.wrapper.IBackpackWrapper;
 import net.p3pp3rf1y.sophisticatedbackpacks.common.gui.BackpackContext;
 import net.p3pp3rf1y.sophisticatedbackpacks.network.BackpackContentsPayload;
 import net.p3pp3rf1y.sophisticatedbackpacks.network.RequestBackpackInventoryContentsPayload;
-import net.p3pp3rf1y.sophisticatedbackpacks.network.RequestLinkedStorageBackpackContentsPayload;
 import net.p3pp3rf1y.sophisticatedcore.linkedstorage.LinkedStorageStackLifecycle;
 import net.p3pp3rf1y.sophisticatedcore.linkedstorage.LinkedStorageEndpointStackState;
 import net.p3pp3rf1y.sophisticatedcore.linkedstorage.LinkedStorageEndpointData;
@@ -52,10 +51,8 @@ import java.util.function.Predicate;
  * which keeps optional classes out of the ordinary TACZAddon class-loading
  * path.
  *
- * <p>Volatile {@code PlayerInventoryProvider} calls go through the cached
- * {@link PlayerInventoryProviderBridge}; stable typed APIs are used directly
- * and remain protected by the per-capability {@link SophisticatedRuntime}
- * linkage guard.
+ * <p>Resolves the provider ABI through {@link PlayerInventoryProviderBridge};
+ * remaining APIs are protected by the per-capability runtime guard.
  *
  * <p>Carried backpacks are always resolved through
  * {@code BackpackContext.Item} built from the provider location
@@ -75,7 +72,6 @@ public final class SophisticatedBackpacksIntegrationImpl
 
     private static final int MAX_AMMO_COUNT = 9999;
 
-    private PlayerInventoryProviderBridge playerBridge;
 
     @Override
     public boolean probeCarriedBackpack() {
@@ -151,10 +147,6 @@ public final class SophisticatedBackpacksIntegrationImpl
                 "net.p3pp3rf1y.sophisticatedcore.init."
                         + "ModCoreDataComponents"
         );
-        checkClass(
-                "net.p3pp3rf1y.sophisticatedbackpacks.network."
-                        + "LinkedStorageBackpackContentsPayload"
-        );
         Objects.requireNonNull(ModCoreDataComponents.STORAGE_UUID.get());
         Objects.requireNonNull(ModCoreDataComponents.LINKED_STORAGE_ENDPOINT.get());
 
@@ -162,7 +154,7 @@ public final class SophisticatedBackpacksIntegrationImpl
         // packets or resolving a wrapper before its native snapshot exists.
         UUID probeId = new UUID(0L, 0L);
         Objects.requireNonNull(new RequestBackpackInventoryContentsPayload(probeId).type());
-        Objects.requireNonNull(new RequestLinkedStorageBackpackContentsPayload(probeId, -1L).type());
+        Objects.requireNonNull(LinkedStorageRequestBridge.create(probeId, -1L).type());
         Objects.requireNonNull(LinkedStorageStackLifecycle.classifyEndpoint(ItemStack.EMPTY));
         Objects.requireNonNull(LinkedStorageEndpointStackState.ENDPOINT);
         Objects.requireNonNull(new LinkedStorageEndpointData(probeId, probeId).groupId());
@@ -264,6 +256,37 @@ public final class SophisticatedBackpacksIntegrationImpl
         return result >= MAX_AMMO_COUNT
                 ? MAX_AMMO_COUNT
                 : (int) result;
+    }
+
+    @Override
+    public List<com.mafuyu404.taczaddon.common.RefitSource> resolveRefitSources(ServerPlayer player) {
+        var result = new ArrayList<com.mafuyu404.taczaddon.common.RefitSource>();
+        Set<UUID> seen = new HashSet<>();
+        bridge().forEachBackpack(player, (backpack, name, identifier, slot) -> {
+            BackpackContext.Item context = new BackpackContext.Item(name, identifier, slot);
+            if (!context.canInteractWith(player)) return false;
+            IBackpackWrapper wrapper = context.getBackpackWrapper(player);
+            if (wrapper == IBackpackWrapper.Noop.INSTANCE) return false;
+            UUID id = wrapper.getContentsUuid().orElse(null);
+            UUID linked = getLinkedStorageGroupId(backpack);
+            if (id == null || !seen.add(linked == null ? id : linked)) return false;
+            var handler = wrapper.getInventoryHandler();
+            var locator = new com.mafuyu404.taczaddon.common.RefitSourceLocator(
+                    player.level().dimension().location(), BlockPos.ZERO,
+                    com.mafuyu404.taczaddon.init.NearbyInventorySourceResolver.SourceKind.SOPHISTICATED_BACKPACK,
+                    -1, name, String.valueOf(identifier), slot, id);
+            result.add(new com.mafuyu404.taczaddon.common.RefitSource(locator, handler,
+                    () -> context.canInteractWith(player)
+                            && context.getBackpackWrapper(player) == wrapper,
+                    () -> {
+                        handler.saveInventory();
+                        player.getInventory().setChanged();
+                        player.containerMenu.broadcastChanges();
+                        syncBackpackContents(player, wrapper);
+                    }));
+            return false;
+        });
+        return List.copyOf(result);
     }
 
     @Override
@@ -384,9 +407,9 @@ public final class SophisticatedBackpacksIntegrationImpl
         List<ItemStack> before =
                 snapshotHandler(handler);
 
-        boolean stop =
-                visitor.test(handler);
-
+        try {
+            return visitor.test(handler);
+        } finally {
         boolean changed =
                 writeBackChangedStacks(
                         before,
@@ -407,7 +430,8 @@ public final class SophisticatedBackpacksIntegrationImpl
             );
         }
 
-        return stop;
+        }
+
     }
 
     /**
@@ -617,7 +641,7 @@ public final class SophisticatedBackpacksIntegrationImpl
                 if (id != null && requestedLinkedGroupIds.add(id)) {
                     // Upstream sends a snapshot unless knownRevision equals the
                     // group's revision. -1 forces bootstrap after native logout clear.
-                    sender.accept(new RequestLinkedStorageBackpackContentsPayload(id, -1L));
+                    sender.accept(LinkedStorageRequestBridge.create(id, -1L));
                     com.mojang.logging.LogUtils.getLogger().debug(
                             "[taczaddon] Requested linked backpack contents group={} knownRevision=-1", id);
                 }
@@ -957,10 +981,10 @@ public final class SophisticatedBackpacksIntegrationImpl
         return changed;
     }
 
+    private PlayerInventoryProviderBridge playerBridge;
+
     private PlayerInventoryProviderBridge bridge() {
-        if (playerBridge == null) {
-            playerBridge = PlayerInventoryProviderBridge.createDefault();
-        }
+        if (playerBridge == null) playerBridge = PlayerInventoryProviderBridge.createDefault();
         return playerBridge;
     }
 

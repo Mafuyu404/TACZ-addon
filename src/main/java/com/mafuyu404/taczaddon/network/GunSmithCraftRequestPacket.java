@@ -42,7 +42,7 @@ public record GunSmithCraftRequestPacket(int containerId, long requestId, Resour
                 if (recipe == null) {
                     failure = CraftFailure.INVALID_RECIPE;
                 } else {
-                    int requestedCount = Math.max(1, Math.min(packet.requestedCount, Config.getBatchCraftMax()));
+                    int requestedCount = Math.max(1, Math.min(packet.requestedCount, CommonConfig.getBatchCraftMax()));
                     for (int i = 0; i < requestedCount; i++) {
                         if (!session.validate(player, packet.containerId)) {
                             failure = CraftFailure.INVALID_SESSION;

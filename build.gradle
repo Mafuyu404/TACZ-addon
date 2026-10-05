@@ -37,12 +37,39 @@ repositories {
         }
     }
 
+    maven { url = "https://api.modrinth.com/maven"; content { includeGroup "maven.modrinth" } }
+    maven { url = "https://maven.createmod.net"; content { includeGroup "net.createmod.ponder" } }
     mavenCentral()
 }
 
 def cameraMods = providers.gradleProperty('cameraMods').getOrElse('none')
 if (!(cameraMods in ['none', 'shoulder', 'leawind', 'both'])) {
     throw new GradleException('cameraMods must be none, shoulder, leawind, or both')
+}
+
+// Compile against all selected integrations; exclude only runtime artifacts for the smoke matrix.
+def ecosystemMods = providers.gradleProperty('ecosystemMods').getOrElse('both')
+if (!(ecosystemMods in ['none', 'create', 'beyond', 'both'])) {
+    throw new GradleException('ecosystemMods must be none, create, beyond, or both')
+}
+def optionalMods = providers.gradleProperty('optionalMods').getOrElse('all')
+if (!(optionalMods in ['all', 'none'])) throw new GradleException('optionalMods must be all or none')
+def smoke = providers.gradleProperty('smoke').getOrElse('false').toBoolean()
+configurations.matching { it.name in ['runtimeClasspath', 'testRuntimeClasspath'] }.configureEach {
+    if (optionalMods == 'none' || !(ecosystemMods in ['create', 'both'])) {
+        exclude group: 'curse.maven', module: 'create-storage-neo-forge-1281770'
+        exclude group: 'maven.modrinth', module: 'LNytGWDc'
+    }
+    if (optionalMods == 'none' || !(ecosystemMods in ['beyond', 'both'])) {
+        exclude group: 'curse.maven', module: 'beyond-integration-1557405'
+        exclude group: 'maven.modrinth', module: '6zGxpbt7'
+    }
+    if (optionalMods == 'none') {
+        ['sophisticated-backpacks-422301', 'sophisticated-core-618298', 'curios-309927', 'jei-238222',
+         'shoulder-surfing-reloaded-243190', 'leawind-third-person-930880', 'perspective-api-1575322'].each {
+            exclude group: 'curse.maven', module: it
+        }
+    }
 }
 
 neoForge {
@@ -63,6 +90,10 @@ neoForge {
         server {
             server()
             programArgument '--nogui'
+            if (smoke) {
+                gameDirectory = file("run/parity-smoke/${optionalMods}-${ecosystemMods}")
+                programArgument '--initSettings'
+            }
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
@@ -104,13 +135,18 @@ configurations {
 }
 
 dependencies {
-    implementation "curse.maven:tacz-1-21-1-1353462:8547439"
+    compileOnly "net.createmod.ponder:Ponder-NeoForge-1.21.1:1.0.64" // Runtime copy is bundled by Create
+    implementation "maven.modrinth:LNytGWDc:88L641Un" // Create 6.0.8, required by Create Storage
+    implementation "curse.maven:create-storage-neo-forge-1281770:8928251"
+    implementation "curse.maven:beyond-integration-1557405:8868605"
+    implementation "maven.modrinth:6zGxpbt7:FP6mjH0z" // Beyond Dimensions 0.7.30
+    implementation "curse.maven:tacz-1-21-1-1353462:9027337"
 
     compileOnly "curse.maven:shoulder-surfing-reloaded-243190:8725628"
 
 
-    implementation "curse.maven:sophisticated-backpacks-422301:8817433"
-    implementation "curse.maven:sophisticated-core-618298:8815718"
+    implementation "curse.maven:sophisticated-backpacks-422301:9036628"
+    implementation "curse.maven:sophisticated-core-618298:9039572"
 
     implementation "curse.maven:jei-238222:8829744"
     implementation "curse.maven:curios-309927:6529130"

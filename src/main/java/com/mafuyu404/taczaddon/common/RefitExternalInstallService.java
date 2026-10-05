@@ -17,15 +17,13 @@ public final class RefitExternalInstallService {
             if (!RefitSourceResolver.canUseSources(player) || locator == null || expectedId == null
                     || expectedType == null || expectedType == AttachmentType.NONE
                     || gunSlot < 0 || gunSlot >= 9 || gunSlot != player.getInventory().selected
-                    || !player.level().dimension().location().equals(locator.dimension())
-                    || !NearbyInventorySourceResolver.inRange(player.blockPosition(), locator.pos(), Config.getContainerScanRadius(), 1)
-                    || !player.level().isLoaded(locator.pos())) return AttachmentRefitService.InstallResult.REJECTED;
+                    || !player.level().dimension().location().equals(locator.dimension())) return AttachmentRefitService.InstallResult.REJECTED;
             ItemStack gunStack = player.getInventory().getItem(gunSlot);
             IGun gun = IGun.getIGunOrNull(gunStack);
             if (gun == null || gun.hasAttachmentLock(gunStack)) return AttachmentRefitService.InstallResult.REJECTED;
             // A locator is only a hint: resolve the complete legal set again on the server.
-            for (var source : NearbyInventorySourceResolver.resolve(player, player.blockPosition(), Config.getContainerScanRadius(), 1)) {
-                if (!source.pos().equals(locator.pos()) || source.kind() != locator.kind()) continue;
+            for (var source : RefitSourceResolver.resolveExternalSources(player)) {
+                if (!source.locator().sameSource(locator)) continue;
                 var handler = source.handler();
                 if (!source.isValid() || locator.slot() < 0 || locator.slot() >= handler.getSlots()) break;
                 ItemStack current = handler.getStackInSlot(locator.slot());

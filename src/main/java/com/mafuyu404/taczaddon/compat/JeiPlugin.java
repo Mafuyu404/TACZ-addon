@@ -27,6 +27,11 @@ public class JeiPlugin implements IModPlugin {
         JeiPlugin.jeiRuntime = jeiRuntime;
     }
 
+    @Override
+    public void onRuntimeUnavailable() {
+        jeiRuntime = null;
+    }
+
     public static Optional<IJeiRuntime> getJeiRuntime() {
         return Optional.ofNullable(jeiRuntime);
     }

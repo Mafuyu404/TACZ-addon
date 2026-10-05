@@ -14,9 +14,19 @@ public final class RefitSourceResolver {
     public record ExternalCandidate(RefitSourceLocator locator, ResourceLocation attachmentId, AttachmentType type, ItemStack displayStack) {}
     public static boolean canUseSources(ServerPlayer player) {
         return player != null && player.isAlive() && !player.isSpectator()
-                && player.containerMenu == player.inventoryMenu && Config.enableNearbyContainerSources()
+                && player.containerMenu == player.inventoryMenu
                 && !LiberateAttachment.isLiberated(player)
                 && IGun.getIGunOrNull(player.getMainHandItem()) != null;
+    }
+    public static List<RefitSource> resolveExternalSources(ServerPlayer player) {
+        List<RefitSource> sources = new ArrayList<>(com.mafuyu404.taczaddon.compat.SophisticatedBackpacksCompat.resolveRefitSources(player));
+        if (CommonConfig.enableNearbyContainerSources()) {
+            for (var source : NearbyInventorySourceResolver.resolve(player, player.blockPosition(), CommonConfig.getContainerScanRadius(), 1)) {
+                sources.add(new RefitSource(new RefitSourceLocator(player.level().dimension().location(), source.pos(), source.kind(), -1),
+                        source.handler(), source::isValid, source::markChanged));
+            }
+        }
+        return List.copyOf(sources);
     }
     public static List<ExternalCandidate> resolveExternalCandidates(ServerPlayer player) {
         if (!canUseSources(player)) return List.of();
@@ -24,8 +34,9 @@ public final class RefitSourceResolver {
         IGun gun = IGun.getIGunOrNull(gunStack);
         if (gun.hasAttachmentLock(gunStack)) return List.of();
         List<ExternalCandidate> result = new ArrayList<>();
-        for (var source : NearbyInventorySourceResolver.resolve(player, player.blockPosition(), Config.getContainerScanRadius(), 1)) {
+        for (var source : resolveExternalSources(player)) {
             try {
+                if (!source.isValid()) continue;
                 var handler = source.handler();
                 for (int slot = 0; slot < handler.getSlots(); slot++) {
                     ItemStack stack = handler.getStackInSlot(slot);
@@ -34,14 +45,24 @@ public final class RefitSourceResolver {
                     ResourceLocation id = attachment.getAttachmentId(stack);
                     AttachmentType type = attachment.getType(stack);
                     if (id == null || type == null || type == AttachmentType.NONE || !gun.allowAttachment(gunStack, stack)) continue;
-                    result.add(new ExternalCandidate(new RefitSourceLocator(player.level().dimension().location(), source.pos(), source.kind(), slot),
+                    if (extractableStack(handler, slot).isEmpty()) continue;
+                    result.add(new ExternalCandidate(source.locator().withSlot(slot),
                             id, type, stack.copy()));
                     if (result.size() >= MAX_EXTERNAL_CANDIDATES) return List.copyOf(result);
                 }
             } catch (RuntimeException exception) {
-                com.mojang.logging.LogUtils.getLogger().warn("Unreadable refit source {}", source.pos(), exception);
+                com.mojang.logging.LogUtils.getLogger().warn("Unreadable refit source {}", source.locator(), exception);
             }
         }
         return List.copyOf(result);
+    }
+
+    /** Visible templates and output-blocked slots are not installable attachments. */
+    static ItemStack extractableStack(net.neoforged.neoforge.items.IItemHandler handler, int slot) {
+        ItemStack visible = handler.getStackInSlot(slot);
+        if (visible.isEmpty()) return ItemStack.EMPTY;
+        ItemStack extracted = handler.extractItem(slot, 1, true);
+        return extracted.getCount() == 1 && ItemStack.isSameItemSameComponents(visible, extracted)
+                ? visible : ItemStack.EMPTY;
     }
 }

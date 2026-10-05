@@ -33,7 +33,6 @@ public class SwitchGunPacket implements CustomPacketPayload {
     public static void handle(SwitchGunPacket msg, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (!(context.player() instanceof ServerPlayer player)) return;
-            if (!Config.FAST_SWAP_GUN.get()) return;
             if (ServerboundPacketGuard.isRateLimited(player, TYPE.id(), COOLDOWN_TICKS)) return;
 
             Inventory inventory = player.getInventory();
