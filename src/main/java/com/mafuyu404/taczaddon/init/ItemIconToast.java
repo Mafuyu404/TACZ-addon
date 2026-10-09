@@ -1,10 +1,15 @@
 package com.mafuyu404.taczaddon.init;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.toasts.Toast;
 import net.minecraft.client.gui.components.toasts.ToastComponent;
+import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FormattedText;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
@@ -12,41 +17,47 @@ import org.jetbrains.annotations.NotNull;
 
 @OnlyIn(Dist.CLIENT)
 public class ItemIconToast implements Toast {
+    private static final ResourceLocation BACKGROUND =
+            ResourceLocation.withDefaultNamespace("toast/advancement");
     private final Component title;
     private final Component description;
-    private final ItemStack icon;  // 瑕佹樉绀虹殑鐗╁搧鍥炬爣
-    private long visibleTime;
+    private final ItemStack icon;
 
-    // 鏋勯€犲嚱鏁?
     public ItemIconToast(Component title, Component description, ItemStack icon) {
         this.title = title;
         this.description = description;
-        this.icon = icon;
+        this.icon = icon.copy();
     }
 
     @Override
     public @NotNull Toast.Visibility render(@NotNull GuiGraphics gui, @NotNull ToastComponent toastComponent, long timer) {
-        gui.fill(0, 0, this.width(), this.height(), 0xF0101010);
-
+        gui.blitSprite(BACKGROUND, 0, 0, this.width(), this.height());
         gui.renderFakeItem(icon, 8, 8);
 
-        gui.drawString(toastComponent.getMinecraft().font, title.getString(), 30, 7, 0xFFD700);
-        gui.drawString(toastComponent.getMinecraft().font, description.getString(), 30, 18, 0xFFFFFF);
+        Font font = toastComponent.getMinecraft().font;
+        int textWidth = this.width() - 35;
+        gui.drawString(font, fitText(font, title, textWidth), 30, 7, 0xFFD700);
+        gui.drawString(font, fitText(font, description, textWidth), 30, 18, 0xFFFFFF);
 
-        return timer >= 2000L ? Visibility.HIDE : Visibility.SHOW;
+        return timer >= 2000.0 * toastComponent.getNotificationDisplayTimeMultiplier()
+                ? Visibility.HIDE : Visibility.SHOW;
     }
 
-    // 蹇€熸樉绀烘柟娉?
+    private static FormattedCharSequence fitText(Font font, Component text, int width) {
+        if (font.width(text) <= width) {
+            return text.getVisualOrderText();
+        }
+        Component ellipsis = Component.literal("…");
+        FormattedText shortened = font.substrByWidth(text, width - font.width(ellipsis));
+        return Language.getInstance().getVisualOrder(FormattedText.composite(shortened, ellipsis));
+    }
+
     public static void show(Component title, Component description, ItemStack icon) {
         Minecraft.getInstance().getToasts().addToast(new ItemIconToast(title, description, icon));
     }
 
-    // 绀轰緥鐢ㄦ硶锛氭樉绀轰竴涓捇鐭冲浘鏍囩殑 Toast
+    // Convenience overload for translation keys; dynamic text should use show().
     public static void create(String title, String desc, ItemStack itemStack) {
-        show(
-                Component.translatable(title),
-                Component.translatable(desc),
-                itemStack // 鏇挎崲涓轰换鎰忕墿鍝?
-        );
+        show(Component.translatable(title), Component.translatable(desc), itemStack);
     }
 }

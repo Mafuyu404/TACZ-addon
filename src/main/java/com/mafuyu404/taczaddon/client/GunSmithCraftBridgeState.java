@@ -4,6 +4,7 @@ import com.mafuyu404.taczaddon.init.*;
 import com.mafuyu404.taczaddon.network.*;
 import com.tacz.guns.client.gui.GunSmithTableScreen;
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import java.util.*;
 
@@ -28,7 +29,11 @@ public final class GunSmithCraftBridgeState {
         var output = result.outputPerCraft();
         long total = (long) output.getCount() * result.craftedExecutions();
         if (Config.enableGunSmithTableCraftToast()) {
-            ItemIconToast.create("Crafted", output.getHoverName().getString() + " x " + total, output.copy());
+            ItemIconToast.show(
+                    Component.translatable("gui.taczaddon.gun_smith_table.crafted"),
+                    Component.translatable("gui.taczaddon.gun_smith_table.crafted_item",
+                            output.getHoverName(), total),
+                    output);
         }
     }
     public static void reset() { pending.clear(); nextRequestId = 0; }
